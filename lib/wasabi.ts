@@ -54,3 +54,19 @@ export async function getPresignedUrl(objectKey: string, expiresIn = 3600): Prom
     { expiresIn }
   );
 }
+
+export async function getPresignedUploadUrl(objectKey: string, contentType: string, expiresIn = 300): Promise<string> {
+  const { client, bucket } = getClient();
+  return getSignedUrl(
+    client,
+    new PutObjectCommand({ Bucket: bucket, Key: objectKey, ContentType: contentType }),
+    { expiresIn }
+  );
+}
+
+export function getPublicUrl(objectKey: string): string {
+  const endpoint = process.env.WASABI_ENDPOINT!.replace(/\/$/, '');
+  const bucket   = process.env.WASABI_BUCKET!;
+  const host     = endpoint.replace(/https?:\/\//, '');
+  return `https://${host}/${bucket}/${objectKey}`;
+}

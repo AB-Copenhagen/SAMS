@@ -14,6 +14,7 @@ type QueueItem = {
   preview: string | null;
   status: ItemStatus;
   errorMsg?: string;
+  statusMsg?: string;
 };
 
 function formatBytes(bytes: number): string {
@@ -74,7 +75,7 @@ function Thumb({ item }: { item: QueueItem }) {
 }
 
 function StatusLabel({ item }: { item: QueueItem }) {
-  if (item.status === 'uploading') return <><span className="spinner" /> Uploading</>;
+  if (item.status === 'uploading') return <><span className="spinner" /> {item.statusMsg ?? 'Uploading…'}</>;
   if (item.status === 'done')      return <>&#10003; Done</>;
   if (item.status === 'error')     return <span title={item.errorMsg}>&#10007; {item.errorMsg ?? 'Error'}</span>;
   return <>Queued</>;
@@ -180,49 +181,76 @@ export default function BulkUploadZone() {
     setIsUploading(true);
 
     for (const item of pending) {
-      setQueue((q) => q.map((i) => i.id === item.id ? { ...i, status: 'uploading' } : i));
+      const setStatus = (patch: Partial<QueueItem>) =>
+        setQueue((q) => q.map((i) => i.id === item.id ? { ...i, ...patch } : i));
 
-      if (item.file.size > 4.5 * 1024 * 1024) {
-        setQueue((q) => q.map((i) => i.id === item.id
-          ? { ...i, status: 'error', errorMsg: `File is ${(item.file.size / 1024 / 1024).toFixed(1)} MB — Vercel's free plan limits uploads to 4.5 MB. Compress the file first.` }
-          : i));
+      // Step 1: Get a presigned PUT URL from our API
+      setStatus({ status: 'uploading', statusMsg: 'Getting upload URL…' });
+      let presignedUrl: string;
+      let objectKey: string;
+      try {
+        const res = await fetch('/api/upload/presign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName: item.file.name, fileType: item.file.type, fileSize: item.file.size }),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          setStatus({ status: 'error', errorMsg: body.message ?? `Presign failed (HTTP ${res.status})` });
+          continue;
+        }
+        ({ presignedUrl, objectKey } = await res.json());
+      } catch (err) {
+        setStatus({ status: 'error', errorMsg: `Network: ${err instanceof Error ? err.message : 'unknown'}` });
         continue;
       }
 
-      const fd = new FormData();
-      fd.append('file',         item.file);
-      fd.append('title',        item.file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '));
-      fd.append('eventName',    eventName);
-      fd.append('eventDate',    eventDate);
-      fd.append('location',     location);
-      fd.append('manualTags',   JSON.stringify(tags));
-      fd.append('collectionId', collectionId);
-      fd.append('seasonId',     seasonId);
-
+      // Step 2: PUT the file directly to Wasabi (no size limit)
+      setStatus({ statusMsg: 'Uploading to storage…' });
       try {
-        const res = await fetch('/api/upload', { method: 'POST', body: fd });
-        if (res.ok) {
-          setQueue((q) => q.map((i) => i.id === item.id ? { ...i, status: 'done' } : i));
-        } else {
-          let errorMsg = `HTTP ${res.status}`;
-          try {
-            const body = await res.json();
-            errorMsg = body.message ?? errorMsg;
-          } catch {
-            const text = await res.text().catch(() => '');
-            if (text) errorMsg += `: ${text.slice(0, 200)}`;
-          }
-          console.error('[upload client] failed:', res.status, errorMsg);
-          setQueue((q) => q.map((i) => i.id === item.id
-            ? { ...i, status: 'error', errorMsg }
-            : i));
+        const res = await fetch(presignedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': item.file.type },
+          body: item.file,
+        });
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          setStatus({ status: 'error', errorMsg: `Storage upload failed (HTTP ${res.status})${text ? ': ' + text.slice(0, 150) : ''}` });
+          continue;
         }
       } catch (err) {
-        const errorMsg = err instanceof Error ? `Network: ${err.message}` : 'Network error';
-        console.error('[upload client] network error:', err);
-        setQueue((q) => q.map((i) => i.id === item.id
-          ? { ...i, status: 'error', errorMsg }
-          : i));
+        setStatus({ status: 'error', errorMsg: `Storage network error: ${err instanceof Error ? err.message : 'unknown'}` });
+        continue;
+      }
+
+      // Step 3: Confirm — save the DB record via our API
+      setStatus({ statusMsg: 'Saving…' });
+      try {
+        const res = await fetch('/api/upload/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            objectKey,
+            fileName:     item.file.name,
+            fileType:     item.file.type,
+            fileSize:     item.file.size,
+            title:        item.file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '),
+            eventName,
+            eventDate,
+            location,
+            manualTags:   tags,
+            collectionId: collectionId || null,
+            seasonId:     seasonId     || null,
+          }),
+        });
+        if (res.ok) {
+          setStatus({ status: 'done', statusMsg: undefined });
+        } else {
+          const body = await res.json().catch(() => ({}));
+          setStatus({ status: 'error', errorMsg: body.message ?? `Save failed (HTTP ${res.status})` });
+        }
+      } catch (err) {
+        setStatus({ status: 'error', errorMsg: `Network: ${err instanceof Error ? err.message : 'unknown'}` });
       }
     }
 
