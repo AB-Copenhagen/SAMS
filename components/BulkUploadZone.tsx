@@ -75,8 +75,8 @@ function Thumb({ item }: { item: QueueItem }) {
 
 function StatusLabel({ item }: { item: QueueItem }) {
   if (item.status === 'uploading') return <><span className="spinner" /> Uploading</>;
-  if (item.status === 'done')      return <>✓ Done</>;
-  if (item.status === 'error')     return <>✗ {item.errorMsg ?? 'Error'}</>;
+  if (item.status === 'done')      return <>&#10003; Done</>;
+  if (item.status === 'error')     return <span title={item.errorMsg}>&#10007; {item.errorMsg ?? 'Error'}</span>;
   return <>Queued</>;
 }
 
@@ -182,6 +182,13 @@ export default function BulkUploadZone() {
     for (const item of pending) {
       setQueue((q) => q.map((i) => i.id === item.id ? { ...i, status: 'uploading' } : i));
 
+      if (item.file.size > 4.5 * 1024 * 1024) {
+        setQueue((q) => q.map((i) => i.id === item.id
+          ? { ...i, status: 'error', errorMsg: `File is ${(item.file.size / 1024 / 1024).toFixed(1)} MB — Vercel's free plan limits uploads to 4.5 MB. Compress the file first.` }
+          : i));
+        continue;
+      }
+
       const fd = new FormData();
       fd.append('file',         item.file);
       fd.append('title',        item.file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '));
@@ -197,14 +204,24 @@ export default function BulkUploadZone() {
         if (res.ok) {
           setQueue((q) => q.map((i) => i.id === item.id ? { ...i, status: 'done' } : i));
         } else {
-          const body = await res.json().catch(() => ({}));
+          let errorMsg = `HTTP ${res.status}`;
+          try {
+            const body = await res.json();
+            errorMsg = body.message ?? errorMsg;
+          } catch {
+            const text = await res.text().catch(() => '');
+            if (text) errorMsg += `: ${text.slice(0, 200)}`;
+          }
+          console.error('[upload client] failed:', res.status, errorMsg);
           setQueue((q) => q.map((i) => i.id === item.id
-            ? { ...i, status: 'error', errorMsg: body.message ?? 'Upload failed' }
+            ? { ...i, status: 'error', errorMsg }
             : i));
         }
-      } catch {
+      } catch (err) {
+        const errorMsg = err instanceof Error ? `Network: ${err.message}` : 'Network error';
+        console.error('[upload client] network error:', err);
         setQueue((q) => q.map((i) => i.id === item.id
-          ? { ...i, status: 'error', errorMsg: 'Network error' }
+          ? { ...i, status: 'error', errorMsg }
           : i));
       }
     }

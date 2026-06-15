@@ -9,6 +9,11 @@ function parseFormField(formData: FormData, name: string) {
   return typeof value === 'string' ? value : '';
 }
 
+// Vercel Hobby plan caps request bodies at 4.5 MB — warn callers before they hit a 413.
+const VERCEL_BODY_LIMIT_BYTES = 4.5 * 1024 * 1024;
+
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   console.log('[upload] request received');
 
@@ -18,12 +23,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  const formData = await request.formData();
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[upload] formData parse failed:', msg);
+    return NextResponse.json(
+      { message: 'Could not parse upload. If your file is larger than 4.5 MB, Vercel rejects it before it reaches the server. Try a smaller file or contact the administrator.', detail: msg },
+      { status: 413 }
+    );
+  }
+
   const file = formData.get('file') as File | null;
   console.log('[upload] file:', file ? `${file.name} ${file.type} ${file.size}B` : 'null');
 
   if (!file || !file.name) {
     return NextResponse.json({ message: 'File upload is required.' }, { status: 400 });
+  }
+
+  if (file.size > VERCEL_BODY_LIMIT_BYTES) {
+    console.warn('[upload] file too large:', file.size, 'bytes');
+    return NextResponse.json(
+      { message: `File is ${(file.size / 1024 / 1024).toFixed(1)} MB — Vercel's free plan limits uploads to 4.5 MB. Compress the file or ask the admin to enable direct-to-storage uploads.` },
+      { status: 413 }
+    );
   }
 
   if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
@@ -73,27 +97,34 @@ export async function POST(request: Request) {
     title, eventName, eventDate, location, manualTags, uploader: user.email,
   });
 
-  const asset = await prisma.asset.create({
-    data: {
-      title,
-      description: manualTags.join(', '),
-      eventName,
-      eventDate:   eventDate ? new Date(eventDate) : null,
-      location,
-      objectKey,
-      assetUrl,
-      fileType:    file.type,
-      fileSize:    buffer.byteLength,
-      uploaderEmail: user.email,
-      uploaderRole:  user.role,
-      manualTagsJson:    JSON.stringify(manualTags),
-      detectedTagsJson:  JSON.stringify(tagResult?.detectedTags ?? []),
-      wasbaiResponseJson: JSON.stringify(tagResult ?? {}),
-      collectionId,
-      seasonId,
-      exifJson,
-    },
-  });
+  let asset;
+  try {
+    asset = await prisma.asset.create({
+      data: {
+        title,
+        description: manualTags.join(', '),
+        eventName,
+        eventDate:   eventDate ? new Date(eventDate) : null,
+        location,
+        objectKey,
+        assetUrl,
+        fileType:    file.type,
+        fileSize:    buffer.byteLength,
+        uploaderEmail: user.email,
+        uploaderRole:  user.role,
+        manualTagsJson:    JSON.stringify(manualTags),
+        detectedTagsJson:  JSON.stringify(tagResult?.detectedTags ?? []),
+        wasbaiResponseJson: JSON.stringify(tagResult ?? {}),
+        collectionId,
+        seasonId,
+        exifJson,
+      },
+    });
+  } catch (err) {
+    console.error('[upload] DB write FAILED:', err);
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ message: 'Database write failed: ' + message }, { status: 500 });
+  }
 
   console.log('[upload] DB record created:', asset.id);
   return NextResponse.json({ success: true, asset });
