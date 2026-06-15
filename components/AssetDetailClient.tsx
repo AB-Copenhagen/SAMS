@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import TagInput from './TagInput';
+import TagInput, { type TagSuggestion } from './TagInput';
 import Combobox from './Combobox';
 import AirTagButton from './AirTagButton';
 
@@ -88,12 +88,14 @@ export default function AssetDetailClient({
   seasons,
   collections,
   stadiums,
+  tagSuggestions = [],
 }: {
   asset: AssetProps;
   signedUrl: string;
   seasons: Season[];
   collections: Collection[];
   stadiums: string[];
+  tagSuggestions?: TagSuggestion[];
 }) {
   const router = useRouter();
   const [detectedTags, setDetectedTags] = useState<string[]>(() => {
@@ -243,6 +245,7 @@ export default function AssetDetailClient({
             <TagInput
               tags={form.tags}
               onChange={(tags) => { setForm((f) => ({ ...f, tags })); setSaved(false); }}
+              suggestions={tagSuggestions}
             />
           </div>
           <div className="field">
