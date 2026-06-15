@@ -7,7 +7,14 @@ import Combobox from './Combobox';
 import AirTagButton from './AirTagButton';
 
 type Season     = { id: string; name: string };
-type Collection = { id: string; name: string; type: string };
+type Collection = { id: string; name: string; type: string; date: string | Date | null };
+
+function collectionLabel(c: Collection): string {
+  if (!c.date) return c.name;
+  const d = new Date(typeof c.date === 'string' ? c.date.includes('T') ? c.date : c.date + 'T12:00:00' : c.date);
+  const prefix = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  return `${prefix} · ${c.name}`;
+}
 
 type AssetProps = {
   id: string;
@@ -257,7 +264,7 @@ export default function AssetDetailClient({
             <select value={form.collectionId} onChange={(e) => set('collectionId', e.target.value)}>
               <option value="">No collection</option>
               {collections.map((c) => (
-                <option key={c.id} value={c.id}>{c.name} ({c.type})</option>
+                <option key={c.id} value={c.id}>{collectionLabel(c)}</option>
               ))}
             </select>
           </div>

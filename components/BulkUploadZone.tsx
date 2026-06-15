@@ -4,7 +4,14 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import TagInput from './TagInput';
 
 type Season     = { id: string; name: string };
-type Collection = { id: string; name: string; type: string };
+type Collection = { id: string; name: string; type: string; date: string | null };
+
+function collectionLabel(c: Collection): string {
+  if (!c.date) return c.name;
+  const d = new Date(c.date.includes('T') ? c.date : c.date + 'T12:00:00');
+  const prefix = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  return `${prefix} · ${c.name}`;
+}
 
 type ItemStatus = 'queued' | 'uploading' | 'done' | 'error';
 
@@ -305,7 +312,7 @@ export default function BulkUploadZone() {
             <select value={collectionId} onChange={(e) => setCollectionId(e.target.value)}>
               <option value="">No collection</option>
               {collections.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+                <option key={c.id} value={c.id}>{collectionLabel(c)}</option>
               ))}
             </select>
           </div>
