@@ -6,7 +6,7 @@ import AppShell from '../../components/AppShell';
 import MediaFilterBar from '../../components/MediaFilterBar';
 import PerPageSelector from '../../components/PerPageSelector';
 
-const PER_PAGE_OPTIONS = [24, 48, 96];
+const PER_PAGE_OPTIONS = [25, 50, 100];
 
 type SearchParams = { q?: string; type?: string; seasonId?: string; category?: string; page?: string; perPage?: string };
 
@@ -19,7 +19,7 @@ export default async function MediaPage({ searchParams }: { searchParams: Search
   const seasonId = searchParams.seasonId ?? '';
   const category = searchParams.category ?? '';
   const page     = Math.max(1, parseInt(searchParams.page ?? '1'));
-  const perPage  = PER_PAGE_OPTIONS.includes(parseInt(searchParams.perPage ?? '')) ? parseInt(searchParams.perPage!) : 24;
+  const perPage  = PER_PAGE_OPTIONS.includes(parseInt(searchParams.perPage ?? '')) ? parseInt(searchParams.perPage!) : 25;
 
   const AND: Record<string, unknown>[] = [];
   if (q)       AND.push({ OR: [{ title: { contains: q } }, { eventName: { contains: q } }, { location: { contains: q } }, { detectedTagsJson: { contains: q } }, { manualTagsJson: { contains: q } }] });
@@ -45,7 +45,7 @@ export default async function MediaPage({ searchParams }: { searchParams: Search
     if (type) params.set('type', type);
     if (seasonId) params.set('seasonId', seasonId);
     if (category) params.set('category', category);
-    if (perPage !== 24) params.set('perPage', String(perPage));
+    if (perPage !== 25) params.set('perPage', String(perPage));
     if (p > 1) params.set('page', String(p));
     const s = params.toString();
     return '/media' + (s ? '?' + s : '');
@@ -97,7 +97,7 @@ export default async function MediaPage({ searchParams }: { searchParams: Search
         </div>
       )}
 
-      {pages > 1 && (
+      {assets.length > 0 && (
         <div className="pagination">
           <a
             href={pageUrl(page - 1)}
@@ -106,9 +106,7 @@ export default async function MediaPage({ searchParams }: { searchParams: Search
           >
             ← Prev
           </a>
-          <span className="page-info">
-            Page {page} of {pages} · {total} total
-          </span>
+          <span className="page-info">Page {page} of {pages} · {total} total</span>
           <a
             href={pageUrl(page + 1)}
             className="btn-secondary"

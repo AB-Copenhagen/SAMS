@@ -18,17 +18,18 @@ export default function PerPageSelector({ options, current }: { options: number[
       value={current}
       onChange={onChange}
       style={{
-        fontSize: 13,
-        padding: '5px 10px',
-        borderRadius: 6,
+        fontSize: 12,
+        padding: '3px 6px',
+        borderRadius: 5,
         border: '1px solid #d8dcea',
         background: 'white',
-        color: '#3b4070',
+        color: '#6b7491',
         cursor: 'pointer',
+        height: 28,
       }}
     >
       {options.map((n) => (
-        <option key={n} value={n}>{n} per page</option>
+        <option key={n} value={n}>{n} / page</option>
       ))}
     </select>
   );
