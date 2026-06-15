@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TagInput from './TagInput';
 import Combobox from './Combobox';
+import AirTagButton from './AirTagButton';
 
 type Season     = { id: string; name: string };
 type Collection = { id: string; name: string; type: string };
@@ -24,6 +25,7 @@ type AssetProps = {
   objectKey: string;
   uploaderEmail: string;
   manualTagsJson: string;
+  detectedTagsJson: string | null;
   exifJson: string | null;
 };
 
@@ -94,6 +96,10 @@ export default function AssetDetailClient({
   stadiums: string[];
 }) {
   const router = useRouter();
+  const [detectedTags, setDetectedTags] = useState<string[]>(() => {
+    try { return JSON.parse(asset.detectedTagsJson ?? '[]') as string[]; } catch { return []; }
+  });
+  const [aiDescription, setAiDescription] = useState('');
   const [form, setForm] = useState({
     title:       asset.title,
     description: asset.description,
@@ -262,6 +268,34 @@ export default function AssetDetailClient({
 
         <div className="card">
           <ExifPanel exifJson={asset.exifJson} />
+        </div>
+
+        <div className="card">
+          <div className="card-header" style={{ marginBottom: 12 }}>AI Analysis</div>
+
+          {detectedTags.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              {aiDescription && (
+                <p style={{ fontSize: 13, color: '#3a3f58', marginBottom: 10, lineHeight: 1.5 }}>{aiDescription}</p>
+              )}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {detectedTags.map((tag) => (
+                  <span key={tag} style={{
+                    background: '#eef0fb', color: '#3d4894', fontSize: 11.5,
+                    padding: '3px 9px', borderRadius: 20, fontWeight: 500,
+                  }}>{tag}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <AirTagButton
+            assetId={asset.id}
+            onComplete={({ tags, description }) => {
+              setDetectedTags(tags);
+              setAiDescription(description);
+            }}
+          />
         </div>
       </div>
     </div>

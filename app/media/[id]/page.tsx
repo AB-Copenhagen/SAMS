@@ -46,10 +46,11 @@ export default async function AssetDetailPage({ params }: { params: { id: string
           fileType:        asset.fileType,
           fileSize:        asset.fileSize,
           uploadedAt:      asset.uploadedAt.toISOString(),
-          objectKey:       asset.objectKey,
-          uploaderEmail:   asset.uploaderEmail,
-          manualTagsJson:  asset.manualTagsJson ?? '[]',
-          exifJson:        asset.exifJson ?? null,
+          objectKey:        asset.objectKey,
+          uploaderEmail:    asset.uploaderEmail,
+          manualTagsJson:   asset.manualTagsJson  ?? '[]',
+          detectedTagsJson: asset.detectedTagsJson ?? null,
+          exifJson:         asset.exifJson         ?? null,
         }}
         signedUrl={signedUrl}
         seasons={seasons}
