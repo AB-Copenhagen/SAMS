@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Asset {
+  id                 String      @id @default(cuid())
+  title              String?
+  description        String?
+  eventName          String?
+  eventDate          DateTime?
+  location           String?
+  objectKey          String      @unique
+  assetUrl           String
+  fileType           String
+  fileSize           Int
+  uploaderEmail      String
+  uploaderRole       String
+  manualTagsJson     String?
+  detectedTagsJson   String?
+  wasbaiResponseJson String?
+  uploadedAt         DateTime    @default(now())
+  category           String?
+  exifJson           String?
+  collectionId       String?
+  collection         Collection? @relation(fields: [collectionId], references: [id])
+  seasonId           String?
+  season             Season?     @relation(fields: [seasonId], references: [id])
+}
+
+model Season {
+  id          String       @id @default(cuid())
+  name        String
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime     @default(now())
+  assets      Asset[]
+  collections Collection[]
+  players     Player[]
+}
+
+model Player {
+  id          String   @id @default(cuid())
+  name        String
+  number      Int?
+  position    String?
+  headshotUrl String?
+  active      Boolean  @default(true)
+  team        String?
+  seasonId    String?
+  season      Season?  @relation(fields: [seasonId], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+model Sponsor {
+  id        String   @id @default(cuid())
+  name      String
+  logoUrl   String?
+  tier      String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Stadium {
+  id          String       @id @default(cuid())
+  name        String
+  city        String?
+  createdAt   DateTime     @default(now())
+  collections Collection[]
+}
+
+model Collection {
+  id        String    @id @default(cuid())
+  name      String
+  type      String    @default("game")
+  date      DateTime?
+  opponent  String?
+  venue     String?
+  coverUrl  String?
+  createdAt DateTime  @default(now())
+  seasonId  String?
+  season    Season?   @relation(fields: [seasonId], references: [id])
+  stadiumId String?
+  stadium   Stadium?  @relation(fields: [stadiumId], references: [id])
+  assets    Asset[]
+}

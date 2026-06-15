@@ -1,0 +1,81 @@
+import { redirect, notFound } from 'next/navigation';
+import Link from 'next/link';
+import { getCurrentUser } from '../../../lib/auth';
+import { prisma } from '../../../lib/db';
+import AppShell from '../../../components/AppShell';
+
+export default async function CollectionPage({ params }: { params: { id: string } }) {
+  const user = await getCurrentUser();
+  if (!user) redirect('/login');
+
+  const collection = await prisma.collection.findUnique({
+    where: { id: params.id },
+    include: { season: true, stadium: true, assets: { orderBy: { uploadedAt: 'desc' } } },
+  });
+  if (!collection) notFound();
+
+  return (
+    <AppShell user={user}>
+      <div className="breadcrumb">
+        <Link href="/collections">Collections</Link>
+        <span className="breadcrumb-sep">›</span>
+        <span>{collection.name}</span>
+      </div>
+
+      <div className="page-header">
+        <div>
+          <h1>{collection.name}</h1>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 6, alignItems: 'center' }}>
+            <span className="coll-type-badge">{collection.type}</span>
+            {collection.date && (
+              <span style={{ color: '#6b7491', fontSize: 13 }}>
+                {new Date(collection.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </span>
+            )}
+            {collection.opponent && (
+              <span style={{ color: '#6b7491', fontSize: 13 }}>vs {collection.opponent}</span>
+            )}
+            {collection.season && (
+              <span style={{ color: '#6b7491', fontSize: 13 }}>{collection.season.name}</span>
+            )}
+            {collection.venue && (
+              <span style={{ color: '#6b7491', fontSize: 13 }}>📍 {collection.venue}</span>
+            )}
+          </div>
+        </div>
+        <div style={{ color: '#8890b4', fontSize: 13, paddingTop: 4 }}>{collection.assets.length} assets</div>
+      </div>
+
+      {collection.assets.length === 0 ? (
+        <div className="empty-state card">
+          <h3>No assets in this collection</h3>
+          <p>Upload assets and assign them to this collection.</p>
+          <Link href="/upload" style={{ textDecoration: 'none', display: 'inline-block', marginTop: 12 }}>
+            <button className="btn-primary" type="button">Upload assets</button>
+          </Link>
+        </div>
+      ) : (
+        <div className="gallery">
+          {collection.assets.map((a) => (
+            <a key={a.id} href={`/media/${a.id}`} className="asset-card">
+              <div className="asset-thumb">
+                {a.fileType.startsWith('image/') ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={`/api/assets/${a.id}/download`} alt={a.title ?? ''} loading="lazy" />
+                ) : '🎬'}
+                {a.fileType.startsWith('video/') && <span className="video-badge">Video</span>}
+              </div>
+              <div className="asset-card-body">
+                <div className="asset-card-title">{a.title || a.eventName || 'Untitled'}</div>
+                <div className="asset-card-meta">
+                  {a.fileType.startsWith('image/') ? 'Photo' : 'Video'}
+                  {a.fileSize ? ' · ' + (a.fileSize / 1024 / 1024).toFixed(1) + ' MB' : ''}
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+      )}
+    </AppShell>
+  );
+}

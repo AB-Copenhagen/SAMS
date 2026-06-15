@@ -1,0 +1,31 @@
+{
+  "name": "media-ab-dam",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "prisma": "prisma"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.361.0",
+    "@aws-sdk/s3-request-presigner": "^3.1068.0",
+    "@descope/core-js-sdk": "^2.62.2",
+    "@descope/react-sdk": "^2.29.0",
+    "@prisma/client": "^5.12.0",
+    "exifr": "^7.1.3",
+    "next": "14.2.5",
+    "oidc-client-ts": "^3.5.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "sqlite3": "^6.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.13.2",
+    "@types/react": "^18.3.5",
+    "prisma": "^5.12.0",
+    "typescript": "^5.7.4"
+  }
+}
