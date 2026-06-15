@@ -13,8 +13,8 @@ const RESULT_STYLE: Record<string, { bg: string; color: string }> = {
   L: { bg: '#fee2e2', color: '#b91c1c' },
 };
 
-// api-football free plan: seasons 2022–2024 only. Season 2025 (25/26) requires paid plan.
 const API_SEASONS = [
+  { value: '2025', label: '2025/26' },
   { value: '2024', label: '2024/25' },
   { value: '2023', label: '2023/24' },
   { value: '2022', label: '2022/23' },
@@ -24,7 +24,7 @@ export default function MatchImportClient({ seasons }: { seasons: Season[] }) {
   const [matches,    setMatches]    = useState<MatchRow[] | null>(null);
   const [selected,   setSelected]   = useState<Set<number>>(new Set());
   const [seasonId,   setSeasonId]   = useState(seasons[0]?.id ?? '');
-  const [apiSeason,  setApiSeason]  = useState('2024');
+  const [apiSeason,  setApiSeason]  = useState('2025');
   const [loading,    setLoading]    = useState(false);
   const [importing,  setImporting]  = useState(false);
   const [result,     setResult]     = useState<{ created: number; skipped: number } | null>(null);
@@ -108,12 +108,7 @@ export default function MatchImportClient({ seasons }: { seasons: Season[] }) {
 
   return (
     <div>
-      <div className="card-header" style={{ marginBottom: 4 }}>Import Matches from api-football</div>
-      <p style={{ fontSize: 13, color: '#6b7491', marginBottom: 16 }}>
-        Fetches AB Copenhagen fixtures (2. Division &amp; DBU Pokalen) via api-football.com.{' '}
-        <strong>Note:</strong> the free plan only covers seasons 2022–2024.
-        Season 2025 (25/26) requires a paid plan upgrade at api-football.com.
-      </p>
+      <div className="card-header" style={{ marginBottom: 16 }}>Import Matches from api-football</div>
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', marginBottom: 16, flexWrap: 'wrap' }}>
         <div className="field" style={{ margin: 0, minWidth: 160 }}>
