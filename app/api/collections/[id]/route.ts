@@ -13,6 +13,22 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   return NextResponse.json(collection);
 }
 
+export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  const body = await request.json() as { name?: string; date?: string | null; opponent?: string | null; venue?: string | null };
+  const collection = await prisma.collection.update({
+    where: { id: params.id },
+    data: {
+      ...(body.name      !== undefined && { name: body.name }),
+      ...(body.date      !== undefined && { date: body.date ? new Date(body.date) : null }),
+      ...(body.opponent  !== undefined && { opponent: body.opponent || null }),
+      ...(body.venue     !== undefined && { venue: body.venue || null }),
+    },
+  });
+  return NextResponse.json(collection);
+}
+
 export async function DELETE(_: Request, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });

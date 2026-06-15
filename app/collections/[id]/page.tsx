@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { getCurrentUser } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
 import AppShell from '../../../components/AppShell';
+import CollectionEditForm from '../../../components/CollectionEditForm';
 
 export default async function CollectionPage({ params }: { params: { id: string } }) {
   const user = await getCurrentUser();
@@ -43,7 +44,16 @@ export default async function CollectionPage({ params }: { params: { id: string 
             )}
           </div>
         </div>
-        <div style={{ color: '#8890b4', fontSize: 13, paddingTop: 4 }}>{collection.assets.length} assets</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ color: '#8890b4', fontSize: 13 }}>{collection.assets.length} assets</span>
+          <CollectionEditForm
+            id={collection.id}
+            name={collection.name}
+            date={collection.date ? collection.date.toISOString().split('T')[0] : null}
+            opponent={collection.opponent}
+            venue={collection.venue}
+          />
+        </div>
       </div>
 
       {collection.assets.length === 0 ? (
