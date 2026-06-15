@@ -602,6 +602,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .collection-card-name { font-size: 14px; font-weight: 600; color: #12141f; margin-bottom: 4px; }
 .collection-card-meta { font-size: 12px; color: #8890b4; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
+.row-link:hover { color: #1a56c4 !important; }
+
 .coll-type-badge {
   display: inline-flex;
   font-size: 10px;

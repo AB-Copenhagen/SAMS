@@ -4,10 +4,11 @@ import { getCurrentUser } from '../../lib/auth';
 import { prisma } from '../../lib/db';
 import AppShell from '../../components/AppShell';
 import MediaFilterBar from '../../components/MediaFilterBar';
+import PerPageSelector from '../../components/PerPageSelector';
 
-const PAGE_SIZE = 24;
+const PER_PAGE_OPTIONS = [24, 48, 96];
 
-type SearchParams = { q?: string; type?: string; seasonId?: string; category?: string; page?: string };
+type SearchParams = { q?: string; type?: string; seasonId?: string; category?: string; page?: string; perPage?: string };
 
 export default async function MediaPage({ searchParams }: { searchParams: SearchParams }) {
   const user = await getCurrentUser();
@@ -18,6 +19,7 @@ export default async function MediaPage({ searchParams }: { searchParams: Search
   const seasonId = searchParams.seasonId ?? '';
   const category = searchParams.category ?? '';
   const page     = Math.max(1, parseInt(searchParams.page ?? '1'));
+  const perPage  = PER_PAGE_OPTIONS.includes(parseInt(searchParams.perPage ?? '')) ? parseInt(searchParams.perPage!) : 24;
 
   const AND: Record<string, unknown>[] = [];
   if (q)       AND.push({ OR: [{ title: { contains: q } }, { eventName: { contains: q } }, { location: { contains: q } }, { detectedTagsJson: { contains: q } }, { manualTagsJson: { contains: q } }] });
@@ -29,12 +31,12 @@ export default async function MediaPage({ searchParams }: { searchParams: Search
   const where = AND.length ? { AND } : {};
 
   const [assets, total, seasons] = await Promise.all([
-    prisma.asset.findMany({ where, orderBy: { uploadedAt: 'desc' }, take: PAGE_SIZE, skip: (page - 1) * PAGE_SIZE }),
+    prisma.asset.findMany({ where, orderBy: { uploadedAt: 'desc' }, take: perPage, skip: (page - 1) * perPage }),
     prisma.asset.count({ where }),
     prisma.season.findMany({ orderBy: { startDate: 'desc' }, select: { id: true, name: true } }),
   ]);
 
-  const pages = Math.ceil(total / PAGE_SIZE);
+  const pages      = Math.ceil(total / perPage);
   const isFiltered = !!(q || type || seasonId || category);
 
   function pageUrl(p: number) {
@@ -43,6 +45,7 @@ export default async function MediaPage({ searchParams }: { searchParams: Search
     if (type) params.set('type', type);
     if (seasonId) params.set('seasonId', seasonId);
     if (category) params.set('category', category);
+    if (perPage !== 24) params.set('perPage', String(perPage));
     if (p > 1) params.set('page', String(p));
     const s = params.toString();
     return '/media' + (s ? '?' + s : '');
@@ -55,6 +58,9 @@ export default async function MediaPage({ searchParams }: { searchParams: Search
           <h1>Media Library</h1>
           <p>{total} asset{total !== 1 ? 's' : ''}{isFiltered ? ' (filtered)' : ''}</p>
         </div>
+        <Suspense>
+          <PerPageSelector options={PER_PAGE_OPTIONS} current={perPage} />
+        </Suspense>
       </div>
 
       <Suspense>
@@ -100,7 +106,9 @@ export default async function MediaPage({ searchParams }: { searchParams: Search
           >
             ← Prev
           </a>
-          <span className="page-info">Page {page} of {pages}</span>
+          <span className="page-info">
+            Page {page} of {pages} · {total} total
+          </span>
           <a
             href={pageUrl(page + 1)}
             className="btn-secondary"
