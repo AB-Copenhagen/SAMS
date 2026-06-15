@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TagInput from './TagInput';
+import Combobox from './Combobox';
 
 type Season     = { id: string; name: string };
 type Collection = { id: string; name: string; type: string };
@@ -84,11 +85,13 @@ export default function AssetDetailClient({
   signedUrl,
   seasons,
   collections,
+  stadiums,
 }: {
   asset: AssetProps;
   signedUrl: string;
   seasons: Season[];
   collections: Collection[];
+  stadiums: string[];
 }) {
   const router = useRouter();
   const [form, setForm] = useState({
@@ -191,15 +194,25 @@ export default function AssetDetailClient({
           </div>
           <div className="field">
             <label>Event / match</label>
-            <input value={form.eventName} onChange={(e) => set('eventName', e.target.value)} placeholder="AB vs FC Nordsjælland" />
+            <Combobox
+              value={form.eventName}
+              onChange={(v) => set('eventName', v)}
+              options={collections.map((c) => c.name)}
+              placeholder="AB vs FC Nordsjælland"
+            />
           </div>
           <div className="field">
             <label>Date</label>
             <input type="date" value={form.eventDate} onChange={(e) => set('eventDate', e.target.value)} />
           </div>
           <div className="field">
-            <label>Location</label>
-            <input value={form.location} onChange={(e) => set('location', e.target.value)} placeholder="Gladsaxe Stadion" />
+            <label>Stadium</label>
+            <Combobox
+              value={form.location}
+              onChange={(v) => set('location', v)}
+              options={stadiums}
+              placeholder="Gladsaxe Stadion"
+            />
           </div>
           <div className="field">
             <label>Season</label>

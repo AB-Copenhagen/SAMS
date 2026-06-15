@@ -674,6 +674,39 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .breadcrumb a:hover { text-decoration: underline; }
 .breadcrumb-sep { color: #c0c5dc; }
 
+/* ─── Combobox ───────────────────────────────────────────── */
+.combobox-wrap { position: relative; }
+
+.combobox-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #dde2f0;
+  border-radius: 7px;
+  padding: 4px;
+  z-index: 50;
+  box-shadow: 0 4px 16px rgba(0,0,0,.07);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.combobox-option {
+  padding: 7px 10px;
+  border-radius: 5px;
+  font-size: 13px;
+  color: #3a3f58;
+  cursor: pointer;
+  transition: background .1s;
+}
+
+.combobox-option:hover,
+.combobox-option--active {
+  background: #f0f4ff;
+  color: #4361ee;
+}
+
 /* ─── Tag chip input ─────────────────────────────────────── */
 .tag-input-wrap { position: relative; }
 
