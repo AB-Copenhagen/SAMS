@@ -94,6 +94,7 @@ export async function POST(request: Request) {
   }
 
   const tagResult = await tagAssetWithWasbai(assetUrl, {
+    objectKey, fileType: file.type,
     title, eventName, eventDate, location, manualTags, uploader: user.email,
   });
 

@@ -39,6 +39,7 @@ export async function POST(request: Request) {
   const resolvedTitle = title || (fileName ? fileName.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ') : '');
 
   const tagResult = await tagAssetWithWasbai(assetUrl, {
+    objectKey, fileType,
     title: resolvedTitle, eventName, eventDate, location, manualTags: tags, uploader: user.email,
   });
 
