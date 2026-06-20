@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   const response = NextResponse.json({ success: true });
   response.cookies.set({
     name: 'dam_session',
-    value: encodeURIComponent(createSessionCookie(user)),
+    value: createSessionCookie(user),
     httpOnly: true,
     path: '/',
     secure: process.env.NODE_ENV === 'production',
