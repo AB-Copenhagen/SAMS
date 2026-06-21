@@ -11,10 +11,13 @@
 // Limit: skips files larger than 10 MB (Vision API inline limit).
 
 import { GoogleAuth } from 'google-auth-library';
+import sharp from 'sharp';
 import { getPresignedUrl } from './wasabi';
 
-const VISION_URL = 'https://vision.googleapis.com/v1/images:annotate';
-const STS_URL    = 'https://sts.googleapis.com/v1/token';
+const VISION_URL      = 'https://vision.googleapis.com/v1/images:annotate';
+const STS_URL         = 'https://sts.googleapis.com/v1/token';
+const MAX_BYTES       = 10 * 1024 * 1024; // Vision API hard limit for both inline and imageUri
+const MAX_DIMENSION   = 4096;             // px — plenty of detail for label/logo/OCR detection
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -128,14 +131,36 @@ export interface GcvResult {
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export async function analyzeWithGcv(objectKey: string): Promise<GcvResult> {
-  // Pass the presigned URL directly — GCV fetches from Wasabi (20 MB limit via URI vs 10 MB inline).
+async function fetchAndPrepare(objectKey: string): Promise<string> {
   const url   = await getPresignedUrl(objectKey);
-  const token = await getAccessToken();
+  const dlRes = await fetch(url);
+  if (!dlRes.ok) throw new Error(`Wasabi download failed: ${dlRes.status}`);
+
+  const raw = Buffer.from(await dlRes.arrayBuffer());
+  if (raw.byteLength <= MAX_BYTES) return raw.toString('base64');
+
+  // Image exceeds Vision API's 10 MB limit — resize to fit.
+  const resized = await sharp(raw)
+    .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: 85 })
+    .toBuffer();
+
+  const final = resized.byteLength > MAX_BYTES
+    ? await sharp(resized).jpeg({ quality: 60 }).toBuffer()
+    : resized;
+
+  return final.toString('base64');
+}
+
+export async function analyzeWithGcv(objectKey: string): Promise<GcvResult> {
+  const [content, token] = await Promise.all([
+    fetchAndPrepare(objectKey),
+    getAccessToken(),
+  ]);
 
   const body = {
     requests: [{
-      image: { source: { imageUri: url } },
+      image: { content },
       features: [
         { type: 'LABEL_DETECTION',      maxResults: 20 },
         { type: 'OBJECT_LOCALIZATION',  maxResults: 20 },
