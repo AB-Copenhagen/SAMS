@@ -22,6 +22,8 @@ model Asset {
   manualTagsJson     String?
   detectedTagsJson   String?
   wasbaiResponseJson String?
+  gcvResponseJson    String?
+  aiDescription      String?
   uploadedAt         DateTime    @default(now())
   category           String?
   exifJson           String?

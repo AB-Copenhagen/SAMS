@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import TagInput, { type TagSuggestion } from './TagInput';
 import Combobox from './Combobox';
 import AirTagButton from './AirTagButton';
+import GcvTagButton from './GcvTagButton';
 
 type Season     = { id: string; name: string };
 type Collection = { id: string; name: string; type: string; date: string | Date | null };
@@ -33,6 +34,7 @@ type AssetProps = {
   uploaderEmail: string;
   manualTagsJson: string;
   detectedTagsJson: string | null;
+  aiDescription: string | null;
   exifJson: string | null;
 };
 
@@ -126,7 +128,7 @@ export default function AssetDetailClient({
   const [detectedTags, setDetectedTags] = useState<string[]>(() => {
     try { return JSON.parse(asset.detectedTagsJson ?? '[]') as string[]; } catch { return []; }
   });
-  const [aiDescription, setAiDescription] = useState('');
+  const [aiDescription, setAiDescription] = useState(asset.aiDescription ?? '');
   const [form, setForm] = useState({
     title:       asset.title,
     description: asset.description,
@@ -323,6 +325,15 @@ export default function AssetDetailClient({
               setAiDescription(description);
             }}
           />
+          <div style={{ marginTop: 8 }}>
+            <GcvTagButton
+              assetId={asset.id}
+              onComplete={({ tags, aiDescription: desc }) => {
+                setDetectedTags(tags);
+                setAiDescription(desc);
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>

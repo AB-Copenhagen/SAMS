@@ -57,6 +57,7 @@ export default async function AssetDetailPage({ params }: { params: { id: string
           uploaderEmail:    asset.uploaderEmail,
           manualTagsJson:   asset.manualTagsJson  ?? '[]',
           detectedTagsJson: asset.detectedTagsJson ?? null,
+          aiDescription:    asset.aiDescription    ?? null,
           exifJson:         asset.exifJson         ?? null,
         }}
         signedUrl={signedUrl}
