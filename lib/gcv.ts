@@ -63,7 +63,9 @@ async function getWifToken(audience: string): Promise<string> {
     body: new URLSearchParams({
       grant_type:           'urn:ietf:params:oauth:grant-type:token-exchange',
       audience,
-      scope:                'https://www.googleapis.com/auth/cloud-vision',
+      // iam scope is required on the federated token to call generateAccessToken for SA impersonation.
+      // The cloud-vision scope is requested on the final SA token in the generateAccessToken call below.
+      scope:                'https://www.googleapis.com/auth/iam',
       requested_token_type: 'urn:ietf:params:oauth:token-type:access_token',
       subject_token_type:   'urn:ietf:params:oauth:token-type:id_token',
       subject_token:        oidcToken,
