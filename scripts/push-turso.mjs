@@ -97,6 +97,8 @@ ALTER TABLE "Asset" ADD COLUMN "thumbnailAttempts" INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE "Asset" ADD COLUMN "rating" INTEGER;
 ALTER TABLE "Asset" ADD COLUMN "reviewedAt" DATETIME;
 ALTER TABLE "Asset" ADD COLUMN "reviewedBy" TEXT;
+ALTER TABLE "Asset" ADD COLUMN "editedKey" TEXT;
+ALTER TABLE "Asset" ADD COLUMN "editParamsJson" TEXT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS "Asset_objectKey_key" ON "Asset"("objectKey");
 CREATE UNIQUE INDEX IF NOT EXISTS "Asset_contentHash_key" ON "Asset"("contentHash");

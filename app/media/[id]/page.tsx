@@ -26,7 +26,7 @@ export default async function AssetDetailPage({ params }: { params: { id: string
     // logo + ocr-text) for the same asset — distinct collapses those to one row per player/sponsor.
     prisma.assetPlayerTag.findMany({ where: { assetId: params.id, status: 'confirmed' }, select: { playerId: true }, distinct: ['playerId'] }),
     prisma.assetSponsorTag.findMany({ where: { assetId: params.id, status: 'confirmed' }, select: { sponsorId: true }, distinct: ['sponsorId'] }),
-    getPresignedUrl(asset.objectKey),
+    getPresignedUrl(asset.editedKey ?? asset.objectKey),
   ]);
 
   return (
@@ -60,6 +60,8 @@ export default async function AssetDetailPage({ params }: { params: { id: string
           rating:           asset.rating           ?? null,
           reviewedAt:       asset.reviewedAt ? asset.reviewedAt.toISOString() : null,
           reviewedBy:       asset.reviewedBy        ?? null,
+          editedKey:        asset.editedKey         ?? null,
+          editParamsJson:   asset.editParamsJson    ?? null,
         }}
         signedUrl={signedUrl}
         seasons={seasons}

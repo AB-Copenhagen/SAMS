@@ -42,6 +42,8 @@ model Asset {
   rating             Int?
   reviewedAt         DateTime?
   reviewedBy         String?
+  editedKey          String?
+  editParamsJson     String?
   playerTags         AssetPlayerTag[]
   sponsorTags        AssetSponsorTag[]
 }

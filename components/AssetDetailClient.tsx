@@ -6,6 +6,7 @@ import TagInput from './TagInput';
 import Combobox from './Combobox';
 import IdentifyPlayersButton from './IdentifyPlayersButton';
 import EntityMultiSelect, { type EntityOption } from './EntityMultiSelect';
+import PhotoEditor, { type EditParamsState } from './PhotoEditor';
 
 type Season     = { id: string; name: string };
 type Collection = { id: string; name: string; type: string; date: string | Date | null };
@@ -38,6 +39,8 @@ type AssetProps = {
   rating: number | null;
   reviewedAt: string | null;
   reviewedBy: string | null;
+  editedKey: string | null;
+  editParamsJson: string | null;
 };
 
 function formatBytes(b: number) {
@@ -153,6 +156,7 @@ export default function AssetDetailClient({
   const [saved, setSaved] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
+  const [editing, setEditing] = useState(false);
 
   function set(key: string, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -224,15 +228,38 @@ export default function AssetDetailClient({
               style={{ width: '100%', display: 'block', maxHeight: 580, objectFit: 'contain', background: '#0d0f1c' }}
             />
           )}
-          <div style={{ padding: '12px 16px', borderTop: '1px solid #f0f2f7', display: 'flex', gap: 16, fontSize: 12, color: '#8890b4' }}>
+          <div style={{ padding: '12px 16px', borderTop: '1px solid #f0f2f7', display: 'flex', gap: 16, fontSize: 12, color: '#8890b4', alignItems: 'center' }}>
             <span>{asset.fileType.split('/')[1]?.toUpperCase()}</span>
             <span>{formatBytes(asset.fileSize)}</span>
             <span>Uploaded by {asset.uploaderEmail}</span>
             <span>{new Date(asset.uploadedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+            {asset.editedKey && <span style={{ color: '#4361ee', fontWeight: 600 }}>Edited</span>}
+            {!isVideo && (
+              <button className="btn-secondary" type="button" onClick={() => setEditing(true)} style={{ marginLeft: 'auto', fontSize: 12, padding: '4px 10px' }}>
+                Edit photo
+              </button>
+            )}
           </div>
           <ExifPanel exifJson={asset.exifJson} />
         </div>
       </div>
+
+      {editing && (
+        <PhotoEditor
+          assetId={asset.id}
+          hasEdit={!!asset.editedKey}
+          initialParams={(() => {
+            if (!asset.editParamsJson) return null;
+            try {
+              const parsed = JSON.parse(asset.editParamsJson);
+              return { brightness: parsed.brightness ?? 0, contrast: parsed.contrast ?? 0, saturation: parsed.saturation ?? 0, filter: parsed.filter ?? null, autoCorrect: !!parsed.autoCorrect } as EditParamsState;
+            } catch {
+              return null;
+            }
+          })()}
+          onClose={() => setEditing(false)}
+        />
+      )}
 
       {/* Right column: metadata form */}
       <div>
