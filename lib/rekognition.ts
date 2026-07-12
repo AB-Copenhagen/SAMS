@@ -48,7 +48,6 @@ const DETECT_TEXT_MIN_CONFIDENCE = 80;
 // of framing (tight headshot-style crop vs. full-body action shot) real match photos come in.
 const JERSEY_VERTICAL_REACH_FACE_HEIGHTS = 8;
 const MAX_FACES_PER_IMAGE        = Number(process.env.REKOGNITION_MAX_FACES_PER_IMAGE ?? 15);
-export const AUTO_APPLY_THRESHOLD = Number(process.env.REKOGNITION_AUTO_APPLY_THRESHOLD ?? 97);
 export const SUGGEST_THRESHOLD    = Number(process.env.REKOGNITION_SUGGEST_THRESHOLD ?? 80);
 
 const BOX_PADDING_RATIO = 0.35; // pad each detected face crop for better match accuracy

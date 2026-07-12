@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../../../lib/auth';
 import { prisma } from '../../../../../lib/db';
-import { identifyPlayersInImage, AUTO_APPLY_THRESHOLD } from '../../../../../lib/rekognition';
+import { identifyPlayersInImage } from '../../../../../lib/rekognition';
 import { upsertPlayerTag, upsertSponsorTag, addConfirmedStringTag } from '../../../../../lib/asset-tags';
 import { matchSponsorTokens } from '../../../../../lib/sponsor-matching';
 
@@ -25,27 +25,24 @@ export async function POST(_request: Request, { params }: { params: { id: string
     const playerNames = new Set<string>();
     const sponsorNames = new Set<string>();
 
+    // All automated detections are applied immediately as confirmed tags — no review step —
+    // so newly uploaded assets show their players/sponsors right away. Wrong tags get corrected
+    // afterward via the existing manual multi-select / reject actions.
     for (const match of faceMatches) {
-      const status = match.similarityPct >= AUTO_APPLY_THRESHOLD ? 'confirmed' : 'suggested';
-      await upsertPlayerTag(params.id, match.playerId, 'face', match.similarityPct / 100, status);
+      await upsertPlayerTag(params.id, match.playerId, 'face', match.similarityPct / 100, 'confirmed');
       const player = await prisma.player.findUnique({ where: { id: match.playerId }, select: { name: true } });
       if (player) {
         playerNames.add(player.name);
-        if (status === 'confirmed') {
-          await addConfirmedStringTag(params.id, `player:${player.name.toLowerCase().replace(/\s+/g, '-')}`);
-        }
+        await addConfirmedStringTag(params.id, `player:${player.name.toLowerCase().replace(/\s+/g, '-')}`);
       }
     }
 
     for (const match of jerseyMatches) {
-      const status = match.grounded ? 'confirmed' : 'suggested';
-      await upsertPlayerTag(params.id, match.playerId, 'jersey-ocr', null, status);
+      await upsertPlayerTag(params.id, match.playerId, 'jersey-ocr', null, 'confirmed');
       const player = await prisma.player.findUnique({ where: { id: match.playerId }, select: { name: true } });
       if (player) {
         playerNames.add(player.name);
-        if (status === 'confirmed') {
-          await addConfirmedStringTag(params.id, `player:${player.name.toLowerCase().replace(/\s+/g, '-')}`);
-        }
+        await addConfirmedStringTag(params.id, `player:${player.name.toLowerCase().replace(/\s+/g, '-')}`);
       }
     }
 
@@ -53,14 +50,11 @@ export async function POST(_request: Request, { params }: { params: { id: string
       const sponsors = await prisma.sponsor.findMany({ where: { active: true }, select: { id: true, name: true, aliasesJson: true } });
       const sponsorMatches = matchSponsorTokens(detectedLines.join(' '), sponsors);
       for (const m of sponsorMatches) {
-        const status = m.isFullName ? 'confirmed' : 'suggested';
-        await upsertSponsorTag(params.id, m.sponsorId, 'ocr-text', m.isFullName ? 1.0 : 0.6, status);
+        await upsertSponsorTag(params.id, m.sponsorId, 'ocr-text', m.isFullName ? 1.0 : 0.6, 'confirmed');
         const sponsor = sponsors.find((s) => s.id === m.sponsorId);
         if (sponsor) {
           sponsorNames.add(sponsor.name);
-          if (status === 'confirmed') {
-            await addConfirmedStringTag(params.id, `sponsor:${sponsor.name.toLowerCase().replace(/\s+/g, '-')}`);
-          }
+          await addConfirmedStringTag(params.id, `sponsor:${sponsor.name.toLowerCase().replace(/\s+/g, '-')}`);
         }
       }
     }
