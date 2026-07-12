@@ -9,16 +9,23 @@ import AssetGallery from '../../components/AssetGallery';
 
 const PER_PAGE_OPTIONS = [25, 50, 100];
 
-type SearchParams = { q?: string; type?: string; seasonId?: string; category?: string; page?: string; perPage?: string };
+type SearchParams = {
+  q?: string; type?: string; seasonId?: string; category?: string;
+  collectionId?: string; playerIds?: string; sponsorIds?: string;
+  page?: string; perPage?: string;
+};
 
 export default async function MediaPage({ searchParams }: { searchParams: SearchParams }) {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
 
-  const q        = searchParams.q ?? '';
-  const type     = searchParams.type ?? '';
-  const seasonId = searchParams.seasonId ?? '';
-  const category = searchParams.category ?? '';
+  const q            = searchParams.q ?? '';
+  const type         = searchParams.type ?? '';
+  const seasonId     = searchParams.seasonId ?? '';
+  const category     = searchParams.category ?? '';
+  const collectionId = searchParams.collectionId ?? '';
+  const playerIds    = searchParams.playerIds ? searchParams.playerIds.split(',').filter(Boolean) : [];
+  const sponsorIds   = searchParams.sponsorIds ? searchParams.sponsorIds.split(',').filter(Boolean) : [];
   const page     = Math.max(1, parseInt(searchParams.page ?? '1'));
   const perPage  = PER_PAGE_OPTIONS.includes(parseInt(searchParams.perPage ?? '')) ? parseInt(searchParams.perPage!) : 25;
 
@@ -28,17 +35,23 @@ export default async function MediaPage({ searchParams }: { searchParams: Search
   if (type === 'video') AND.push({ fileType: { startsWith: 'video/' } });
   if (seasonId) AND.push({ seasonId });
   if (category) AND.push({ category });
+  if (collectionId) AND.push({ collectionId });
+  if (playerIds.length)  AND.push({ playerTags:  { some: { playerId:  { in: playerIds  }, status: 'confirmed' } } });
+  if (sponsorIds.length) AND.push({ sponsorTags: { some: { sponsorId: { in: sponsorIds }, status: 'confirmed' } } });
 
   const where = AND.length ? { AND } : {};
 
-  const [assets, total, seasons] = await Promise.all([
+  const [assets, total, seasons, collections, players, sponsors] = await Promise.all([
     prisma.asset.findMany({ where, orderBy: { uploadedAt: 'desc' }, take: perPage, skip: (page - 1) * perPage }),
     prisma.asset.count({ where }),
     prisma.season.findMany({ orderBy: { startDate: 'desc' }, select: { id: true, name: true } }),
+    prisma.collection.findMany({ orderBy: { date: 'desc' }, select: { id: true, name: true, date: true } }),
+    prisma.player.findMany({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, name: true, number: true } }),
+    prisma.sponsor.findMany({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
   ]);
 
   const pages      = Math.ceil(total / perPage);
-  const isFiltered = !!(q || type || seasonId || category);
+  const isFiltered = !!(q || type || seasonId || category || collectionId || playerIds.length || sponsorIds.length);
 
   function pageUrl(p: number) {
     const params = new URLSearchParams();
@@ -46,6 +59,9 @@ export default async function MediaPage({ searchParams }: { searchParams: Search
     if (type) params.set('type', type);
     if (seasonId) params.set('seasonId', seasonId);
     if (category) params.set('category', category);
+    if (collectionId) params.set('collectionId', collectionId);
+    if (playerIds.length) params.set('playerIds', playerIds.join(','));
+    if (sponsorIds.length) params.set('sponsorIds', sponsorIds.join(','));
     if (perPage !== 25) params.set('perPage', String(perPage));
     if (p > 1) params.set('page', String(p));
     const s = params.toString();
@@ -65,7 +81,7 @@ export default async function MediaPage({ searchParams }: { searchParams: Search
       </div>
 
       <Suspense>
-        <MediaFilterBar seasons={seasons} />
+        <MediaFilterBar seasons={seasons} collections={collections} players={players} sponsors={sponsors} />
       </Suspense>
 
       {assets.length === 0 ? (
