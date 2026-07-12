@@ -135,7 +135,12 @@ export interface FaceMatch {
 }
 
 export async function searchFacesInImage(objectKey: string): Promise<FaceMatch[]> {
-  const bytes = await fetchImageBytes(objectKey);
+  const raw = await fetchImageBytes(objectKey);
+  // Rekognition's bounding boxes are relative to the EXIF-corrected orientation of the image.
+  // Bake that rotation into the buffer up front (and strip the EXIF tag) so sharp's pixel math
+  // in cropFace() lines up with Rekognition's coordinates — otherwise a rotated photo (extremely
+  // common from phones/cameras) produces a crop that doesn't actually contain the detected face.
+  const bytes = await sharp(raw).rotate().toBuffer();
   const faces = await detectFaces(bytes);
   if (faces.length === 0) return [];
 

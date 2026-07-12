@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isAdmin } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
-import { ensureCollection, enrollPlayerFace } from '../../../../lib/rekognition';
+import { enrollPlayerFace } from '../../../../lib/rekognition';
 
 export const maxDuration = 60;
 
@@ -9,7 +9,9 @@ export async function POST() {
   const user = await getCurrentUser();
   if (!isAdmin(user)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
-  await ensureCollection();
+  // Collection provisioning is a one-time infra step (scripts/setup-rekognition-collection.mjs,
+  // run with broader admin credentials) — the app's own runtime IAM user is deliberately scoped
+  // without rekognition:CreateCollection, so this route must not attempt to create it.
 
   const players = await prisma.player.findMany({
     where: { active: true, faceEnrolledAt: null, headshotUrl: { not: null } },

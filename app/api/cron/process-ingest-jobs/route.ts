@@ -7,6 +7,7 @@ import { searchFacesInImage, AUTO_APPLY_THRESHOLD } from '../../../../lib/rekogn
 import { upsertPlayerTag, addConfirmedStringTag } from '../../../../lib/asset-tags';
 
 export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
 
 const BATCH_SIZE = 20;
 const FACE_BATCH_SIZE = 10;
@@ -74,9 +75,13 @@ export async function GET(request: Request) {
   // aiTagStatus having settled so the shot-type tags used for crowd-shot skipping are available.
   const faceResults = { done: 0, skipped: 0, failed: 0, stillPending: 0 };
 
+  const facePendingIds = await prisma.$queryRaw<Array<{ id: string }>>`
+    SELECT id FROM "Asset"
+    WHERE "faceTagStatus" = 'pending' AND "aiTagStatus" IN ('done', 'failed', 'skipped')
+    LIMIT ${FACE_BATCH_SIZE}
+  `;
   const facePendingAssets = await prisma.asset.findMany({
-    where: { faceTagStatus: 'pending', aiTagStatus: { in: ['done', 'failed', 'skipped'] } },
-    take: FACE_BATCH_SIZE,
+    where: { id: { in: facePendingIds.map((r) => r.id) } },
     select: { id: true, objectKey: true, detectedTagsJson: true, faceTagAttempts: true },
   });
 
