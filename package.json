@@ -10,6 +10,7 @@
     "prisma": "prisma"
   },
   "dependencies": {
+    "@aws-sdk/client-rekognition": "^3.1085.0",
     "@aws-sdk/client-s3": "^3.361.0",
     "@aws-sdk/s3-request-presigner": "^3.1068.0",
     "@descope/core-js-sdk": "^2.62.2",

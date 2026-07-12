@@ -1,5 +1,7 @@
 import { prisma } from './db';
 import type { GcvResult } from './gcv';
+import { matchSponsorTokens } from './sponsor-matching';
+import { upsertPlayerTag, upsertSponsorTag } from './asset-tags';
 
 const LABEL_THRESHOLD  = 0.70;
 const LOGO_THRESHOLD   = 0.60; // lower threshold — custom logos may score conservatively
@@ -42,6 +44,7 @@ export async function enrichFromGcvResult(
   }
 
   // ── Jersey number OCR → player lookup ────────────────────────────────────
+  const jerseyPlayerIds = new Set<string>();
   if (result.text) {
     const numbers = result.text
       .split(/\s+/)
@@ -51,11 +54,12 @@ export async function enrichFromGcvResult(
     if (numbers.length > 0) {
       const players = await prisma.player.findMany({
         where:  { number: { in: numbers }, active: true },
-        select: { name: true, number: true },
+        select: { id: true, name: true, number: true },
       });
       for (const p of players) {
         playerNames.push(p.name);
         tags.push(`player:${p.name.toLowerCase().replace(/\s+/g, '-')}`);
+        jerseyPlayerIds.add(p.id);
       }
     }
   }
@@ -63,19 +67,45 @@ export async function enrichFromGcvResult(
   // ── Logo detection → sponsor lookup ──────────────────────────────────────
   const detectedLogos = result.logos
     .filter((l) => l.score >= LOGO_THRESHOLD)
-    .map((l) => l.description.toLowerCase());
+    .map((l) => ({ name: l.description.toLowerCase(), score: l.score }));
 
+  const confirmedSponsorIds = new Map<string, number>();
   if (detectedLogos.length > 0) {
     tags.push('logo-detected');
     const sponsors = await prisma.sponsor.findMany({
       where:  { active: true },
-      select: { name: true },
+      select: { id: true, name: true },
     });
     for (const sponsor of sponsors) {
       const lower = sponsor.name.toLowerCase();
-      if (detectedLogos.some((d) => d.includes(lower) || lower.includes(d))) {
+      const match = detectedLogos.find((d) => d.name.includes(lower) || lower.includes(d.name));
+      if (match) {
         sponsorNames.push(sponsor.name);
         tags.push(`sponsor:${sponsor.name.toLowerCase().replace(/\s+/g, '-')}`);
+        confirmedSponsorIds.set(sponsor.id, match.score);
+      }
+    }
+  }
+
+  // ── Sponsor name/alias OCR text matching (cheap — reuses OCR already paid for) ──
+  const suggestedSponsorIds = new Set<string>();
+  if (result.text) {
+    const activeSponsors = await prisma.sponsor.findMany({
+      where: { active: true },
+      select: { id: true, name: true, aliasesJson: true },
+    });
+    const ocrMatches = matchSponsorTokens(result.text, activeSponsors);
+    for (const m of ocrMatches) {
+      if (confirmedSponsorIds.has(m.sponsorId)) continue;
+      if (m.isFullName) {
+        confirmedSponsorIds.set(m.sponsorId, 1.0);
+        const sponsor = activeSponsors.find((s) => s.id === m.sponsorId);
+        if (sponsor && !sponsorNames.includes(sponsor.name)) {
+          sponsorNames.push(sponsor.name);
+          tags.push(`sponsor:${sponsor.name.toLowerCase().replace(/\s+/g, '-')}`);
+        }
+      } else {
+        suggestedSponsorIds.add(m.sponsorId);
       }
     }
   }
@@ -133,6 +163,17 @@ export async function enrichFromGcvResult(
       aiDescription,
     },
   });
+
+  // Structured join-table rows — the source of truth for the player/sponsor photo galleries.
+  for (const playerId of jerseyPlayerIds) {
+    await upsertPlayerTag(assetId, playerId, 'jersey-ocr', null, 'confirmed');
+  }
+  for (const [sponsorId, score] of confirmedSponsorIds) {
+    await upsertSponsorTag(assetId, sponsorId, 'logo-name', score, 'confirmed');
+  }
+  for (const sponsorId of suggestedSponsorIds) {
+    await upsertSponsorTag(assetId, sponsorId, 'ocr-text', 0.6, 'suggested');
+  }
 
   return { tags: uniqueTags, aiDescription, playerNames, sponsorNames };
 }

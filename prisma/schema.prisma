@@ -14,6 +14,8 @@ model Asset {
   eventDate          DateTime?
   location           String?
   objectKey          String      @unique
+  contentHash        String?     @unique
+  aiTagStatus        String      @default("pending")
   assetUrl           String
   fileType           String
   fileSize           Int
@@ -31,6 +33,87 @@ model Asset {
   collection         Collection? @relation(fields: [collectionId], references: [id])
   seasonId           String?
   season             Season?     @relation(fields: [seasonId], references: [id])
+  ingestJob          IngestJob?
+  faceTagStatus      String      @default("pending")
+  faceTagAttempts    Int         @default(0)
+  playerTags         AssetPlayerTag[]
+  sponsorTags        AssetSponsorTag[]
+}
+
+model AssetPlayerTag {
+  id         String    @id @default(cuid())
+  assetId    String
+  asset      Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  playerId   String
+  player     Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  source     String
+  confidence Float?
+  status     String    @default("suggested")
+  createdAt  DateTime  @default(now())
+  reviewedAt DateTime?
+  reviewedBy String?
+
+  @@unique([assetId, playerId, source])
+  @@index([playerId, status])
+}
+
+model AssetSponsorTag {
+  id         String    @id @default(cuid())
+  assetId    String
+  asset      Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  sponsorId  String
+  sponsor    Sponsor   @relation(fields: [sponsorId], references: [id], onDelete: Cascade)
+  source     String
+  confidence Float?
+  status     String    @default("suggested")
+  createdAt  DateTime  @default(now())
+  reviewedAt DateTime?
+  reviewedBy String?
+
+  @@unique([assetId, sponsorId, source])
+  @@index([sponsorId, status])
+}
+
+model DeviceCredential {
+  id         String      @id @default(cuid())
+  name       String
+  keyPrefix  String      @unique
+  keyHash    String
+  ownerEmail String
+  role       String      @default("MEDIA")
+  scopesJson String      @default("[\"ingest:write\"]")
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime    @default(now())
+  ingestJobs IngestJob[]
+}
+
+model IngestJob {
+  id             String            @id @default(cuid())
+  deviceId       String?
+  device         DeviceCredential? @relation(fields: [deviceId], references: [id])
+  uploaderEmail  String
+  uploaderRole   String
+  channel        String
+  fileName       String
+  fileType       String
+  fileSize       Int
+  contentHash    String?
+  objectKey      String            @unique
+  uploadId       String?
+  partSize       Int?
+  partsTotal     Int?
+  partsCompleted Int               @default(0)
+  status         String            @default("pending")
+  errorMessage   String?
+  assetId        String?           @unique
+  asset          Asset?            @relation(fields: [assetId], references: [id])
+  metadataJson   String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  completedAt    DateTime?
+
+  @@index([status, updatedAt])
 }
 
 model Season {
@@ -45,25 +128,30 @@ model Season {
 }
 
 model Player {
-  id          String   @id @default(cuid())
-  name        String
-  number      Int?
-  position    String?
-  headshotUrl String?
-  active      Boolean  @default(true)
-  team        String?
-  seasonId    String?
-  season      Season?  @relation(fields: [seasonId], references: [id])
-  createdAt   DateTime @default(now())
+  id                String           @id @default(cuid())
+  name              String
+  number            Int?
+  position          String?
+  headshotUrl       String?
+  active            Boolean          @default(true)
+  team              String?
+  seasonId          String?
+  season            Season?          @relation(fields: [seasonId], references: [id])
+  createdAt         DateTime         @default(now())
+  faceEnrolledAt    DateTime?
+  rekognitionFaceId String?
+  assetTags         AssetPlayerTag[]
 }
 
 model Sponsor {
-  id        String   @id @default(cuid())
-  name      String
-  logoUrl   String?
-  tier      String?
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id          String            @id @default(cuid())
+  name        String
+  logoUrl     String?
+  tier        String?
+  active      Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  aliasesJson String?
+  assetTags   AssetSponsorTag[]
 }
 
 model Stadium {

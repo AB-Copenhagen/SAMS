@@ -1,0 +1,12 @@
+{
+  "name": "sams-ingest",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "sams-ingest": "./bin/sams-ingest.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -5,6 +5,7 @@ import { prisma } from '../../lib/db';
 import AppShell from '../../components/AppShell';
 import MediaFilterBar from '../../components/MediaFilterBar';
 import PerPageSelector from '../../components/PerPageSelector';
+import AssetGallery from '../../components/AssetGallery';
 
 const PER_PAGE_OPTIONS = [25, 50, 100];
 
@@ -73,28 +74,7 @@ export default async function MediaPage({ searchParams }: { searchParams: Search
           <p>Try adjusting your filters or upload new files.</p>
         </div>
       ) : (
-        <div className="gallery">
-          {assets.map((a) => (
-            <a key={a.id} href={`/media/${a.id}`} className="asset-card">
-              <div className="asset-thumb">
-                {a.fileType.startsWith('image/') ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={`/api/assets/${a.id}/download`} alt={a.title ?? ''} loading="lazy" />
-                ) : '🎬'}
-                {a.fileType.startsWith('video/') && <span className="video-badge">Video</span>}
-              </div>
-              <div className="asset-card-body">
-                <div className="asset-card-title">{a.title || a.eventName || 'Untitled'}</div>
-                <div className="asset-card-meta">
-                  {a.eventDate
-                    ? new Date(a.eventDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-                    : ''}
-                  {a.location ? (a.eventDate ? ' · ' : '') + a.location : ''}
-                </div>
-              </div>
-            </a>
-          ))}
-        </div>
+        <AssetGallery assets={assets} metaMode="date" />
       )}
 
       {assets.length > 0 && (

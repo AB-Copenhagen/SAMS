@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser } from '../../lib/auth';
 import AppShell from '../../components/AppShell';
 import BulkUploadZone from '../../components/BulkUploadZone';
+import LiveIngestPanel from '../../components/LiveIngestPanel';
 
 export default async function UploadPage() {
   const user = await getCurrentUser();
@@ -16,6 +17,7 @@ export default async function UploadPage() {
         </div>
       </div>
       <BulkUploadZone />
+      <LiveIngestPanel />
     </AppShell>
   );
 }

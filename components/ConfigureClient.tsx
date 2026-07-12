@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 
-type Player  = { id: string; name: string; number: number | null; position: string | null; headshotUrl: string | null; active: boolean; team: string | null; seasonId: string | null; season?: { id: string; name: string } | null };
-type Sponsor = { id: string; name: string; logoUrl: string | null; tier: string | null; active: boolean };
+type Player  = { id: string; name: string; number: number | null; position: string | null; headshotUrl: string | null; active: boolean; team: string | null; seasonId: string | null; season?: { id: string; name: string } | null; faceEnrolledAt?: string | null; _count?: { assetTags: number } };
+type Sponsor = { id: string; name: string; logoUrl: string | null; tier: string | null; active: boolean; aliasesJson?: string | null; _count?: { assetTags: number } };
 type Season  = { id: string; name: string; startDate: string | null; endDate: string | null; _count?: { assets: number; collections: number } };
 type Stadium = { id: string; name: string; city: string | null };
-type Tab     = 'players' | 'sponsors' | 'seasons' | 'stadiums';
+type Device  = { id: string; name: string; keyPrefix: string; ownerEmail: string; role: string; lastUsedAt: string | null; revokedAt: string | null; createdAt: string; _count?: { ingestJobs: number } };
+type Tab     = 'players' | 'sponsors' | 'seasons' | 'stadiums' | 'devices';
 
 function useFetch<T>(url: string, dep: unknown) {
   const [data, setData] = useState<T | null>(null);
@@ -44,9 +46,13 @@ function PlayersTab() {
   const [selected, setSelected] = useState<Player | null>(null);
   const [editing, setEditing] = useState({ name: '', number: '', position: '', headshotUrl: '', team: '', seasonId: '' });
   const [saving, setSaving] = useState(false);
+  const [enrolling, setEnrolling] = useState(false);
+  const [enrollResult, setEnrollResult] = useState<{ total: number; enrolled: number; errors: unknown[] } | null>(null);
+  const [saveWarning, setSaveWarning] = useState('');
 
   function openPlayer(p: Player) {
     setSelected(p);
+    setSaveWarning('');
     setEditing({
       name:        p.name,
       number:      p.number != null ? String(p.number) : '',
@@ -60,7 +66,8 @@ function PlayersTab() {
   async function savePlayer() {
     if (!selected) return;
     setSaving(true);
-    await apiFetch('/api/players/' + selected.id, 'PUT', {
+    setSaveWarning('');
+    const res = await apiFetch('/api/players/' + selected.id, 'PUT', {
       name:        editing.name,
       number:      editing.number,
       position:    editing.position,
@@ -69,9 +76,26 @@ function PlayersTab() {
       seasonId:    editing.seasonId || null,
       active:      selected.active,
     });
+    const body = await res.json().catch(() => ({}));
     setSaving(false);
+    if (body.faceEnrollmentError) {
+      setSaveWarning(body.faceEnrollmentError);
+      return;
+    }
     setSelected(null);
     setV((n) => n + 1);
+  }
+
+  async function enrollAllFaces() {
+    setEnrolling(true);
+    setEnrollResult(null);
+    const res = await apiFetch('/api/players/enroll-all', 'POST');
+    const body = await res.json().catch(() => ({}));
+    setEnrolling(false);
+    if (res.ok) {
+      setEnrollResult(body);
+      setV((n) => n + 1);
+    }
   }
 
   async function deletePlayer(id: string) {
@@ -117,6 +141,14 @@ function PlayersTab() {
             </span>
           )}
           {importError && <span style={{ fontSize: 13, color: '#dc2626' }}>{importError}</span>}
+          {enrollResult && (
+            <span style={{ fontSize: 13, color: enrollResult.errors.length ? '#dc2626' : '#16a34a' }}>
+              Enrolled {enrollResult.enrolled}/{enrollResult.total} faces{enrollResult.errors.length ? ` — ${enrollResult.errors.length} failed` : ''}
+            </span>
+          )}
+          <button className="btn-secondary" type="button" onClick={enrollAllFaces} disabled={enrolling}>
+            {enrolling ? <><span className="spinner" /> Enrolling…</> : 'Enroll all faces'}
+          </button>
           <button className="btn-secondary" type="button" onClick={importFromAB} disabled={importing}>
             {importing ? <><span className="spinner" /> Importing…</> : 'Import from ab.dk'}
           </button>
@@ -125,19 +157,26 @@ function PlayersTab() {
         <div className="config-list">
           {loading && <p style={{ color: '#8890b4', fontSize: 13 }}>Loading…</p>}
           {players?.map((p) => (
-            <div key={p.id} className="config-item player-row" onClick={() => openPlayer(p)} style={{ cursor: 'pointer' }}>
-              <div className="config-avatar">
-                {p.headshotUrl ? <img src={`/api/players/${p.id}/headshot`} alt={p.name} /> : p.name.charAt(0)}
-              </div>
-              <div className="config-item-info">
-                <div className="config-item-title">{p.name}{p.number != null ? ` #${p.number}` : ''}</div>
-                <div className="config-item-sub">
-                  {[p.position, p.team, p.season?.name].filter(Boolean).join(' · ') || 'No details'}
+            <div key={p.id} className="config-item player-row" style={{ cursor: 'pointer' }}>
+              <div onClick={() => openPlayer(p)} style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+                <div className="config-avatar">
+                  {p.headshotUrl ? <img src={`/api/players/${p.id}/headshot`} alt={p.name} /> : p.name.charAt(0)}
+                </div>
+                <div className="config-item-info">
+                  <div className="config-item-title">{p.name}{p.number != null ? ` #${p.number}` : ''}</div>
+                  <div className="config-item-sub">
+                    {[p.position, p.team, p.season?.name].filter(Boolean).join(' · ') || 'No details'}
+                    {' · '}{p.faceEnrolledAt ? 'Face enrolled' : 'Face not enrolled'}
+                  </div>
                 </div>
               </div>
-              <svg style={{ color: '#c0c5dc', flexShrink: 0 }} width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <Link
+                href={`/players/${p.id}`}
+                onClick={(e) => e.stopPropagation()}
+                style={{ fontSize: 13, color: '#2563eb', textDecoration: 'none', whiteSpace: 'nowrap' }}
+              >
+                View {p._count?.assetTags ?? 0} photos →
+              </Link>
             </div>
           ))}
           {!loading && !players?.length && (
@@ -220,6 +259,9 @@ function PlayersTab() {
                 </div>
               </div>
 
+              {saveWarning && (
+                <div className="alert alert-error" style={{ marginBottom: 8, fontSize: 12 }}>{saveWarning}</div>
+              )}
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                 <button className="btn-primary" type="button" onClick={savePlayer} disabled={saving} style={{ flex: 1, justifyContent: 'center' }}>
                   {saving ? <><span className="spinner" /> Saving…</> : 'Save changes'}
@@ -246,17 +288,22 @@ const TIERS = [
 function SponsorsTab() {
   const [v, setV] = useState(0);
   const { data: sponsors, loading } = useFetch<Sponsor[]>('/api/sponsors', v);
-  const [form, setForm] = useState({ name: '', tier: '', logoUrl: '' });
+  const [form, setForm] = useState({ name: '', tier: '', logoUrl: '', aliases: '' });
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [importError, setImportError] = useState('');
   const [selected, setSelected] = useState<Sponsor | null>(null);
-  const [editing, setEditing] = useState({ name: '', tier: '', logoUrl: '' });
+  const [editing, setEditing] = useState({ name: '', tier: '', logoUrl: '', aliases: '' });
   const [saving, setSaving] = useState(false);
+
+  function parseAliases(text: string): string[] {
+    return text.split(/[\n,]/).map((a) => a.trim()).filter(Boolean);
+  }
 
   function openSponsor(s: Sponsor) {
     setSelected(s);
-    setEditing({ name: s.name, tier: s.tier ?? '', logoUrl: s.logoUrl ?? '' });
+    const aliases: string[] = s.aliasesJson ? JSON.parse(s.aliasesJson) : [];
+    setEditing({ name: s.name, tier: s.tier ?? '', logoUrl: s.logoUrl ?? '', aliases: aliases.join(', ') });
   }
 
   async function saveSponsor() {
@@ -267,6 +314,7 @@ function SponsorsTab() {
       tier:    editing.tier    || null,
       logoUrl: editing.logoUrl || null,
       active:  selected.active,
+      aliases: parseAliases(editing.aliases),
     });
     setSaving(false);
     setSelected(null);
@@ -297,8 +345,8 @@ function SponsorsTab() {
 
   async function add() {
     if (!form.name.trim()) return;
-    await apiFetch('/api/sponsors', 'POST', form);
-    setForm({ name: '', tier: '', logoUrl: '' });
+    await apiFetch('/api/sponsors', 'POST', { ...form, aliases: parseAliases(form.aliases) });
+    setForm({ name: '', tier: '', logoUrl: '', aliases: '' });
     setV((n) => n + 1);
   }
 
@@ -324,17 +372,23 @@ function SponsorsTab() {
         <div className="config-list">
           {loading && <p style={{ color: '#8890b4', fontSize: 13 }}>Loading…</p>}
           {sponsors?.map((s) => (
-            <div key={s.id} className="config-item player-row" onClick={() => openSponsor(s)} style={{ cursor: 'pointer' }}>
-              <div className="config-avatar" style={{ borderRadius: 8 }}>
-                {s.logoUrl ? <img src={`/api/sponsors/${s.id}/logo`} alt={s.name} /> : s.name.charAt(0)}
+            <div key={s.id} className="config-item player-row" style={{ cursor: 'pointer' }}>
+              <div onClick={() => openSponsor(s)} style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+                <div className="config-avatar" style={{ borderRadius: 8 }}>
+                  {s.logoUrl ? <img src={`/api/sponsors/${s.id}/logo`} alt={s.name} /> : s.name.charAt(0)}
+                </div>
+                <div className="config-item-info">
+                  <div className="config-item-title">{s.name}</div>
+                  <div className="config-item-sub">{tierLabel(s.tier)}</div>
+                </div>
               </div>
-              <div className="config-item-info">
-                <div className="config-item-title">{s.name}</div>
-                <div className="config-item-sub">{tierLabel(s.tier)}</div>
-              </div>
-              <svg style={{ color: '#c0c5dc', flexShrink: 0 }} width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <Link
+                href={`/sponsors/${s.id}`}
+                onClick={(e) => e.stopPropagation()}
+                style={{ fontSize: 13, color: '#2563eb', textDecoration: 'none', whiteSpace: 'nowrap' }}
+              >
+                View {s._count?.assetTags ?? 0} photos →
+              </Link>
             </div>
           ))}
           {!loading && !sponsors?.length && (
@@ -357,6 +411,10 @@ function SponsorsTab() {
           <div className="field">
             <label>Logo URL</label>
             <input value={form.logoUrl} onChange={(e) => setForm((f) => ({ ...f, logoUrl: e.target.value }))} placeholder="https://…" />
+          </div>
+          <div className="field" style={{ gridColumn: '1 / -1' }}>
+            <label>Aliases (for sponsor OCR text matching, comma-separated)</label>
+            <input value={form.aliases} onChange={(e) => setForm((f) => ({ ...f, aliases: e.target.value }))} placeholder="XYZ, XYZ Byg" />
           </div>
           <div className="field" style={{ display: 'flex', alignItems: 'flex-end' }}>
             <button className="btn-primary" type="button" onClick={add}>Add sponsor</button>
@@ -397,6 +455,10 @@ function SponsorsTab() {
               <div className="field">
                 <label>Logo URL</label>
                 <input value={editing.logoUrl} onChange={(e) => ef('logoUrl', e.target.value)} placeholder="https://… or Wasabi key" />
+              </div>
+              <div className="field">
+                <label>Aliases (for sponsor OCR text matching, comma-separated)</label>
+                <input value={editing.aliases} onChange={(e) => ef('aliases', e.target.value)} placeholder="XYZ, XYZ Byg" />
               </div>
 
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
@@ -531,20 +593,106 @@ function StadiumsTab() {
   );
 }
 
+function DevicesTab() {
+  const [v, setV] = useState(0);
+  const { data: devices, loading } = useFetch<Device[]>('/api/devices', v);
+  const [name, setName] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [mintedKey, setMintedKey] = useState<string | null>(null);
+
+  async function create() {
+    if (!name.trim()) return;
+    setCreating(true);
+    const res = await apiFetch('/api/devices', 'POST', { name });
+    const body = await res.json().catch(() => ({}));
+    setCreating(false);
+    if (res.ok) {
+      setMintedKey(body.rawKey);
+      setName('');
+      setV((n) => n + 1);
+    }
+  }
+
+  async function revoke(id: string) {
+    if (!confirm('Revoke this device key? Anything using it will stop being able to ingest.')) return;
+    await apiFetch('/api/devices/' + id, 'DELETE');
+    setV((n) => n + 1);
+  }
+
+  return (
+    <div>
+      <p style={{ color: '#6b7491', fontSize: 13, marginBottom: 12 }}>
+        Device keys let unattended scripts (DSLR-tether watch folders, hard-drive import CLIs) authenticate to the
+        ingest API without a browser session. Each key is shown once at creation — store it securely.
+      </p>
+
+      {mintedKey && (
+        <div className="card" style={{ marginBottom: 16, background: '#f7f8fc' }}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>New device key — copy it now, it won&apos;t be shown again</div>
+          <code style={{ display: 'block', wordBreak: 'break-all', fontSize: 13, padding: 8, background: '#fff', borderRadius: 6 }}>
+            {mintedKey}
+          </code>
+          <button className="btn-secondary" type="button" style={{ marginTop: 8 }} onClick={() => setMintedKey(null)}>
+            Done
+          </button>
+        </div>
+      )}
+
+      <div className="config-list">
+        {loading && <p style={{ color: '#8890b4', fontSize: 13 }}>Loading…</p>}
+        {devices?.map((d) => (
+          <div key={d.id} className="config-item">
+            <div className="config-item-info">
+              <div className="config-item-title">
+                {d.name}
+                {d.revokedAt && <span style={{ color: '#dc2626', fontWeight: 400 }}> · revoked</span>}
+              </div>
+              <div className="config-item-sub">
+                {d.keyPrefix}… · {d.ownerEmail} · {d._count?.ingestJobs ?? 0} jobs
+                {d.lastUsedAt ? ` · last used ${new Date(d.lastUsedAt).toLocaleDateString()}` : ' · never used'}
+              </div>
+            </div>
+            {!d.revokedAt && (
+              <button className="btn-danger" type="button" onClick={() => revoke(d.id)}>Revoke</button>
+            )}
+          </div>
+        ))}
+        {!loading && !devices?.length && (
+          <div className="empty-state" style={{ padding: '24px 0' }}><p>No device keys yet.</p></div>
+        )}
+      </div>
+
+      <div className="add-form">
+        <div className="field">
+          <label>Name *</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tether laptop — Jens" />
+        </div>
+        <div className="field" style={{ display: 'flex', alignItems: 'flex-end' }}>
+          <button className="btn-primary" type="button" onClick={create} disabled={creating}>
+            {creating ? <><span className="spinner" /> Creating…</> : 'Create key'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const TABS: { id: Tab; label: string }[] = [
   { id: 'players',  label: 'Players'  },
   { id: 'sponsors', label: 'Sponsors' },
   { id: 'seasons',  label: 'Seasons'  },
   { id: 'stadiums', label: 'Stadiums' },
+  { id: 'devices',  label: 'Devices'  },
 ];
 
-export default function ConfigureClient() {
+export default function ConfigureClient({ showDevices = false }: { showDevices?: boolean }) {
   const [tab, setTab] = useState<Tab>('players');
+  const tabs = showDevices ? TABS : TABS.filter((t) => t.id !== 'devices');
 
   return (
     <div>
       <div className="tabs">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.id}
             type="button"
@@ -559,6 +707,7 @@ export default function ConfigureClient() {
       {tab === 'sponsors' && <SponsorsTab />}
       {tab === 'seasons'  && <SeasonsTab />}
       {tab === 'stadiums' && <StadiumsTab />}
+      {tab === 'devices'  && showDevices && <DevicesTab />}
     </div>
   );
 }

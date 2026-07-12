@@ -4,6 +4,7 @@ import { getCurrentUser } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
 import AppShell from '../../../components/AppShell';
 import CollectionEditForm from '../../../components/CollectionEditForm';
+import AssetGallery from '../../../components/AssetGallery';
 
 export default async function CollectionPage({ params }: { params: { id: string } }) {
   const user = await getCurrentUser();
@@ -65,26 +66,7 @@ export default async function CollectionPage({ params }: { params: { id: string 
           </Link>
         </div>
       ) : (
-        <div className="gallery">
-          {collection.assets.map((a) => (
-            <a key={a.id} href={`/media/${a.id}`} className="asset-card">
-              <div className="asset-thumb">
-                {a.fileType.startsWith('image/') ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={`/api/assets/${a.id}/download`} alt={a.title ?? ''} loading="lazy" />
-                ) : '🎬'}
-                {a.fileType.startsWith('video/') && <span className="video-badge">Video</span>}
-              </div>
-              <div className="asset-card-body">
-                <div className="asset-card-title">{a.title || a.eventName || 'Untitled'}</div>
-                <div className="asset-card-meta">
-                  {a.fileType.startsWith('image/') ? 'Photo' : 'Video'}
-                  {a.fileSize ? ' · ' + (a.fileSize / 1024 / 1024).toFixed(1) + ' MB' : ''}
-                </div>
-              </div>
-            </a>
-          ))}
-        </div>
+        <AssetGallery assets={collection.assets} metaMode="filesize" />
       )}
     </AppShell>
   );

@@ -64,6 +64,8 @@ CREATE TABLE IF NOT EXISTS "Asset" (
     "eventDate" DATETIME,
     "location" TEXT,
     "objectKey" TEXT NOT NULL,
+    "contentHash" TEXT,
+    "aiTagStatus" TEXT NOT NULL DEFAULT 'pending',
     "assetUrl" TEXT NOT NULL,
     "fileType" TEXT NOT NULL,
     "fileSize" INTEGER NOT NULL,
@@ -72,6 +74,8 @@ CREATE TABLE IF NOT EXISTS "Asset" (
     "manualTagsJson" TEXT,
     "detectedTagsJson" TEXT,
     "wasbaiResponseJson" TEXT,
+    "gcvResponseJson" TEXT,
+    "aiDescription" TEXT,
     "uploadedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "category" TEXT,
     "exifJson" TEXT,
@@ -81,7 +85,60 @@ CREATE TABLE IF NOT EXISTS "Asset" (
     CONSTRAINT "Asset_seasonId_fkey" FOREIGN KEY ("seasonId") REFERENCES "Season" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
+ALTER TABLE "Asset" ADD COLUMN "contentHash" TEXT;
+ALTER TABLE "Asset" ADD COLUMN "aiTagStatus" TEXT NOT NULL DEFAULT 'pending';
+ALTER TABLE "Asset" ADD COLUMN "gcvResponseJson" TEXT;
+ALTER TABLE "Asset" ADD COLUMN "aiDescription" TEXT;
+ALTER TABLE "Asset" ADD COLUMN "faceTagStatus" TEXT NOT NULL DEFAULT 'pending';
+ALTER TABLE "Asset" ADD COLUMN "faceTagAttempts" INTEGER NOT NULL DEFAULT 0;
+
 CREATE UNIQUE INDEX IF NOT EXISTS "Asset_objectKey_key" ON "Asset"("objectKey");
+CREATE UNIQUE INDEX IF NOT EXISTS "Asset_contentHash_key" ON "Asset"("contentHash");
+
+CREATE TABLE IF NOT EXISTS "DeviceCredential" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "keyPrefix" TEXT NOT NULL,
+    "keyHash" TEXT NOT NULL,
+    "ownerEmail" TEXT NOT NULL,
+    "role" TEXT NOT NULL DEFAULT 'MEDIA',
+    "scopesJson" TEXT NOT NULL DEFAULT '["ingest:write"]',
+    "lastUsedAt" DATETIME,
+    "revokedAt" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "DeviceCredential_keyPrefix_key" ON "DeviceCredential"("keyPrefix");
+
+CREATE TABLE IF NOT EXISTS "IngestJob" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "deviceId" TEXT,
+    "uploaderEmail" TEXT NOT NULL,
+    "uploaderRole" TEXT NOT NULL,
+    "channel" TEXT NOT NULL,
+    "fileName" TEXT NOT NULL,
+    "fileType" TEXT NOT NULL,
+    "fileSize" INTEGER NOT NULL,
+    "contentHash" TEXT,
+    "objectKey" TEXT NOT NULL,
+    "uploadId" TEXT,
+    "partSize" INTEGER,
+    "partsTotal" INTEGER,
+    "partsCompleted" INTEGER NOT NULL DEFAULT 0,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "errorMessage" TEXT,
+    "assetId" TEXT,
+    "metadataJson" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "completedAt" DATETIME,
+    CONSTRAINT "IngestJob_deviceId_fkey" FOREIGN KEY ("deviceId") REFERENCES "DeviceCredential" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "IngestJob_assetId_fkey" FOREIGN KEY ("assetId") REFERENCES "Asset" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "IngestJob_objectKey_key" ON "IngestJob"("objectKey");
+CREATE UNIQUE INDEX IF NOT EXISTS "IngestJob_assetId_key" ON "IngestJob"("assetId");
+CREATE INDEX IF NOT EXISTS "IngestJob_status_updatedAt_idx" ON "IngestJob"("status", "updatedAt");
 
 CREATE TABLE IF NOT EXISTS "Player" (
     "id" TEXT NOT NULL PRIMARY KEY,
@@ -96,6 +153,9 @@ CREATE TABLE IF NOT EXISTS "Player" (
     CONSTRAINT "Player_seasonId_fkey" FOREIGN KEY ("seasonId") REFERENCES "Season" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
+ALTER TABLE "Player" ADD COLUMN "faceEnrolledAt" DATETIME;
+ALTER TABLE "Player" ADD COLUMN "rekognitionFaceId" TEXT;
+
 CREATE TABLE IF NOT EXISTS "Sponsor" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "name" TEXT NOT NULL,
@@ -104,6 +164,42 @@ CREATE TABLE IF NOT EXISTS "Sponsor" (
     "active" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE "Sponsor" ADD COLUMN "aliasesJson" TEXT;
+
+CREATE TABLE IF NOT EXISTS "AssetPlayerTag" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "assetId" TEXT NOT NULL,
+    "playerId" TEXT NOT NULL,
+    "source" TEXT NOT NULL,
+    "confidence" REAL,
+    "status" TEXT NOT NULL DEFAULT 'suggested',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "reviewedAt" DATETIME,
+    "reviewedBy" TEXT,
+    CONSTRAINT "AssetPlayerTag_assetId_fkey" FOREIGN KEY ("assetId") REFERENCES "Asset" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "AssetPlayerTag_playerId_fkey" FOREIGN KEY ("playerId") REFERENCES "Player" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "AssetPlayerTag_assetId_playerId_source_key" ON "AssetPlayerTag"("assetId", "playerId", "source");
+CREATE INDEX IF NOT EXISTS "AssetPlayerTag_playerId_status_idx" ON "AssetPlayerTag"("playerId", "status");
+
+CREATE TABLE IF NOT EXISTS "AssetSponsorTag" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "assetId" TEXT NOT NULL,
+    "sponsorId" TEXT NOT NULL,
+    "source" TEXT NOT NULL,
+    "confidence" REAL,
+    "status" TEXT NOT NULL DEFAULT 'suggested',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "reviewedAt" DATETIME,
+    "reviewedBy" TEXT,
+    CONSTRAINT "AssetSponsorTag_assetId_fkey" FOREIGN KEY ("assetId") REFERENCES "Asset" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "AssetSponsorTag_sponsorId_fkey" FOREIGN KEY ("sponsorId") REFERENCES "Sponsor" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "AssetSponsorTag_assetId_sponsorId_source_key" ON "AssetSponsorTag"("assetId", "sponsorId", "source");
+CREATE INDEX IF NOT EXISTS "AssetSponsorTag_sponsorId_status_idx" ON "AssetSponsorTag"("sponsorId", "status");
 `;
 
 const statements = sql

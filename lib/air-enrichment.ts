@@ -1,5 +1,7 @@
 import { prisma } from './db';
 import type { AirResult } from './air';
+import { matchSponsorTokens } from './sponsor-matching';
+import { upsertPlayerTag, upsertSponsorTag } from './asset-tags';
 
 const CONFIDENCE_THRESHOLD = 0.70;
 
@@ -46,25 +48,54 @@ export async function enrichFromAirResult(
   }
 
   // --- Logo detection → match against Sponsor table ---
+  const confirmedSponsorIds = new Set<string>();
+  const sponsorLogoConfidence = new Map<string, number>();
   if (result.logos && result.logos.length > 0) {
     const detected = result.logos
       .filter((l) => l.confidence >= CONFIDENCE_THRESHOLD)
-      .map((l) => l.name.toLowerCase());
+      .map((l) => ({ name: l.name.toLowerCase(), confidence: l.confidence }));
 
     if (detected.length > 0) {
-      const sponsors = await prisma.sponsor.findMany({ select: { name: true }, where: { active: true } });
+      const sponsors = await prisma.sponsor.findMany({ select: { id: true, name: true }, where: { active: true } });
       for (const sponsor of sponsors) {
         const lower = sponsor.name.toLowerCase();
-        if (detected.some((d) => d.includes(lower) || lower.includes(d))) {
+        const match = detected.find((d) => d.name.includes(lower) || lower.includes(d.name));
+        if (match) {
           sponsorNames.push(sponsor.name);
           tags.push(`sponsor:${sponsor.name.toLowerCase().replace(/\s+/g, '-')}`);
+          confirmedSponsorIds.add(sponsor.id);
+          sponsorLogoConfidence.set(sponsor.id, match.confidence);
         }
       }
       tags.push('logo-detected');
     }
   }
 
+  // --- Sponsor name/alias OCR text matching (cheap — reuses OCR already paid for) ---
+  const suggestedSponsorIds = new Set<string>();
+  if (result.text && result.text.length > 0) {
+    const activeSponsors = await prisma.sponsor.findMany({
+      where: { active: true },
+      select: { id: true, name: true, aliasesJson: true },
+    });
+    const ocrMatches = matchSponsorTokens(result.text.join(' '), activeSponsors);
+    for (const m of ocrMatches) {
+      if (confirmedSponsorIds.has(m.sponsorId)) continue; // already confirmed via logo detection
+      if (m.isFullName) {
+        confirmedSponsorIds.add(m.sponsorId);
+        const sponsor = activeSponsors.find((s) => s.id === m.sponsorId);
+        if (sponsor && !sponsorNames.includes(sponsor.name)) {
+          sponsorNames.push(sponsor.name);
+          tags.push(`sponsor:${sponsor.name.toLowerCase().replace(/\s+/g, '-')}`);
+        }
+      } else {
+        suggestedSponsorIds.add(m.sponsorId);
+      }
+    }
+  }
+
   // --- Object detection → jersey numbers → cross-reference player roster ---
+  const jerseyPlayerIds = new Set<string>();
   if (result.text && result.text.length > 0) {
     const numbers = result.text
       .map((t) => parseInt(t.trim(), 10))
@@ -73,11 +104,12 @@ export async function enrichFromAirResult(
     if (numbers.length > 0) {
       const players = await prisma.player.findMany({
         where: { number: { in: numbers }, active: true },
-        select: { name: true, number: true },
+        select: { id: true, name: true, number: true },
       });
       for (const p of players) {
         playerNames.push(p.name);
         tags.push(`player:${p.name.toLowerCase().replace(/\s+/g, '-')}`);
+        jerseyPlayerIds.add(p.id);
       }
     }
   }
@@ -111,6 +143,17 @@ export async function enrichFromAirResult(
       wasbaiResponseJson: JSON.stringify(result),
     },
   });
+
+  // Structured join-table rows — the source of truth for the player/sponsor photo galleries.
+  for (const playerId of jerseyPlayerIds) {
+    await upsertPlayerTag(assetId, playerId, 'jersey-ocr', null, 'confirmed');
+  }
+  for (const sponsorId of confirmedSponsorIds) {
+    await upsertSponsorTag(assetId, sponsorId, 'logo-name', sponsorLogoConfidence.get(sponsorId) ?? null, 'confirmed');
+  }
+  for (const sponsorId of suggestedSponsorIds) {
+    await upsertSponsorTag(assetId, sponsorId, 'ocr-text', 0.6, 'suggested');
+  }
 
   return {
     tags: uniqueTags,

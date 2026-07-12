@@ -8,7 +8,13 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   const body = await request.json();
   const sponsor = await prisma.sponsor.update({
     where: { id: params.id },
-    data: { name: body.name, logoUrl: body.logoUrl ?? null, tier: body.tier ?? null, active: body.active ?? true },
+    data: {
+      name: body.name,
+      logoUrl: body.logoUrl ?? null,
+      tier: body.tier ?? null,
+      active: body.active ?? true,
+      aliasesJson: Array.isArray(body.aliases) ? JSON.stringify(body.aliases) : null,
+    },
   });
   return NextResponse.json(sponsor);
 }

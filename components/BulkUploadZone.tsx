@@ -2,6 +2,9 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import TagInput from './TagInput';
+import { uploadViaIngestApi } from '../lib/client-ingest';
+
+const UPLOAD_CONCURRENCY = 3;
 
 type Season     = { id: string; name: string };
 type Collection = { id: string; name: string; type: string; date: string | null };
@@ -13,7 +16,7 @@ function collectionLabel(c: Collection): string {
   return `${prefix} · ${c.name}`;
 }
 
-type ItemStatus = 'queued' | 'uploading' | 'done' | 'error';
+type ItemStatus = 'queued' | 'uploading' | 'done' | 'duplicate' | 'error';
 
 type QueueItem = {
   id: string;
@@ -84,6 +87,7 @@ function Thumb({ item }: { item: QueueItem }) {
 function StatusLabel({ item }: { item: QueueItem }) {
   if (item.status === 'uploading') return <><span className="spinner" /> {item.statusMsg ?? 'Uploading…'}</>;
   if (item.status === 'done')      return <>&#10003; Done</>;
+  if (item.status === 'duplicate') return <>Already uploaded</>;
   if (item.status === 'error')     return <span title={item.errorMsg}>&#10007; {item.errorMsg ?? 'Error'}</span>;
   return <>Queued</>;
 }
@@ -181,103 +185,61 @@ export default function BulkUploadZone() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  async function uploadOne(item: QueueItem) {
+    const setStatus = (patch: Partial<QueueItem>) =>
+      setQueue((q) => q.map((i) => i.id === item.id ? { ...i, ...patch } : i));
+
+    setStatus({ status: 'uploading', statusMsg: 'Preparing…' });
+
+    let exifJson: string | null = null;
+    if (item.file.type.startsWith('image/')) {
+      try {
+        const { default: exifr } = await import('exifr');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const exif = await (exifr.parse as any)(item.file, { all: true });
+        if (exif) exifJson = JSON.stringify(exif);
+      } catch { /* non-fatal */ }
+    }
+
+    try {
+      const result = await uploadViaIngestApi(
+        item.file,
+        {
+          channel: 'browser',
+          exifJson,
+          metadata: {
+            eventName, eventDate, location, manualTags: tags,
+            collectionId: collectionId || null, seasonId: seasonId || null,
+          },
+        },
+        (statusMsg) => setStatus({ statusMsg }),
+      );
+      setStatus(result.duplicate ? { status: 'duplicate', statusMsg: undefined } : { status: 'done', statusMsg: undefined });
+    } catch (err) {
+      setStatus({ status: 'error', errorMsg: err instanceof Error ? err.message : 'Upload failed' });
+    }
+  }
+
   async function uploadAll() {
     const pending = queue.filter((i) => i.status === 'queued');
     if (!pending.length || isUploading) return;
 
     setIsUploading(true);
 
-    for (const item of pending) {
-      const setStatus = (patch: Partial<QueueItem>) =>
-        setQueue((q) => q.map((i) => i.id === item.id ? { ...i, ...patch } : i));
-
-      // Step 1: Get a presigned PUT URL from our API
-      setStatus({ status: 'uploading', statusMsg: 'Getting upload URL…' });
-      let presignedUrl: string;
-      let objectKey: string;
-      try {
-        const res = await fetch('/api/upload/presign', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileName: item.file.name, fileType: item.file.type, fileSize: item.file.size }),
-        });
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          setStatus({ status: 'error', errorMsg: body.message ?? `Presign failed (HTTP ${res.status})` });
-          continue;
-        }
-        ({ presignedUrl, objectKey } = await res.json());
-      } catch (err) {
-        setStatus({ status: 'error', errorMsg: `Network: ${err instanceof Error ? err.message : 'unknown'}` });
-        continue;
-      }
-
-      // Step 2: PUT the file directly to Wasabi (no size limit)
-      setStatus({ statusMsg: 'Uploading to storage…' });
-      try {
-        const res = await fetch(presignedUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': item.file.type },
-          body: item.file,
-        });
-        if (!res.ok) {
-          const text = await res.text().catch(() => '');
-          setStatus({ status: 'error', errorMsg: `Storage upload failed (HTTP ${res.status})${text ? ': ' + text.slice(0, 150) : ''}` });
-          continue;
-        }
-      } catch (err) {
-        setStatus({ status: 'error', errorMsg: `Storage network error: ${err instanceof Error ? err.message : 'unknown'}` });
-        continue;
-      }
-
-      // Step 2b: Extract EXIF client-side (images only, non-blocking)
-      let exifJson: string | null = null;
-      if (item.file.type.startsWith('image/')) {
-        try {
-          const { default: exifr } = await import('exifr');
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const exif = await (exifr.parse as any)(item.file, { all: true });
-          if (exif) exifJson = JSON.stringify(exif);
-        } catch { /* non-fatal */ }
-      }
-
-      // Step 3: Confirm — save the DB record via our API
-      setStatus({ statusMsg: 'Saving…' });
-      try {
-        const res = await fetch('/api/upload/confirm', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            objectKey,
-            fileName:     item.file.name,
-            fileType:     item.file.type,
-            fileSize:     item.file.size,
-            title:        item.file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '),
-            eventName,
-            eventDate,
-            location,
-            manualTags:   tags,
-            collectionId: collectionId || null,
-            seasonId:     seasonId     || null,
-            exifJson,
-          }),
-        });
-        if (res.ok) {
-          setStatus({ status: 'done', statusMsg: undefined });
-        } else {
-          const body = await res.json().catch(() => ({}));
-          setStatus({ status: 'error', errorMsg: body.message ?? `Save failed (HTTP ${res.status})` });
-        }
-      } catch (err) {
-        setStatus({ status: 'error', errorMsg: `Network: ${err instanceof Error ? err.message : 'unknown'}` });
+    let cursor = 0;
+    async function worker() {
+      while (cursor < pending.length) {
+        const item = pending[cursor++];
+        await uploadOne(item);
       }
     }
+    await Promise.all(Array.from({ length: Math.min(UPLOAD_CONCURRENCY, pending.length) }, worker));
 
     setIsUploading(false);
   }
 
   const queuedCount = queue.filter((i) => i.status === 'queued').length;
-  const doneCount   = queue.filter((i) => i.status === 'done').length;
+  const doneCount   = queue.filter((i) => i.status === 'done' || i.status === 'duplicate').length;
   const errorCount  = queue.filter((i) => i.status === 'error').length;
 
   return (

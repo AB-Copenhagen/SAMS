@@ -1,4 +1,14 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  ListPartsCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { redis } from './redis';
 
@@ -76,6 +86,72 @@ export async function getPresignedUploadUrl(objectKey: string, contentType: stri
     new PutObjectCommand({ Bucket: bucket, Key: objectKey, ContentType: contentType }),
     { expiresIn }
   );
+}
+
+// --- Multipart upload (large/resumable transfers) ---
+
+export const MULTIPART_MIN_PART_SIZE = 8 * 1024 * 1024;  // 8 MB
+export const MULTIPART_THRESHOLD     = 64 * 1024 * 1024; // switch to multipart above this
+
+export async function createMultipartUpload(objectKey: string, contentType: string): Promise<string> {
+  const { client, bucket } = getClient();
+  const res = await client.send(new CreateMultipartUploadCommand({ Bucket: bucket, Key: objectKey, ContentType: contentType }));
+  if (!res.UploadId) throw new Error('Wasabi did not return an UploadId');
+  return res.UploadId;
+}
+
+export async function presignUploadPart(objectKey: string, uploadId: string, partNumber: number, expiresIn = 300): Promise<string> {
+  const { client, bucket } = getClient();
+  return getSignedUrl(
+    client,
+    new UploadPartCommand({ Bucket: bucket, Key: objectKey, UploadId: uploadId, PartNumber: partNumber }),
+    { expiresIn },
+  );
+}
+
+export interface UploadedPart {
+  partNumber: number;
+  eTag: string;
+}
+
+export async function listParts(objectKey: string, uploadId: string): Promise<UploadedPart[]> {
+  const { client, bucket } = getClient();
+  const parts: UploadedPart[] = [];
+  let partNumberMarker: string | undefined;
+
+  do {
+    const res = await client.send(new ListPartsCommand({
+      Bucket: bucket,
+      Key: objectKey,
+      UploadId: uploadId,
+      PartNumberMarker: partNumberMarker,
+    }));
+    for (const p of res.Parts ?? []) {
+      if (p.PartNumber != null && p.ETag) parts.push({ partNumber: p.PartNumber, eTag: p.ETag });
+    }
+    partNumberMarker = res.IsTruncated ? res.NextPartNumberMarker : undefined;
+  } while (partNumberMarker);
+
+  return parts;
+}
+
+export async function completeMultipartUpload(objectKey: string, uploadId: string, parts: UploadedPart[]): Promise<void> {
+  const { client, bucket } = getClient();
+  await client.send(new CompleteMultipartUploadCommand({
+    Bucket: bucket,
+    Key: objectKey,
+    UploadId: uploadId,
+    MultipartUpload: {
+      Parts: parts
+        .sort((a, b) => a.partNumber - b.partNumber)
+        .map((p) => ({ PartNumber: p.partNumber, ETag: p.eTag })),
+    },
+  }));
+}
+
+export async function abortMultipartUpload(objectKey: string, uploadId: string): Promise<void> {
+  const { client, bucket } = getClient();
+  await client.send(new AbortMultipartUploadCommand({ Bucket: bucket, Key: objectKey, UploadId: uploadId }));
 }
 
 export function getPublicUrl(objectKey: string): string {

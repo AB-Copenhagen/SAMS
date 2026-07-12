@@ -2,5 +2,6 @@ node_modules
 .next
 out
 .env*
+!.env.example
 prisma/dev.db
 .vercel
