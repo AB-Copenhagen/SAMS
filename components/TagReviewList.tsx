@@ -18,6 +18,7 @@ interface Props {
 export default function TagReviewList({ kind, items: initialItems }: Props) {
   const [items, setItems] = useState(initialItems);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<ReviewItem | null>(null);
 
   async function review(tagId: string, assetId: string, status: 'confirmed' | 'rejected') {
     setBusyId(tagId);
@@ -43,7 +44,19 @@ export default function TagReviewList({ kind, items: initialItems }: Props) {
       <div className="queue-list">
         {items.map((item) => (
           <div key={item.tagId} className="queue-item">
-            <div className="queue-item-thumb">
+            <div
+              className="queue-item-thumb"
+              style={{ cursor: item.fileType.startsWith('image/') ? 'pointer' : 'default' }}
+              role={item.fileType.startsWith('image/') ? 'button' : undefined}
+              tabIndex={item.fileType.startsWith('image/') ? 0 : undefined}
+              onClick={() => item.fileType.startsWith('image/') && setPreview(item)}
+              onKeyDown={(e) => {
+                if (item.fileType.startsWith('image/') && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault();
+                  setPreview(item);
+                }
+              }}
+            >
               {item.fileType.startsWith('image/') ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={`/api/assets/${item.assetId}/thumbnail`} alt="" />
@@ -76,6 +89,41 @@ export default function TagReviewList({ kind, items: initialItems }: Props) {
           </div>
         ))}
       </div>
+
+      {preview && (
+        <div className="modal-backdrop" onClick={() => setPreview(null)}>
+          <div className="modal modal-image" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{preview.title || 'Untitled'}</h3>
+              <button className="modal-close" type="button" onClick={() => setPreview(null)}>×</button>
+            </div>
+            <div className="modal-body">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`/api/assets/${preview.assetId}/download`} alt={preview.title || ''} />
+            </div>
+            <div style={{ display: 'flex', gap: 8, padding: '0 20px 20px' }}>
+              <button
+                className="btn-primary"
+                type="button"
+                disabled={busyId === preview.tagId}
+                onClick={async () => { await review(preview.tagId, preview.assetId, 'confirmed'); setPreview(null); }}
+                style={{ flex: 1, justifyContent: 'center' }}
+              >
+                Confirm
+              </button>
+              <button
+                className="btn-danger"
+                type="button"
+                disabled={busyId === preview.tagId}
+                onClick={async () => { await review(preview.tagId, preview.assetId, 'rejected'); setPreview(null); }}
+                style={{ flex: 1, justifyContent: 'center' }}
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

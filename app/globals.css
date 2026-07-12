@@ -861,5 +861,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .modal-body { padding: 20px; }
 
+.modal-image { max-width: 900px; }
+.modal-image .modal-body { padding: 0; display: flex; justify-content: center; background: #0d0f1c; }
+.modal-image .modal-body img { max-width: 100%; max-height: 80vh; display: block; }
+
 /* hover state for clickable player rows */
 .player-row:hover { background: #f7f8fc; }
