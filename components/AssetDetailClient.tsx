@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TagInput from './TagInput';
 import Combobox from './Combobox';
-import AirTagButton from './AirTagButton';
+import IdentifyPlayersButton from './IdentifyPlayersButton';
 import EntityMultiSelect, { type EntityOption } from './EntityMultiSelect';
 
 type Season     = { id: string; name: string };
@@ -34,7 +34,6 @@ type AssetProps = {
   uploaderEmail: string;
   manualTagsJson: string;
   detectedTagsJson: string | null;
-  aiDescription: string | null;
   exifJson: string | null;
 };
 
@@ -134,7 +133,6 @@ export default function AssetDetailClient({
   const [detectedTags, setDetectedTags] = useState<string[]>(() => {
     try { return JSON.parse(asset.detectedTagsJson ?? '[]') as string[]; } catch { return []; }
   });
-  const [aiDescription, setAiDescription] = useState(asset.aiDescription ?? '');
   const [playerIds, setPlayerIds] = useState<string[]>(initialPlayerIds);
   const [sponsorIds, setSponsorIds] = useState<string[]>(initialSponsorIds);
   const [form, setForm] = useState({
@@ -327,13 +325,10 @@ export default function AssetDetailClient({
         </div>
 
         <div className="card">
-          <div className="card-header" style={{ marginBottom: 12 }}>AI Analysis</div>
+          <div className="card-header" style={{ marginBottom: 12 }}>Detected tags</div>
 
           {detectedTags.length > 0 && (
             <div style={{ marginBottom: 12 }}>
-              {aiDescription && (
-                <p style={{ fontSize: 13, color: '#3a3f58', marginBottom: 10, lineHeight: 1.5 }}>{aiDescription}</p>
-              )}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {detectedTags.map((tag) => (
                   <span key={tag} style={{
@@ -345,11 +340,17 @@ export default function AssetDetailClient({
             </div>
           )}
 
-          <AirTagButton
+          <IdentifyPlayersButton
             assetId={asset.id}
-            onComplete={({ tags, description }) => {
-              setDetectedTags(tags);
-              setAiDescription(description);
+            onComplete={({ players }) => {
+              setDetectedTags((tags) => {
+                const next = [...tags];
+                for (const name of players) {
+                  const slug = `player:${name.toLowerCase().replace(/\s+/g, '-')}`;
+                  if (!next.includes(slug)) next.push(slug);
+                }
+                return next;
+              });
             }}
           />
         </div>

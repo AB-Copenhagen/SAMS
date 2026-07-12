@@ -73,7 +73,7 @@ export interface EnrollResult {
   faceId: string;
 }
 
-export async function enrollPlayerFace(headshotUrlOrObjectKey: string): Promise<EnrollResult> {
+export async function enrollPlayerFace(headshotUrlOrObjectKey: string, playerId: string): Promise<EnrollResult> {
   const bytes = headshotUrlOrObjectKey.startsWith('http')
     ? Buffer.from(await (await fetch(headshotUrlOrObjectKey)).arrayBuffer())
     : await fetchImageBytes(headshotUrlOrObjectKey);
@@ -81,6 +81,7 @@ export async function enrollPlayerFace(headshotUrlOrObjectKey: string): Promise<
   const res = await getClient().send(new IndexFacesCommand({
     CollectionId: getCollectionId(),
     Image: { Bytes: bytes },
+    ExternalImageId: playerId,
     MaxFaces: 1,
     QualityFilter: 'AUTO',
     DetectionAttributes: [],
@@ -108,12 +109,23 @@ interface DetectedFace {
   confidence: number;
 }
 
+// Returns EVERY detected face — deliberately uncapped. DetectFaces is a single flat-rate call
+// regardless of how many faces come back, so there's no cost reason to truncate this list; only
+// the per-face SearchFacesByImage step below is expensive enough to need a cap. Jersey-text
+// grounding (isNearAFace) uses this full list — capping it here previously meant a real match
+// on a dense crowd/team photo could get discarded before grounding was even checked, just because
+// the relevant face wasn't among the largest N in frame.
 async function detectFaces(bytes: Buffer): Promise<DetectedFace[]> {
   const res = await getClient().send(new DetectFacesCommand({ Image: { Bytes: bytes } }));
   return (res.FaceDetails ?? [])
     .filter((f) => (f.Confidence ?? 0) >= DETECT_FACE_MIN_CONFIDENCE && f.BoundingBox)
-    .map((f) => ({ box: f.BoundingBox!, confidence: f.Confidence! }))
-    // Largest-area faces first — caps to the most visually significant subjects in a crowd shot.
+    .map((f) => ({ box: f.BoundingBox!, confidence: f.Confidence! }));
+}
+
+// Largest-area faces first, capped — this is what actually costs money (one SearchFacesByImage
+// call per face), so it stays capped even though grounding checks now see every face.
+function largestFaces(faces: DetectedFace[]): DetectedFace[] {
+  return [...faces]
     .sort((a, b) => (b.box.Width! * b.box.Height!) - (a.box.Width! * a.box.Height!))
     .slice(0, MAX_FACES_PER_IMAGE);
 }
@@ -151,12 +163,21 @@ async function searchFaces(bytes: Buffer, faces: DetectedFace[]): Promise<FaceMa
     const chunk = faces.slice(i, i + CONCURRENCY);
     const results = await Promise.all(chunk.map(async (face) => {
       const crop = await cropFace(bytes, face.box);
-      const res = await getClient().send(new SearchFacesByImageCommand({
-        CollectionId: getCollectionId(),
-        Image: { Bytes: crop },
-        MaxFaces: 1,
-        FaceMatchThreshold: SUGGEST_THRESHOLD,
-      }));
+      let res;
+      try {
+        res = await getClient().send(new SearchFacesByImageCommand({
+          CollectionId: getCollectionId(),
+          Image: { Bytes: crop },
+          MaxFaces: 1,
+          FaceMatchThreshold: SUGGEST_THRESHOLD,
+        }));
+      } catch (err) {
+        // A crop that DetectFaces flagged as a face can still fail Rekognition's stricter
+        // in-crop re-detection (tight/angled/motion-blurred padding) — that's just "no match
+        // for this face", not a reason to abort every other face (and jersey-OCR) in the image.
+        if ((err as { name?: string }).name === 'InvalidParameterException') return null;
+        throw err;
+      }
       const best = res.FaceMatches?.[0];
       if (!best?.Face?.ExternalImageId || best.Similarity == null) return null;
       return { playerId: best.Face.ExternalImageId, similarityPct: best.Similarity };
@@ -227,6 +248,8 @@ async function detectJerseyIdentifiers(bytes: Buffer, faces: DetectedFace[]): Pr
   if (players.length === 0) return [];
 
   const byPlayer = new Map<string, JerseyMatch>();
+  const matchedViaNumber = new Set<string>();
+  const matchedViaName = new Set<string>();
   const consider = (playerId: string, grounded: boolean) => {
     const existing = byPlayer.get(playerId);
     // A grounded sighting anywhere in the image is enough to trust the player is really present,
@@ -236,13 +259,28 @@ async function detectJerseyIdentifiers(bytes: Buffer, faces: DetectedFace[]): Pr
 
   for (const candidate of numberCandidates) {
     const player = players.find((p) => p.number === candidate.number);
-    if (player) consider(player.id, isNearAFace(candidate.box, faces));
+    if (player) {
+      matchedViaNumber.add(player.id);
+      consider(player.id, isNearAFace(candidate.box, faces));
+    }
   }
 
   const playersByLastName = new Map(players.map((p) => [normalizeJerseyText(lastName(p.name)), p] as const));
   for (const candidate of nameCandidates) {
     const player = playersByLastName.get(candidate.text);
-    if (player) consider(player.id, isNearAFace(candidate.box, faces));
+    if (player) {
+      matchedViaName.add(player.id);
+      consider(player.id, isNearAFace(candidate.box, faces));
+    }
+  }
+
+  // Two independent OCR reads (the jersey number AND the printed surname) agreeing on the same
+  // player is trustworthy on its own — no scoreboard/signage would coincidentally show both a
+  // specific player's exact number and exact surname together — so this auto-confirms even
+  // without a detected face nearby (real photos often catch a clear number/name on someone whose
+  // face isn't reliably detected: turned away, distant, motion-blurred, etc).
+  for (const playerId of matchedViaNumber) {
+    if (matchedViaName.has(playerId)) byPlayer.set(playerId, { playerId, grounded: true });
   }
 
   return [...byPlayer.values()];
@@ -263,7 +301,7 @@ export async function identifyPlayersInImage(objectKey: string): Promise<Identif
   const faces = await detectFaces(bytes);
 
   const [faceMatches, jerseyMatches] = await Promise.all([
-    searchFaces(bytes, faces),
+    searchFaces(bytes, largestFaces(faces)),
     detectJerseyIdentifiers(bytes, faces),
   ]);
 

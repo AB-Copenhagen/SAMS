@@ -75,7 +75,7 @@ export default async function HomePage() {
                   <div className="asset-thumb">
                     {a.fileType.startsWith('image/') ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={`/api/assets/${a.id}/download`} alt={a.title ?? a.id} />
+                      <img src={`/api/assets/${a.id}/thumbnail`} alt={a.title ?? a.id} />
                     ) : '🎬'}
                     {a.fileType.startsWith('video/') && <span className="video-badge">Video</span>}
                   </div>

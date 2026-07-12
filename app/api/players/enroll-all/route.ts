@@ -22,7 +22,7 @@ export async function POST() {
 
   for (const player of players) {
     try {
-      const { faceId } = await enrollPlayerFace(player.headshotUrl!);
+      const { faceId } = await enrollPlayerFace(player.headshotUrl!, player.id);
       await prisma.player.update({ where: { id: player.id }, data: { rekognitionFaceId: faceId, faceEnrolledAt: new Date() } });
       enrolled++;
     } catch (err) {

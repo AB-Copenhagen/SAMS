@@ -46,7 +46,7 @@ export default function TagReviewList({ kind, items: initialItems }: Props) {
             <div className="queue-item-thumb">
               {item.fileType.startsWith('image/') ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={`/api/assets/${item.assetId}/download`} alt="" />
+                <img src={`/api/assets/${item.assetId}/thumbnail`} alt="" />
               ) : '🎬'}
             </div>
             <div className="queue-item-info">

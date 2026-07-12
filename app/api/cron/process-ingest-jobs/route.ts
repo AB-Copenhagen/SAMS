@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/db';
-import { getAirJob } from '../../../../lib/air';
-import { enrichFromAirResult } from '../../../../lib/air-enrichment';
 import { abortMultipartUpload } from '../../../../lib/wasabi';
 import { identifyPlayersInImage, AUTO_APPLY_THRESHOLD } from '../../../../lib/rekognition';
 import { upsertPlayerTag, addConfirmedStringTag } from '../../../../lib/asset-tags';
+import { generateThumbnail } from '../../../../lib/thumbnail';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -12,9 +11,8 @@ export const dynamic = 'force-dynamic';
 const BATCH_SIZE = 20;
 const FACE_BATCH_SIZE = 10;
 const FACE_MAX_ATTEMPTS = 5;
-// Crowd/scenery shots are overwhelmingly distant, non-enrolled faces — pure Rekognition cost
-// for near-zero identification value, so they're skipped rather than searched.
-const FACE_SKIP_TAGS = ['fan-shot', 'stadium-scenery'];
+const THUMBNAIL_BATCH_SIZE = 20;
+const THUMBNAIL_MAX_ATTEMPTS = 5;
 const STUCK_UPLOAD_TIMEOUT_MS = 6 * 60 * 60 * 1000; // 6h
 
 function authorized(request: Request): boolean {
@@ -26,73 +24,16 @@ function authorized(request: Request): boolean {
 export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
-  const tagged = { completed: 0, failed: 0, stillPending: 0 };
-
-  const pendingAssets = await prisma.asset.findMany({
-    where: { aiTagStatus: { in: ['queued', 'processing'] } },
-    take: BATCH_SIZE,
-    select: { id: true, wasbaiResponseJson: true },
-  });
-
-  for (const asset of pendingAssets) {
-    const pointer = asset.wasbaiResponseJson ? JSON.parse(asset.wasbaiResponseJson) : null;
-    const jobId: string | undefined = pointer?.jobId;
-    if (!jobId) {
-      await prisma.asset.update({ where: { id: asset.id }, data: { aiTagStatus: 'failed' } });
-      tagged.failed++;
-      continue;
-    }
-
-    try {
-      const airJob = await getAirJob(jobId);
-
-      if (airJob.status === 'completed' && airJob.result) {
-        await enrichFromAirResult(asset.id, airJob.result);
-        await prisma.asset.update({ where: { id: asset.id }, data: { aiTagStatus: 'done' } });
-        await prisma.ingestJob.updateMany({
-          where: { assetId: asset.id, status: 'processing' },
-          data: { status: 'complete', completedAt: new Date() },
-        });
-        tagged.completed++;
-      } else if (airJob.status === 'failed') {
-        await prisma.asset.update({ where: { id: asset.id }, data: { aiTagStatus: 'failed' } });
-        await prisma.ingestJob.updateMany({
-          where: { assetId: asset.id, status: 'processing' },
-          data: { status: 'complete', completedAt: new Date(), errorMessage: airJob.error ?? 'AiR tagging failed' },
-        });
-        tagged.failed++;
-      } else {
-        await prisma.asset.update({ where: { id: asset.id }, data: { aiTagStatus: airJob.status } });
-        tagged.stillPending++;
-      }
-    } catch (err) {
-      console.error('[cron/process-ingest-jobs] getAirJob failed for', asset.id, err);
-      tagged.stillPending++;
-    }
-  }
-
-  // Face search — a genuinely separate external call (Rekognition, not AiR/GCV), gated on
-  // aiTagStatus having settled so the shot-type tags used for crowd-shot skipping are available.
+  // Face + jersey-number search (AWS Rekognition) — the only remaining automated tagging step.
   const faceResults = { done: 0, skipped: 0, failed: 0, stillPending: 0 };
 
-  const facePendingIds = await prisma.$queryRaw<Array<{ id: string }>>`
-    SELECT id FROM "Asset"
-    WHERE "faceTagStatus" = 'pending' AND "aiTagStatus" IN ('done', 'failed', 'skipped')
-    LIMIT ${FACE_BATCH_SIZE}
-  `;
   const facePendingAssets = await prisma.asset.findMany({
-    where: { id: { in: facePendingIds.map((r) => r.id) } },
-    select: { id: true, objectKey: true, detectedTagsJson: true, faceTagAttempts: true },
+    where: { faceTagStatus: 'pending' },
+    take: FACE_BATCH_SIZE,
+    select: { id: true, objectKey: true, faceTagAttempts: true },
   });
 
   for (const asset of facePendingAssets) {
-    const shotTags: string[] = asset.detectedTagsJson ? JSON.parse(asset.detectedTagsJson) : [];
-    if (shotTags.some((t) => FACE_SKIP_TAGS.includes(t))) {
-      await prisma.asset.update({ where: { id: asset.id }, data: { faceTagStatus: 'skipped' } });
-      faceResults.skipped++;
-      continue;
-    }
-
     try {
       const { faceMatches, jerseyMatches } = await identifyPlayersInImage(asset.objectKey);
 
@@ -129,6 +70,44 @@ export async function GET(request: Request) {
     }
   }
 
+  // Thumbnail generation — cheap, independent of AI tagging, so it's gated only on its own status.
+  const thumbnailResults = { done: 0, skipped: 0, failed: 0, stillPending: 0 };
+
+  const thumbnailPendingIds = await prisma.$queryRaw<Array<{ id: string }>>`
+    SELECT id FROM "Asset"
+    WHERE "thumbnailStatus" = 'pending'
+    LIMIT ${THUMBNAIL_BATCH_SIZE}
+  `;
+  const thumbnailPendingAssets = await prisma.asset.findMany({
+    where: { id: { in: thumbnailPendingIds.map((r) => r.id) } },
+    select: { id: true, objectKey: true, fileType: true, thumbnailAttempts: true },
+  });
+
+  for (const asset of thumbnailPendingAssets) {
+    if (!asset.fileType.startsWith('image/')) {
+      await prisma.asset.update({ where: { id: asset.id }, data: { thumbnailStatus: 'skipped' } });
+      thumbnailResults.skipped++;
+      continue;
+    }
+
+    try {
+      const thumbnailKey = await generateThumbnail(asset.objectKey);
+      await prisma.asset.update({ where: { id: asset.id }, data: { thumbnailKey, thumbnailStatus: 'done' } });
+      thumbnailResults.done++;
+    } catch (err) {
+      console.error('[cron/process-ingest-jobs] generateThumbnail failed for', asset.id, err);
+      const attempts = asset.thumbnailAttempts + 1;
+      await prisma.asset.update({
+        where: { id: asset.id },
+        data: attempts >= THUMBNAIL_MAX_ATTEMPTS
+          ? { thumbnailStatus: 'failed', thumbnailAttempts: attempts }
+          : { thumbnailAttempts: attempts },
+      });
+      if (attempts >= THUMBNAIL_MAX_ATTEMPTS) thumbnailResults.failed++;
+      else thumbnailResults.stillPending++;
+    }
+  }
+
   // Sweep stuck multipart uploads that never completed.
   const stuckCutoff = new Date(Date.now() - STUCK_UPLOAD_TIMEOUT_MS);
   const stuckJobs = await prisma.ingestJob.findMany({
@@ -147,5 +126,5 @@ export async function GET(request: Request) {
     aborted++;
   }
 
-  return NextResponse.json({ ...tagged, faces: faceResults, aborted });
+  return NextResponse.json({ faces: faceResults, thumbnails: thumbnailResults, aborted });
 }

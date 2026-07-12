@@ -26,7 +26,7 @@ export default function AssetGallery({ assets, metaMode = 'date', renderExtra }:
           <div className="asset-thumb">
             {a.fileType.startsWith('image/') ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={`/api/assets/${a.id}/download`} alt={a.title ?? ''} loading="lazy" />
+              <img src={`/api/assets/${a.id}/thumbnail`} alt={a.title ?? ''} loading="lazy" />
             ) : '🎬'}
             {a.fileType.startsWith('video/') && <span className="video-badge">Video</span>}
           </div>

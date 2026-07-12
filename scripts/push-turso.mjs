@@ -91,6 +91,9 @@ ALTER TABLE "Asset" ADD COLUMN "gcvResponseJson" TEXT;
 ALTER TABLE "Asset" ADD COLUMN "aiDescription" TEXT;
 ALTER TABLE "Asset" ADD COLUMN "faceTagStatus" TEXT NOT NULL DEFAULT 'pending';
 ALTER TABLE "Asset" ADD COLUMN "faceTagAttempts" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "Asset" ADD COLUMN "thumbnailKey" TEXT;
+ALTER TABLE "Asset" ADD COLUMN "thumbnailStatus" TEXT NOT NULL DEFAULT 'pending';
+ALTER TABLE "Asset" ADD COLUMN "thumbnailAttempts" INTEGER NOT NULL DEFAULT 0;
 
 CREATE UNIQUE INDEX IF NOT EXISTS "Asset_objectKey_key" ON "Asset"("objectKey");
 CREATE UNIQUE INDEX IF NOT EXISTS "Asset_contentHash_key" ON "Asset"("contentHash");

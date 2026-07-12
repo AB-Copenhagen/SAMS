@@ -34,7 +34,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     }
     if (newHeadshotUrl) {
       try {
-        const { faceId } = await enrollPlayerFace(newHeadshotUrl);
+        const { faceId } = await enrollPlayerFace(newHeadshotUrl, player.id);
         await prisma.player.update({ where: { id: player.id }, data: { rekognitionFaceId: faceId, faceEnrolledAt: new Date() } });
       } catch (err) {
         faceEnrollmentError = err instanceof Error ? err.message : 'Face enrollment failed';

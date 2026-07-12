@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   let faceEnrollmentError: string | undefined;
   if (player.headshotUrl) {
     try {
-      const { faceId } = await enrollPlayerFace(player.headshotUrl);
+      const { faceId } = await enrollPlayerFace(player.headshotUrl, player.id);
       await prisma.player.update({ where: { id: player.id }, data: { rekognitionFaceId: faceId, faceEnrolledAt: new Date() } });
     } catch (err) {
       faceEnrollmentError = err instanceof Error ? err.message : 'Face enrollment failed';

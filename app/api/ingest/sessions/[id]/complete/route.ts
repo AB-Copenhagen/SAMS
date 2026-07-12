@@ -3,7 +3,6 @@ import { getIngestActor } from '../../../../../../lib/device-auth';
 import { prisma } from '../../../../../../lib/db';
 import { completeMultipartUpload, getPublicUrl, type UploadedPart } from '../../../../../../lib/wasabi';
 import { canAccessJob, type IngestMetadata } from '../../../../../../lib/ingest';
-import { submitAirJob } from '../../../../../../lib/air';
 
 export const maxDuration = 60;
 
@@ -66,7 +65,6 @@ export async function POST(request: Request, { params }: { params: { id: string 
         collectionId: metadata.collectionId || null,
         seasonId: metadata.seasonId || null,
         exifJson: exifJson ?? null,
-        aiTagStatus: 'pending',
         faceTagStatus: job.fileType.startsWith('image/') ? 'pending' : 'skipped',
       },
     });
@@ -79,34 +77,13 @@ export async function POST(request: Request, { params }: { params: { id: string 
     return NextResponse.json({ message: 'Database write failed: ' + (err instanceof Error ? err.message : String(err)) }, { status: 500 });
   }
 
+  // Storage + DB write is the whole of "ingestion" now — player identification (Rekognition) and
+  // thumbnail generation both run independently afterward via the cron sweep, tracked on the
+  // Asset itself (faceTagStatus/thumbnailStatus), not on this job.
   await prisma.ingestJob.update({
     where: { id: job.id },
-    data: { status: 'processing', assetId: asset.id },
+    data: { status: 'complete', assetId: asset.id, completedAt: new Date() },
   });
 
-  // Best-effort: submit the async AiR tagging job now (fast — just enqueues, doesn't wait for a result).
-  // The cron sweep (`/api/cron/process-ingest-jobs`) polls for completion and finalizes both the Asset and this job.
-  if (job.fileType.startsWith('image/')) {
-    try {
-      const airJobId = await submitAirJob(job.objectKey);
-      await prisma.asset.update({
-        where: { id: asset.id },
-        data: { aiTagStatus: 'queued', wasbaiResponseJson: JSON.stringify({ jobId: airJobId, status: 'queued' }) },
-      });
-    } catch (err) {
-      await prisma.asset.update({ where: { id: asset.id }, data: { aiTagStatus: 'failed' } }).catch(() => {});
-      // Tagging failed outright (not queued) — nothing for the cron sweep to pick up later,
-      // so close out the ingest job now rather than leaving it stuck in 'processing' forever.
-      await prisma.ingestJob.update({
-        where: { id: job.id },
-        data: { status: 'complete', completedAt: new Date(), errorMessage: 'AI tagging failed: ' + (err instanceof Error ? err.message : String(err)) },
-      }).catch(() => {});
-      console.error('[ingest/complete] AiR submit failed:', err);
-    }
-  } else {
-    await prisma.asset.update({ where: { id: asset.id }, data: { aiTagStatus: 'skipped' } });
-    await prisma.ingestJob.update({ where: { id: job.id }, data: { status: 'complete', completedAt: new Date() } });
-  }
-
-  return NextResponse.json({ status: 'ok', assetId: asset.id, job: { ...job, status: 'processing', assetId: asset.id } });
+  return NextResponse.json({ status: 'ok', assetId: asset.id, job: { ...job, status: 'complete', assetId: asset.id } });
 }
