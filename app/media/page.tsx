@@ -11,7 +11,7 @@ const PER_PAGE_OPTIONS = [25, 50, 100];
 
 type SearchParams = {
   q?: string; type?: string; seasonId?: string; category?: string;
-  collectionId?: string; playerIds?: string; sponsorIds?: string;
+  collectionId?: string; playerIds?: string; sponsorIds?: string; rating?: string;
   page?: string; perPage?: string;
 };
 
@@ -26,6 +26,7 @@ export default async function MediaPage({ searchParams }: { searchParams: Search
   const collectionId = searchParams.collectionId ?? '';
   const playerIds    = searchParams.playerIds ? searchParams.playerIds.split(',').filter(Boolean) : [];
   const sponsorIds   = searchParams.sponsorIds ? searchParams.sponsorIds.split(',').filter(Boolean) : [];
+  const rating       = [1, 2, 3, 4].includes(parseInt(searchParams.rating ?? '')) ? parseInt(searchParams.rating!) : 0;
   const page     = Math.max(1, parseInt(searchParams.page ?? '1'));
   const perPage  = PER_PAGE_OPTIONS.includes(parseInt(searchParams.perPage ?? '')) ? parseInt(searchParams.perPage!) : 25;
 
@@ -38,6 +39,7 @@ export default async function MediaPage({ searchParams }: { searchParams: Search
   if (collectionId) AND.push({ collectionId });
   if (playerIds.length)  AND.push({ playerTags:  { some: { playerId:  { in: playerIds  }, status: 'confirmed' } } });
   if (sponsorIds.length) AND.push({ sponsorTags: { some: { sponsorId: { in: sponsorIds }, status: 'confirmed' } } });
+  if (rating) AND.push({ rating: { gte: rating } });
 
   const where = AND.length ? { AND } : {};
 
@@ -51,7 +53,7 @@ export default async function MediaPage({ searchParams }: { searchParams: Search
   ]);
 
   const pages      = Math.ceil(total / perPage);
-  const isFiltered = !!(q || type || seasonId || category || collectionId || playerIds.length || sponsorIds.length);
+  const isFiltered = !!(q || type || seasonId || category || collectionId || playerIds.length || sponsorIds.length || rating);
 
   function pageUrl(p: number) {
     const params = new URLSearchParams();
@@ -62,6 +64,7 @@ export default async function MediaPage({ searchParams }: { searchParams: Search
     if (collectionId) params.set('collectionId', collectionId);
     if (playerIds.length) params.set('playerIds', playerIds.join(','));
     if (sponsorIds.length) params.set('sponsorIds', sponsorIds.join(','));
+    if (rating) params.set('rating', String(rating));
     if (perPage !== 25) params.set('perPage', String(perPage));
     if (p > 1) params.set('page', String(p));
     const s = params.toString();

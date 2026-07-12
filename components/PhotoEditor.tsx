@@ -23,7 +23,10 @@ interface CropperComponentProps {
   onZoomChange: (zoom: number) => void;
   onCropComplete: (croppedArea: Area, croppedAreaPixels: Area) => void;
   onMediaLoaded: (mediaSize: MediaSize) => void;
-  mediaProps?: { style?: CSSProperties };
+  // react-easy-crop reconstructs the rendered <img>'s `style` from `style.mediaStyle` merged
+  // with its own transform — `mediaProps.style` is spread onto the element first and then fully
+  // overwritten by that reconstruction, so a CSS filter must be injected via `style.mediaStyle`.
+  style?: { mediaStyle?: CSSProperties };
 }
 const Cropper = ReactEasyCrop as unknown as ComponentType<CropperComponentProps>;
 
@@ -170,7 +173,7 @@ export default function PhotoEditor({
                 onZoomChange={setZoom}
                 onCropComplete={onCropComplete}
                 onMediaLoaded={(size) => setNaturalSize({ width: size.naturalWidth, height: size.naturalHeight })}
-                mediaProps={{ style: { filter: cssFilter } }}
+                style={{ mediaStyle: { filter: cssFilter } }}
               />
             </div>
 

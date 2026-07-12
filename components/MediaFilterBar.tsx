@@ -56,7 +56,7 @@ export default function MediaFilterBar({
 
   const hasFilters = !!(
     searchParams.get('q') || searchParams.get('type') || searchParams.get('seasonId') ||
-    searchParams.get('collectionId') || playerIds.length || sponsorIds.length
+    searchParams.get('collectionId') || searchParams.get('rating') || playerIds.length || sponsorIds.length
   );
 
   return (
@@ -84,6 +84,13 @@ export default function MediaFilterBar({
         {collections.map((c) => (
           <option key={c.id} value={c.id}>{collectionLabel(c)}</option>
         ))}
+      </select>
+      <select value={searchParams.get('rating') ?? ''} onChange={(e) => setFilter('rating', e.target.value)}>
+        <option value="">Any rating</option>
+        <option value="4">★★★★ only</option>
+        <option value="3">★★★ &amp; up</option>
+        <option value="2">★★ &amp; up</option>
+        <option value="1">★ &amp; up</option>
       </select>
       <div style={{ minWidth: 180 }}>
         <EntityMultiSelect
