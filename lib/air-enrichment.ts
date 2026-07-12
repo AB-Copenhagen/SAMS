@@ -94,25 +94,10 @@ export async function enrichFromAirResult(
     }
   }
 
-  // --- Object detection → jersey numbers → cross-reference player roster ---
-  const jerseyPlayerIds = new Set<string>();
-  if (result.text && result.text.length > 0) {
-    const numbers = result.text
-      .map((t) => parseInt(t.trim(), 10))
-      .filter((n) => !isNaN(n) && n >= 1 && n <= 99);
-
-    if (numbers.length > 0) {
-      const players = await prisma.player.findMany({
-        where: { number: { in: numbers }, active: true },
-        select: { id: true, name: true, number: true },
-      });
-      for (const p of players) {
-        playerNames.push(p.name);
-        tags.push(`player:${p.name.toLowerCase().replace(/\s+/g, '-')}`);
-        jerseyPlayerIds.add(p.id);
-      }
-    }
-  }
+  // Jersey-number-based player identification now runs entirely through AWS Rekognition's
+  // DetectText (lib/rekognition.ts, identifyPlayersInImage) — spatially correlated to a detected
+  // person rather than a blind "any digit 1-99 anywhere in the image" match. See tag-faces route
+  // and the cron's face-search loop, which call it alongside face search.
 
   // --- Shot-type classification from description + objects ---
   const textToScan = [
@@ -145,9 +130,6 @@ export async function enrichFromAirResult(
   });
 
   // Structured join-table rows — the source of truth for the player/sponsor photo galleries.
-  for (const playerId of jerseyPlayerIds) {
-    await upsertPlayerTag(assetId, playerId, 'jersey-ocr', null, 'confirmed');
-  }
   for (const sponsorId of confirmedSponsorIds) {
     await upsertSponsorTag(assetId, sponsorId, 'logo-name', sponsorLogoConfidence.get(sponsorId) ?? null, 'confirmed');
   }

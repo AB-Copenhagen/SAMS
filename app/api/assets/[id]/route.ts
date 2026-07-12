@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { deleteFileFromWasabi } from '../../../../lib/wasabi';
+import { syncPlayerTags, syncSponsorTags } from '../../../../lib/asset-tags';
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
@@ -53,5 +54,13 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     },
     include: { season: true, collection: true },
   });
+
+  if (Array.isArray(body.playerIds)) {
+    await syncPlayerTags(params.id, body.playerIds, user.email);
+  }
+  if (Array.isArray(body.sponsorIds)) {
+    await syncSponsorTags(params.id, body.sponsorIds, user.email);
+  }
+
   return NextResponse.json(asset);
 }

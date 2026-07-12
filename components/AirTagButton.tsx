@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-type AirStatus = 'idle' | 'submitting' | 'polling' | 'done' | 'error';
+type AirStatus = 'idle' | 'submitting' | 'polling' | 'identifying' | 'done' | 'error';
 
 interface AirTagResult {
   tags: string[];
@@ -48,12 +48,32 @@ export default function AirTagButton({ assetId, onComplete }: Props) {
         const data = await pollRes.json() as { status: string } & Partial<AirTagResult>;
 
         if (data.status === 'completed') {
+          const tags = data.tags ?? [];
+
+          // AiR's job is done — also run a synchronous Rekognition face search so identified
+          // players show up immediately instead of waiting for the next cron sweep.
+          setStatus('identifying');
+          let players = data.players ?? [];
+          try {
+            const faceRes = await fetch(`/api/assets/${assetId}/tag-faces`, { method: 'POST' });
+            if (faceRes.ok) {
+              const faceData = await faceRes.json() as { players?: string[] };
+              players = [...new Set([...players, ...(faceData.players ?? [])])];
+              for (const name of faceData.players ?? []) {
+                const slug = `player:${name.toLowerCase().replace(/\s+/g, '-')}`;
+                if (!tags.includes(slug)) tags.push(slug);
+              }
+            }
+          } catch {
+            // Non-fatal — AiR tagging already succeeded; face ID is a best-effort addition here.
+          }
+
           setStatus('done');
           onComplete({
-            tags:        data.tags        ?? [],
+            tags,
             description: data.description ?? '',
-            players:     data.players     ?? [],
-            sponsors:    data.sponsors    ?? [],
+            players,
+            sponsors: data.sponsors ?? [],
           });
           return;
         }
@@ -81,7 +101,7 @@ export default function AirTagButton({ assetId, onComplete }: Props) {
     );
   }
 
-  const busy = status === 'submitting' || status === 'polling';
+  const busy = status === 'submitting' || status === 'polling' || status === 'identifying';
 
   return (
     <div>
@@ -95,7 +115,7 @@ export default function AirTagButton({ assetId, onComplete }: Props) {
         {busy ? (
           <>
             <span className="spinner" />
-            {status === 'submitting' ? 'Starting…' : 'Analysing…'}
+            {status === 'submitting' ? 'Starting…' : status === 'identifying' ? 'Identifying players…' : 'Analysing…'}
           </>
         ) : (
           <>

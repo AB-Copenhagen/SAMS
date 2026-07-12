@@ -13,10 +13,12 @@ import {
   DeleteFacesCommand,
   DetectFacesCommand,
   SearchFacesByImageCommand,
+  DetectTextCommand,
   type BoundingBox,
 } from '@aws-sdk/client-rekognition';
 import sharp from 'sharp';
 import { getPresignedUrl } from './wasabi';
+import { prisma } from './db';
 
 let _client: RekognitionClient | undefined;
 
@@ -40,6 +42,11 @@ function getCollectionId(): string {
 }
 
 const DETECT_FACE_MIN_CONFIDENCE = 90;
+const DETECT_TEXT_MIN_CONFIDENCE = 80;
+// A jersey number sits on the torso, below the face — "near" is defined loosely as horizontally
+// overlapping the face and within a handful of face-heights below it, to tolerate the wide range
+// of framing (tight headshot-style crop vs. full-body action shot) real match photos come in.
+const JERSEY_VERTICAL_REACH_FACE_HEIGHTS = 8;
 const MAX_FACES_PER_IMAGE        = Number(process.env.REKOGNITION_MAX_FACES_PER_IMAGE ?? 15);
 export const AUTO_APPLY_THRESHOLD = Number(process.env.REKOGNITION_AUTO_APPLY_THRESHOLD ?? 97);
 export const SUGGEST_THRESHOLD    = Number(process.env.REKOGNITION_SUGGEST_THRESHOLD ?? 80);
@@ -134,14 +141,7 @@ export interface FaceMatch {
   similarityPct: number;
 }
 
-export async function searchFacesInImage(objectKey: string): Promise<FaceMatch[]> {
-  const raw = await fetchImageBytes(objectKey);
-  // Rekognition's bounding boxes are relative to the EXIF-corrected orientation of the image.
-  // Bake that rotation into the buffer up front (and strip the EXIF tag) so sharp's pixel math
-  // in cropFace() lines up with Rekognition's coordinates — otherwise a rotated photo (extremely
-  // common from phones/cameras) produces a crop that doesn't actually contain the detected face.
-  const bytes = await sharp(raw).rotate().toBuffer();
-  const faces = await detectFaces(bytes);
+async function searchFaces(bytes: Buffer, faces: DetectedFace[]): Promise<FaceMatch[]> {
   if (faces.length === 0) return [];
 
   const CONCURRENCY = 5;
@@ -171,4 +171,101 @@ export async function searchFacesInImage(objectKey: string): Promise<FaceMatch[]
     if (!existing || m.similarityPct > existing.similarityPct) byPlayer.set(m.playerId, m);
   }
   return [...byPlayer.values()];
+}
+
+export interface JerseyMatch {
+  playerId: string;
+  /** true = the number sits near a detected person, so it's trustworthy enough to auto-confirm;
+   *  false = no nearby person (likely a scoreboard/stadium digit) — surface as 'suggested' only. */
+  grounded: boolean;
+}
+
+function isNearAFace(textBox: BoundingBox, faces: DetectedFace[]): boolean {
+  return faces.some((f) => {
+    const horizontalOverlap = textBox.Left! < f.box.Left! + f.box.Width! && textBox.Left! + textBox.Width! > f.box.Left!;
+    const verticalReach = f.box.Height! * JERSEY_VERTICAL_REACH_FACE_HEIGHTS;
+    const positionedBelow = textBox.Top! > f.box.Top! && textBox.Top! < f.box.Top! + f.box.Height! + verticalReach;
+    return horizontalOverlap && positionedBelow;
+  });
+}
+
+const MIN_LAST_NAME_LENGTH = 3; // avoid short/generic-word false positives, same rationale as sponsor aliases
+
+function lastName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  return parts[parts.length - 1];
+}
+
+function normalizeJerseyText(text: string): string {
+  return text.trim().toUpperCase().replace(/[^A-Z]/g, '');
+}
+
+// Reads BOTH the jersey number and the printed surname off the back of a shirt from one
+// DetectText call — same detections, two independent ways to land on the same player, each
+// spatially grounded against a detected person the same way.
+async function detectJerseyIdentifiers(bytes: Buffer, faces: DetectedFace[]): Promise<JerseyMatch[]> {
+  const res = await getClient().send(new DetectTextCommand({ Image: { Bytes: bytes } }));
+  const detections = (res.TextDetections ?? [])
+    .filter((t) => (t.Confidence ?? 0) >= DETECT_TEXT_MIN_CONFIDENCE && t.Geometry?.BoundingBox && t.DetectedText);
+
+  if (detections.length === 0) return [];
+
+  const numberCandidates = detections
+    .filter((t) => t.Type === 'WORD')
+    .map((t) => ({ number: parseInt(t.DetectedText!.trim(), 10), box: t.Geometry!.BoundingBox! }))
+    .filter((c) => !isNaN(c.number) && c.number >= 1 && c.number <= 99);
+
+  const nameCandidates = detections
+    // Surnames are usually one word, but Rekognition sometimes splits/joins differently, so
+    // check both WORD and LINE detections against the same normalized last name.
+    .map((t) => ({ text: normalizeJerseyText(t.DetectedText!), box: t.Geometry!.BoundingBox! }))
+    .filter((c) => c.text.length >= MIN_LAST_NAME_LENGTH);
+
+  if (numberCandidates.length === 0 && nameCandidates.length === 0) return [];
+
+  const players = await prisma.player.findMany({ where: { active: true }, select: { id: true, name: true, number: true } });
+  if (players.length === 0) return [];
+
+  const byPlayer = new Map<string, JerseyMatch>();
+  const consider = (playerId: string, grounded: boolean) => {
+    const existing = byPlayer.get(playerId);
+    // A grounded sighting anywhere in the image is enough to trust the player is really present,
+    // even if the same identifier also appears elsewhere (e.g. an ungrounded scoreboard digit).
+    if (!existing || (grounded && !existing.grounded)) byPlayer.set(playerId, { playerId, grounded });
+  };
+
+  for (const candidate of numberCandidates) {
+    const player = players.find((p) => p.number === candidate.number);
+    if (player) consider(player.id, isNearAFace(candidate.box, faces));
+  }
+
+  const playersByLastName = new Map(players.map((p) => [normalizeJerseyText(lastName(p.name)), p] as const));
+  for (const candidate of nameCandidates) {
+    const player = playersByLastName.get(candidate.text);
+    if (player) consider(player.id, isNearAFace(candidate.box, faces));
+  }
+
+  return [...byPlayer.values()];
+}
+
+export interface IdentifyPlayersResult {
+  faceMatches: FaceMatch[];
+  jerseyMatches: JerseyMatch[];
+}
+
+export async function identifyPlayersInImage(objectKey: string): Promise<IdentifyPlayersResult> {
+  const raw = await fetchImageBytes(objectKey);
+  // Rekognition's bounding boxes are relative to the EXIF-corrected orientation of the image.
+  // Bake that rotation into the buffer up front (and strip the EXIF tag) so sharp's pixel math
+  // in cropFace() lines up with Rekognition's coordinates — otherwise a rotated photo (extremely
+  // common from phones/cameras) produces a crop that doesn't actually contain the detected face.
+  const bytes = await sharp(raw).rotate().toBuffer();
+  const faces = await detectFaces(bytes);
+
+  const [faceMatches, jerseyMatches] = await Promise.all([
+    searchFaces(bytes, faces),
+    detectJerseyIdentifiers(bytes, faces),
+  ]);
+
+  return { faceMatches, jerseyMatches };
 }

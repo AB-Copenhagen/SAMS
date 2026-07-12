@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import TagInput, { type TagSuggestion } from './TagInput';
+import TagInput from './TagInput';
 import Combobox from './Combobox';
 import AirTagButton from './AirTagButton';
-import GcvTagButton from './GcvTagButton';
+import EntityMultiSelect, { type EntityOption } from './EntityMultiSelect';
 
 type Season     = { id: string; name: string };
 type Collection = { id: string; name: string; type: string; date: string | Date | null };
@@ -115,20 +115,28 @@ export default function AssetDetailClient({
   seasons,
   collections,
   stadiums,
-  tagSuggestions = [],
+  playerOptions = [],
+  sponsorOptions = [],
+  initialPlayerIds = [],
+  initialSponsorIds = [],
 }: {
   asset: AssetProps;
   signedUrl: string;
   seasons: Season[];
   collections: Collection[];
   stadiums: string[];
-  tagSuggestions?: TagSuggestion[];
+  playerOptions?: EntityOption[];
+  sponsorOptions?: EntityOption[];
+  initialPlayerIds?: string[];
+  initialSponsorIds?: string[];
 }) {
   const router = useRouter();
   const [detectedTags, setDetectedTags] = useState<string[]>(() => {
     try { return JSON.parse(asset.detectedTagsJson ?? '[]') as string[]; } catch { return []; }
   });
   const [aiDescription, setAiDescription] = useState(asset.aiDescription ?? '');
+  const [playerIds, setPlayerIds] = useState<string[]>(initialPlayerIds);
+  const [sponsorIds, setSponsorIds] = useState<string[]>(initialSponsorIds);
   const [form, setForm] = useState({
     title:       asset.title,
     description: asset.description,
@@ -178,6 +186,8 @@ export default function AssetDetailClient({
         seasonId:    form.seasonId || null,
         collectionId: form.collectionId || null,
         manualTagsJson: JSON.stringify(form.tags),
+        playerIds,
+        sponsorIds,
       }),
     });
     setSaving(false);
@@ -271,11 +281,28 @@ export default function AssetDetailClient({
             </select>
           </div>
           <div className="field">
+            <label>Tagged players</label>
+            <EntityMultiSelect
+              options={playerOptions}
+              selected={playerIds}
+              onChange={(ids) => { setPlayerIds(ids); setSaved(false); }}
+              placeholder="Add player…"
+            />
+          </div>
+          <div className="field">
+            <label>Tagged sponsors</label>
+            <EntityMultiSelect
+              options={sponsorOptions}
+              selected={sponsorIds}
+              onChange={(ids) => { setSponsorIds(ids); setSaved(false); }}
+              placeholder="Add sponsor…"
+            />
+          </div>
+          <div className="field">
             <label>Tags</label>
             <TagInput
               tags={form.tags}
               onChange={(tags) => { setForm((f) => ({ ...f, tags })); setSaved(false); }}
-              suggestions={tagSuggestions}
             />
           </div>
           <div className="field">
@@ -325,15 +352,6 @@ export default function AssetDetailClient({
               setAiDescription(description);
             }}
           />
-          <div style={{ marginTop: 8 }}>
-            <GcvTagButton
-              assetId={asset.id}
-              onComplete={({ tags, aiDescription: desc }) => {
-                setDetectedTags(tags);
-                setAiDescription(desc);
-              }}
-            />
-          </div>
         </div>
       </div>
     </div>

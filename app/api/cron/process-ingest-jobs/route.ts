@@ -3,7 +3,7 @@ import { prisma } from '../../../../lib/db';
 import { getAirJob } from '../../../../lib/air';
 import { enrichFromAirResult } from '../../../../lib/air-enrichment';
 import { abortMultipartUpload } from '../../../../lib/wasabi';
-import { searchFacesInImage, AUTO_APPLY_THRESHOLD } from '../../../../lib/rekognition';
+import { identifyPlayersInImage, AUTO_APPLY_THRESHOLD } from '../../../../lib/rekognition';
 import { upsertPlayerTag, addConfirmedStringTag } from '../../../../lib/asset-tags';
 
 export const maxDuration = 60;
@@ -94,8 +94,9 @@ export async function GET(request: Request) {
     }
 
     try {
-      const matches = await searchFacesInImage(asset.objectKey);
-      for (const match of matches) {
+      const { faceMatches, jerseyMatches } = await identifyPlayersInImage(asset.objectKey);
+
+      for (const match of faceMatches) {
         const status = match.similarityPct >= AUTO_APPLY_THRESHOLD ? 'confirmed' : 'suggested';
         await upsertPlayerTag(asset.id, match.playerId, 'face', match.similarityPct / 100, status);
         if (status === 'confirmed') {
@@ -103,10 +104,19 @@ export async function GET(request: Request) {
           if (player) await addConfirmedStringTag(asset.id, `player:${player.name.toLowerCase().replace(/\s+/g, '-')}`);
         }
       }
+      for (const match of jerseyMatches) {
+        const status = match.grounded ? 'confirmed' : 'suggested';
+        await upsertPlayerTag(asset.id, match.playerId, 'jersey-ocr', null, status);
+        if (status === 'confirmed') {
+          const player = await prisma.player.findUnique({ where: { id: match.playerId }, select: { name: true } });
+          if (player) await addConfirmedStringTag(asset.id, `player:${player.name.toLowerCase().replace(/\s+/g, '-')}`);
+        }
+      }
+
       await prisma.asset.update({ where: { id: asset.id }, data: { faceTagStatus: 'done' } });
       faceResults.done++;
     } catch (err) {
-      console.error('[cron/process-ingest-jobs] searchFacesInImage failed for', asset.id, err);
+      console.error('[cron/process-ingest-jobs] identifyPlayersInImage failed for', asset.id, err);
       const attempts = asset.faceTagAttempts + 1;
       await prisma.asset.update({
         where: { id: asset.id },

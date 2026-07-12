@@ -16,19 +16,16 @@ export default async function AssetDetailPage({ params }: { params: { id: string
   });
   if (!asset) notFound();
 
-  const [seasons, collections, stadiums, players, sponsors, signedUrl] = await Promise.all([
+  const [seasons, collections, stadiums, players, sponsors, playerTags, sponsorTags, signedUrl] = await Promise.all([
     prisma.season.findMany({ orderBy: { startDate: 'desc' }, select: { id: true, name: true } }),
     prisma.collection.findMany({ orderBy: { date: 'desc' }, select: { id: true, name: true, type: true, date: true } }),
     prisma.stadium.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
-    prisma.player.findMany({ where: { active: true }, orderBy: { name: 'asc' }, select: { name: true } }),
-    prisma.sponsor.findMany({ where: { active: true }, orderBy: { name: 'asc' }, select: { name: true } }),
+    prisma.player.findMany({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, name: true, number: true } }),
+    prisma.sponsor.findMany({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
+    prisma.assetPlayerTag.findMany({ where: { assetId: params.id, status: 'confirmed' }, select: { playerId: true } }),
+    prisma.assetSponsorTag.findMany({ where: { assetId: params.id, status: 'confirmed' }, select: { sponsorId: true } }),
     getPresignedUrl(asset.objectKey),
   ]);
-
-  const tagSuggestions = [
-    ...players.map((p) => ({ value: p.name.toLowerCase(), label: p.name, type: 'player' as const })),
-    ...sponsors.map((s) => ({ value: s.name.toLowerCase(), label: s.name, type: 'sponsor' as const })),
-  ];
 
   return (
     <AppShell user={user}>
@@ -63,7 +60,10 @@ export default async function AssetDetailPage({ params }: { params: { id: string
         signedUrl={signedUrl}
         seasons={seasons}
         collections={collections}
-        tagSuggestions={tagSuggestions}
+        playerOptions={players.map((p) => ({ id: p.id, label: p.name + (p.number != null ? ` #${p.number}` : '') }))}
+        sponsorOptions={sponsors.map((s) => ({ id: s.id, label: s.name }))}
+        initialPlayerIds={playerTags.map((t) => t.playerId)}
+        initialSponsorIds={sponsorTags.map((t) => t.sponsorId)}
       />
     </AppShell>
   );
