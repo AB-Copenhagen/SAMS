@@ -25,21 +25,32 @@ export default async function PlayerPhotosPage({
 
   const page = Math.max(1, parseInt(searchParams.page ?? '1'));
 
-  const [suggestedTags, confirmedTags, total] = await Promise.all([
+  // A photo can be matched to a player via more than one source (face + jersey-ocr), which
+  // creates multiple confirmed/suggested rows for the same (playerId, assetId) pair by design
+  // (each source tracks its own confirmation independently) — `distinct: ['assetId']` collapses
+  // those back to one row per photo for display/pagination purposes.
+  const [suggestedTags, confirmedTags, distinctConfirmed] = await Promise.all([
     prisma.assetPlayerTag.findMany({
       where: { playerId: player.id, status: 'suggested' },
       include: { asset: { select: { id: true, title: true, fileType: true } } },
       orderBy: { createdAt: 'desc' },
+      distinct: ['assetId'],
     }),
     prisma.assetPlayerTag.findMany({
       where: { playerId: player.id, status: 'confirmed' },
       include: { asset: true },
       orderBy: { asset: { uploadedAt: 'desc' } },
+      distinct: ['assetId'],
       take: PER_PAGE,
       skip: (page - 1) * PER_PAGE,
     }),
-    prisma.assetPlayerTag.count({ where: { playerId: player.id, status: 'confirmed' } }),
+    prisma.assetPlayerTag.findMany({
+      where: { playerId: player.id, status: 'confirmed' },
+      select: { assetId: true },
+      distinct: ['assetId'],
+    }),
   ]);
+  const total = distinctConfirmed.length;
 
   const pages = Math.ceil(total / PER_PAGE);
   const assets = confirmedTags.map((t) => t.asset);

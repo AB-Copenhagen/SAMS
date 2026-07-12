@@ -22,21 +22,32 @@ export default async function SponsorPhotosPage({
 
   const page = Math.max(1, parseInt(searchParams.page ?? '1'));
 
-  const [suggestedTags, confirmedTags, total] = await Promise.all([
+  // A photo can be matched to a sponsor via more than one source (logo + ocr-text + manual),
+  // which creates multiple confirmed/suggested rows for the same (sponsorId, assetId) pair by
+  // design (each source tracks its own confirmation independently) — `distinct: ['assetId']`
+  // collapses those back to one row per photo for display/pagination purposes.
+  const [suggestedTags, confirmedTags, distinctConfirmed] = await Promise.all([
     prisma.assetSponsorTag.findMany({
       where: { sponsorId: sponsor.id, status: 'suggested' },
       include: { asset: { select: { id: true, title: true, fileType: true } } },
       orderBy: { createdAt: 'desc' },
+      distinct: ['assetId'],
     }),
     prisma.assetSponsorTag.findMany({
       where: { sponsorId: sponsor.id, status: 'confirmed' },
       include: { asset: true },
       orderBy: { asset: { uploadedAt: 'desc' } },
+      distinct: ['assetId'],
       take: PER_PAGE,
       skip: (page - 1) * PER_PAGE,
     }),
-    prisma.assetSponsorTag.count({ where: { sponsorId: sponsor.id, status: 'confirmed' } }),
+    prisma.assetSponsorTag.findMany({
+      where: { sponsorId: sponsor.id, status: 'confirmed' },
+      select: { assetId: true },
+      distinct: ['assetId'],
+    }),
   ]);
+  const total = distinctConfirmed.length;
 
   const pages = Math.ceil(total / PER_PAGE);
   const assets = confirmedTags.map((t) => t.asset);

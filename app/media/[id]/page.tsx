@@ -22,8 +22,10 @@ export default async function AssetDetailPage({ params }: { params: { id: string
     prisma.stadium.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
     prisma.player.findMany({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, name: true, number: true } }),
     prisma.sponsor.findMany({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
-    prisma.assetPlayerTag.findMany({ where: { assetId: params.id, status: 'confirmed' }, select: { playerId: true } }),
-    prisma.assetSponsorTag.findMany({ where: { assetId: params.id, status: 'confirmed' }, select: { sponsorId: true } }),
+    // A player/sponsor can be confirmed via more than one source (face + jersey-ocr, or
+    // logo + ocr-text) for the same asset — distinct collapses those to one row per player/sponsor.
+    prisma.assetPlayerTag.findMany({ where: { assetId: params.id, status: 'confirmed' }, select: { playerId: true }, distinct: ['playerId'] }),
+    prisma.assetSponsorTag.findMany({ where: { assetId: params.id, status: 'confirmed' }, select: { sponsorId: true }, distinct: ['sponsorId'] }),
     getPresignedUrl(asset.objectKey),
   ]);
 

@@ -33,6 +33,14 @@ export async function PATCH(
     data: { status, reviewedAt: new Date(), reviewedBy: user.email },
   });
 
+  // The same player can be suggested for this asset via more than one source (e.g. face +
+  // jersey-ocr) — settle every other still-'suggested' sighting of this player on this asset to
+  // the same verdict, so reviewing one doesn't leave a duplicate suggestion behind.
+  await prisma.assetPlayerTag.updateMany({
+    where: { assetId: params.id, playerId: tag.playerId, status: 'suggested', id: { not: params.tagId } },
+    data: { status, reviewedAt: new Date(), reviewedBy: user.email },
+  });
+
   const stringTag = `player:${slugify(tag.player.name)}`;
   if (status === 'confirmed') {
     await addConfirmedStringTag(params.id, stringTag);

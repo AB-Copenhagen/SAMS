@@ -22,7 +22,7 @@ export default function EntityMultiSelect({
   const [open, setOpen]   = useState(false);
   const inputRef          = useRef<HTMLInputElement>(null);
 
-  const selectedOptions = selected
+  const selectedOptions = [...new Set(selected)]
     .map((id) => options.find((o) => o.id === id))
     .filter((o): o is EntityOption => !!o);
 

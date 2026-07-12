@@ -33,6 +33,14 @@ export async function PATCH(
     data: { status, reviewedAt: new Date(), reviewedBy: user.email },
   });
 
+  // The same sponsor can be suggested for this asset via more than one source (e.g. logo +
+  // ocr-text) — settle every other still-'suggested' sighting of this sponsor on this asset to
+  // the same verdict, so reviewing one doesn't leave a duplicate suggestion behind.
+  await prisma.assetSponsorTag.updateMany({
+    where: { assetId: params.id, sponsorId: tag.sponsorId, status: 'suggested', id: { not: params.tagId } },
+    data: { status, reviewedAt: new Date(), reviewedBy: user.email },
+  });
+
   const stringTag = `sponsor:${slugify(tag.sponsor.name)}`;
   if (status === 'confirmed') {
     await addConfirmedStringTag(params.id, stringTag);
