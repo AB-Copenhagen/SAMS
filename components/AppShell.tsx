@@ -1,15 +1,19 @@
 import Link from 'next/link';
 import type { User } from '../lib/auth';
+import { prisma } from '../lib/db';
+import { REVIEWABLE_IMAGE_WHERE } from '../lib/asset-review';
 import NavLinks from './NavLinks';
 import LogoutButton from './LogoutButton';
 
-export default function AppShell({
+export default async function AppShell({
   user,
   children,
 }: {
   user: User;
   children: React.ReactNode;
 }) {
+  const unreviewedCount = await prisma.asset.count({ where: REVIEWABLE_IMAGE_WHERE });
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -22,7 +26,7 @@ export default function AppShell({
         </div>
 
         <nav className="sidebar-nav">
-          <NavLinks role={user.role} />
+          <NavLinks role={user.role} unreviewedCount={unreviewedCount} />
         </nav>
 
         <div className="sidebar-footer">

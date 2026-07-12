@@ -39,6 +39,9 @@ model Asset {
   thumbnailKey       String?
   thumbnailStatus    String      @default("pending")
   thumbnailAttempts  Int         @default(0)
+  rating             Int?
+  reviewedAt         DateTime?
+  reviewedBy         String?
   playerTags         AssetPlayerTag[]
   sponsorTags        AssetSponsorTag[]
 }

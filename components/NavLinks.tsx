@@ -11,13 +11,14 @@ function Icon({ children }: { children: React.ReactNode }) {
   );
 }
 
-type NavItemProps = { href: string; label: string; icon: React.ReactNode; active: boolean };
+type NavItemProps = { href: string; label: string; icon: React.ReactNode; active: boolean; badge?: number };
 
-function NavItem({ href, label, icon, active }: NavItemProps) {
+function NavItem({ href, label, icon, active, badge }: NavItemProps) {
   return (
     <Link href={href} className={'nav-item' + (active ? ' active' : '')}>
       {icon}
       <span className="nav-text">{label}</span>
+      {!!badge && <span className="nav-badge">{badge}</span>}
     </Link>
   );
 }
@@ -33,7 +34,7 @@ function NavSection({ label }: { label: string }) {
   );
 }
 
-export default function NavLinks({ role: _ }: { role: string }) {
+export default function NavLinks({ role: _, unreviewedCount = 0 }: { role: string; unreviewedCount?: number }) {
   const pathname = usePathname();
 
   return (
@@ -58,6 +59,17 @@ export default function NavLinks({ role: _ }: { role: string }) {
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
             <polyline points="17 8 12 3 7 8" />
             <line x1="12" y1="3" x2="12" y2="15" />
+          </Icon>
+        }
+      />
+      <NavItem
+        href="/review"
+        label="Review"
+        active={pathname.startsWith('/review')}
+        badge={unreviewedCount}
+        icon={
+          <Icon>
+            <path d="M20 6L9 17l-5-5" />
           </Icon>
         }
       />

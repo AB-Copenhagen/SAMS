@@ -35,6 +35,9 @@ type AssetProps = {
   manualTagsJson: string;
   detectedTagsJson: string | null;
   exifJson: string | null;
+  rating: number | null;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
 };
 
 function formatBytes(b: number) {
@@ -144,6 +147,7 @@ export default function AssetDetailClient({
     seasonId:    asset.seasonId,
     collectionId: asset.collectionId,
     tags:        (() => { try { return JSON.parse(asset.manualTagsJson) as string[]; } catch { return [] as string[]; } })(),
+    rating:      asset.rating,
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -184,6 +188,7 @@ export default function AssetDetailClient({
         seasonId:    form.seasonId || null,
         collectionId: form.collectionId || null,
         manualTagsJson: JSON.stringify(form.tags),
+        rating:      form.rating,
         playerIds,
         sponsorIds,
       }),
@@ -311,6 +316,27 @@ export default function AssetDetailClient({
               placeholder="Optional description"
               style={{ resize: 'vertical', minHeight: 60 }}
             />
+          </div>
+          <div className="field">
+            <label>Rating</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+              {[1, 2, 3, 4].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={form.rating === n ? 'btn-primary' : 'btn-secondary'}
+                  style={{ justifyContent: 'center' }}
+                  onClick={() => { setForm((f) => ({ ...f, rating: f.rating === n ? null : n })); setSaved(false); }}
+                >
+                  {n} ★
+                </button>
+              ))}
+            </div>
+            {asset.reviewedAt && (
+              <p style={{ fontSize: 12, color: '#8890b4', marginTop: 6 }}>
+                Reviewed by {asset.reviewedBy} on {new Date(asset.reviewedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
+            )}
           </div>
 
           {error && <div className="alert alert-error" style={{ marginBottom: 12 }}>{error}</div>}

@@ -39,6 +39,19 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const body = await request.json();
+
+  let ratingUpdate: { rating?: number | null; reviewedAt?: Date; reviewedBy?: string } = {};
+  if ('rating' in body && (body.rating === null || typeof body.rating === 'number')) {
+    const existing = await prisma.asset.findUnique({ where: { id: params.id }, select: { rating: true } });
+    ratingUpdate = { rating: body.rating };
+    if (existing && existing.rating !== body.rating && typeof body.rating === 'number') {
+      // Manual rating corrections (e.g. from the asset detail page, after the review queue has
+      // already passed this asset by) re-stamp who/when just like the original review did.
+      ratingUpdate.reviewedAt = new Date();
+      ratingUpdate.reviewedBy = user.email;
+    }
+  }
+
   const asset = await prisma.asset.update({
     where: { id: params.id },
     data: {
@@ -51,6 +64,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       seasonId:    body.seasonId    || null,
       collectionId: body.collectionId || null,
       manualTagsJson: body.manualTagsJson ?? undefined,
+      ...ratingUpdate,
     },
     include: { season: true, collection: true },
   });
