@@ -221,15 +221,26 @@ function normalizeJerseyText(text: string): string {
   return text.trim().toUpperCase().replace(/[^A-Z]/g, '');
 }
 
+export interface JerseyDetectionResult {
+  matches: JerseyMatch[];
+  /** Every LINE-level text detection (jersey text, crest text, sponsor boards, etc.) — a free
+   *  byproduct of the same DetectText call, reused for sponsor OCR matching so it costs nothing
+   *  extra. */
+  lines: string[];
+}
+
 // Reads BOTH the jersey number and the printed surname off the back of a shirt from one
 // DetectText call — same detections, two independent ways to land on the same player, each
-// spatially grounded against a detected person the same way.
-async function detectJerseyIdentifiers(bytes: Buffer, faces: DetectedFace[]): Promise<JerseyMatch[]> {
+// spatially grounded against a detected person the same way. Also surfaces every detected text
+// line so callers can run sponsor OCR matching against it without a second Rekognition call.
+async function detectJerseyIdentifiers(bytes: Buffer, faces: DetectedFace[]): Promise<JerseyDetectionResult> {
   const res = await getClient().send(new DetectTextCommand({ Image: { Bytes: bytes } }));
   const detections = (res.TextDetections ?? [])
     .filter((t) => (t.Confidence ?? 0) >= DETECT_TEXT_MIN_CONFIDENCE && t.Geometry?.BoundingBox && t.DetectedText);
 
-  if (detections.length === 0) return [];
+  const lines = detections.filter((t) => t.Type === 'LINE').map((t) => t.DetectedText!);
+
+  if (detections.length === 0) return { matches: [], lines };
 
   const numberCandidates = detections
     .filter((t) => t.Type === 'WORD')
@@ -242,10 +253,10 @@ async function detectJerseyIdentifiers(bytes: Buffer, faces: DetectedFace[]): Pr
     .map((t) => ({ text: normalizeJerseyText(t.DetectedText!), box: t.Geometry!.BoundingBox! }))
     .filter((c) => c.text.length >= MIN_LAST_NAME_LENGTH);
 
-  if (numberCandidates.length === 0 && nameCandidates.length === 0) return [];
+  if (numberCandidates.length === 0 && nameCandidates.length === 0) return { matches: [], lines };
 
   const players = await prisma.player.findMany({ where: { active: true }, select: { id: true, name: true, number: true } });
-  if (players.length === 0) return [];
+  if (players.length === 0) return { matches: [], lines };
 
   const byPlayer = new Map<string, JerseyMatch>();
   const matchedViaNumber = new Set<string>();
@@ -283,12 +294,13 @@ async function detectJerseyIdentifiers(bytes: Buffer, faces: DetectedFace[]): Pr
     if (matchedViaName.has(playerId)) byPlayer.set(playerId, { playerId, grounded: true });
   }
 
-  return [...byPlayer.values()];
+  return { matches: [...byPlayer.values()], lines };
 }
 
 export interface IdentifyPlayersResult {
   faceMatches: FaceMatch[];
   jerseyMatches: JerseyMatch[];
+  detectedLines: string[];
 }
 
 export async function identifyPlayersInImage(objectKey: string): Promise<IdentifyPlayersResult> {
@@ -300,10 +312,10 @@ export async function identifyPlayersInImage(objectKey: string): Promise<Identif
   const bytes = await sharp(raw).rotate().toBuffer();
   const faces = await detectFaces(bytes);
 
-  const [faceMatches, jerseyMatches] = await Promise.all([
+  const [faceMatches, jerseyResult] = await Promise.all([
     searchFaces(bytes, largestFaces(faces)),
     detectJerseyIdentifiers(bytes, faces),
   ]);
 
-  return { faceMatches, jerseyMatches };
+  return { faceMatches, jerseyMatches: jerseyResult.matches, detectedLines: jerseyResult.lines };
 }

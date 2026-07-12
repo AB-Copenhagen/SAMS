@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/db';
 import { abortMultipartUpload } from '../../../../lib/wasabi';
 import { identifyPlayersInImage, AUTO_APPLY_THRESHOLD } from '../../../../lib/rekognition';
-import { upsertPlayerTag, addConfirmedStringTag } from '../../../../lib/asset-tags';
+import { upsertPlayerTag, upsertSponsorTag, addConfirmedStringTag } from '../../../../lib/asset-tags';
+import { matchSponsorTokens } from '../../../../lib/sponsor-matching';
 import { generateThumbnail } from '../../../../lib/thumbnail';
 
 export const maxDuration = 60;
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
 
   for (const asset of facePendingAssets) {
     try {
-      const { faceMatches, jerseyMatches } = await identifyPlayersInImage(asset.objectKey);
+      const { faceMatches, jerseyMatches, detectedLines } = await identifyPlayersInImage(asset.objectKey);
 
       for (const match of faceMatches) {
         const status = match.similarityPct >= AUTO_APPLY_THRESHOLD ? 'confirmed' : 'suggested';
@@ -51,6 +52,19 @@ export async function GET(request: Request) {
         if (status === 'confirmed') {
           const player = await prisma.player.findUnique({ where: { id: match.playerId }, select: { name: true } });
           if (player) await addConfirmedStringTag(asset.id, `player:${player.name.toLowerCase().replace(/\s+/g, '-')}`);
+        }
+      }
+
+      if (detectedLines.length > 0) {
+        const sponsors = await prisma.sponsor.findMany({ where: { active: true }, select: { id: true, name: true, aliasesJson: true } });
+        const sponsorMatches = matchSponsorTokens(detectedLines.join(' '), sponsors);
+        for (const m of sponsorMatches) {
+          const status = m.isFullName ? 'confirmed' : 'suggested';
+          await upsertSponsorTag(asset.id, m.sponsorId, 'ocr-text', m.isFullName ? 1.0 : 0.6, status);
+          if (status === 'confirmed') {
+            const sponsor = sponsors.find((s) => s.id === m.sponsorId);
+            if (sponsor) await addConfirmedStringTag(asset.id, `sponsor:${sponsor.name.toLowerCase().replace(/\s+/g, '-')}`);
+          }
         }
       }
 

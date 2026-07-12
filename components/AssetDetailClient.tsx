@@ -342,11 +342,15 @@ export default function AssetDetailClient({
 
           <IdentifyPlayersButton
             assetId={asset.id}
-            onComplete={({ players }) => {
+            onComplete={({ players, sponsors }) => {
               setDetectedTags((tags) => {
                 const next = [...tags];
                 for (const name of players) {
                   const slug = `player:${name.toLowerCase().replace(/\s+/g, '-')}`;
+                  if (!next.includes(slug)) next.push(slug);
+                }
+                for (const name of sponsors) {
+                  const slug = `sponsor:${name.toLowerCase().replace(/\s+/g, '-')}`;
                   if (!next.includes(slug)) next.push(slug);
                 }
                 return next;

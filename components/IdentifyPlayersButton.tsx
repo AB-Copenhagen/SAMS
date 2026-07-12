@@ -6,7 +6,7 @@ type Status = 'idle' | 'identifying' | 'done' | 'error';
 
 interface Props {
   assetId: string;
-  onComplete: (result: { players: string[] }) => void;
+  onComplete: (result: { players: string[]; sponsors: string[] }) => void;
 }
 
 export default function IdentifyPlayersButton({ assetId, onComplete }: Props) {
@@ -21,11 +21,11 @@ export default function IdentifyPlayersButton({ assetId, onComplete }: Props) {
       const res = await fetch(`/api/assets/${assetId}/tag-faces`, { method: 'POST' });
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { message?: string };
-        throw new Error(body.message ?? 'Player identification failed');
+        throw new Error(body.message ?? 'Identification failed');
       }
-      const data = await res.json() as { players?: string[] };
+      const data = await res.json() as { players?: string[]; sponsors?: string[] };
       setStatus('done');
-      onComplete({ players: data.players ?? [] });
+      onComplete({ players: data.players ?? [], sponsors: data.sponsors ?? [] });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
       setStatus('error');
@@ -38,7 +38,7 @@ export default function IdentifyPlayersButton({ assetId, onComplete }: Props) {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
-        Players identified
+        Players &amp; sponsors identified
       </div>
     );
   }
@@ -57,7 +57,7 @@ export default function IdentifyPlayersButton({ assetId, onComplete }: Props) {
         {busy ? (
           <>
             <span className="spinner" />
-            Identifying players…
+            Identifying…
           </>
         ) : (
           <>
@@ -65,7 +65,7 @@ export default function IdentifyPlayersButton({ assetId, onComplete }: Props) {
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
-            Identify players
+            Identify players &amp; sponsors
           </>
         )}
       </button>

@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../../../lib/auth';
 import { prisma } from '../../../../../lib/db';
 import { identifyPlayersInImage, AUTO_APPLY_THRESHOLD } from '../../../../../lib/rekognition';
-import { upsertPlayerTag, addConfirmedStringTag } from '../../../../../lib/asset-tags';
+import { upsertPlayerTag, upsertSponsorTag, addConfirmedStringTag } from '../../../../../lib/asset-tags';
+import { matchSponsorTokens } from '../../../../../lib/sponsor-matching';
 
 export const maxDuration = 60;
 
@@ -20,8 +21,9 @@ export async function POST(_request: Request, { params }: { params: { id: string
   }
 
   try {
-    const { faceMatches, jerseyMatches } = await identifyPlayersInImage(asset.objectKey);
+    const { faceMatches, jerseyMatches, detectedLines } = await identifyPlayersInImage(asset.objectKey);
     const playerNames = new Set<string>();
+    const sponsorNames = new Set<string>();
 
     for (const match of faceMatches) {
       const status = match.similarityPct >= AUTO_APPLY_THRESHOLD ? 'confirmed' : 'suggested';
@@ -47,8 +49,24 @@ export async function POST(_request: Request, { params }: { params: { id: string
       }
     }
 
+    if (detectedLines.length > 0) {
+      const sponsors = await prisma.sponsor.findMany({ where: { active: true }, select: { id: true, name: true, aliasesJson: true } });
+      const sponsorMatches = matchSponsorTokens(detectedLines.join(' '), sponsors);
+      for (const m of sponsorMatches) {
+        const status = m.isFullName ? 'confirmed' : 'suggested';
+        await upsertSponsorTag(params.id, m.sponsorId, 'ocr-text', m.isFullName ? 1.0 : 0.6, status);
+        const sponsor = sponsors.find((s) => s.id === m.sponsorId);
+        if (sponsor) {
+          sponsorNames.add(sponsor.name);
+          if (status === 'confirmed') {
+            await addConfirmedStringTag(params.id, `sponsor:${sponsor.name.toLowerCase().replace(/\s+/g, '-')}`);
+          }
+        }
+      }
+    }
+
     await prisma.asset.update({ where: { id: params.id }, data: { faceTagStatus: 'done' } });
-    return NextResponse.json({ players: [...playerNames] });
+    return NextResponse.json({ players: [...playerNames], sponsors: [...sponsorNames] });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Player identification failed';
     console.error('[assets/tag-faces]', message);
