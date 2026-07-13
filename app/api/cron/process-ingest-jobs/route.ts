@@ -22,9 +22,35 @@ function authorized(request: Request): boolean {
   return request.headers.get('authorization') === `Bearer ${secret}`;
 }
 
+const RUN_RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // 30d — bounds table growth at a 2-min cadence
+
 export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
+  const startedAt = new Date();
+  const run = await prisma.cronRun.create({ data: { startedAt, status: 'running' } });
+  prisma.cronRun.deleteMany({ where: { startedAt: { lt: new Date(Date.now() - RUN_RETENTION_MS) } } })
+    .catch((err) => console.error('[cron/process-ingest-jobs] CronRun prune failed:', err));
+
+  try {
+    return await runIngestJobs(run.id, startedAt);
+  } catch (err) {
+    const finishedAt = new Date();
+    await prisma.cronRun.update({
+      where: { id: run.id },
+      data: {
+        status: 'error',
+        finishedAt,
+        durationMs: finishedAt.getTime() - startedAt.getTime(),
+        errorMessage: err instanceof Error ? err.message : String(err),
+      },
+    });
+    console.error('[cron/process-ingest-jobs] run failed:', err);
+    return NextResponse.json({ message: 'Cron run failed' }, { status: 500 });
+  }
+}
+
+async function runIngestJobs(runId: string, startedAt: Date) {
   // Face + jersey-number search (AWS Rekognition) — the only remaining automated tagging step.
   const faceResults = { done: 0, skipped: 0, failed: 0, stillPending: 0 };
 
@@ -133,6 +159,25 @@ export async function GET(request: Request) {
     await prisma.ingestJob.update({ where: { id: job.id }, data: { status: 'aborted', errorMessage: 'Stuck upload swept by cron' } });
     aborted++;
   }
+
+  const finishedAt = new Date();
+  await prisma.cronRun.update({
+    where: { id: runId },
+    data: {
+      status: 'success',
+      finishedAt,
+      durationMs: finishedAt.getTime() - startedAt.getTime(),
+      facesDone: faceResults.done,
+      facesSkipped: faceResults.skipped,
+      facesFailed: faceResults.failed,
+      facesStillPending: faceResults.stillPending,
+      thumbsDone: thumbnailResults.done,
+      thumbsSkipped: thumbnailResults.skipped,
+      thumbsFailed: thumbnailResults.failed,
+      thumbsStillPending: thumbnailResults.stillPending,
+      uploadsAborted: aborted,
+    },
+  });
 
   return NextResponse.json({ faces: faceResults, thumbnails: thumbnailResults, aborted });
 }

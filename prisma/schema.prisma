@@ -124,6 +124,26 @@ model IngestJob {
   @@index([status, updatedAt])
 }
 
+model CronRun {
+  id                 String    @id @default(cuid())
+  startedAt          DateTime  @default(now())
+  finishedAt         DateTime?
+  durationMs         Int?
+  status             String    @default("running") // running | success | error
+  errorMessage       String?
+  facesDone          Int       @default(0)
+  facesSkipped       Int       @default(0)
+  facesFailed        Int       @default(0)
+  facesStillPending  Int       @default(0)
+  thumbsDone         Int       @default(0)
+  thumbsSkipped      Int       @default(0)
+  thumbsFailed       Int       @default(0)
+  thumbsStillPending Int       @default(0)
+  uploadsAborted     Int       @default(0)
+
+  @@index([startedAt])
+}
+
 model Season {
   id          String       @id @default(cuid())
   name        String

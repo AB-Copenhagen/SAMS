@@ -34,7 +34,7 @@ function NavSection({ label }: { label: string }) {
   );
 }
 
-export default function NavLinks({ role: _, unreviewedCount = 0 }: { role: string; unreviewedCount?: number }) {
+export default function NavLinks({ role, unreviewedCount = 0 }: { role: string; unreviewedCount?: number }) {
   const pathname = usePathname();
 
   return (
@@ -107,6 +107,19 @@ export default function NavLinks({ role: _, unreviewedCount = 0 }: { role: strin
           </Icon>
         }
       />
+
+      {role === 'ADMIN' && (
+        <NavItem
+          href="/jobs"
+          label="Jobs"
+          active={pathname.startsWith('/jobs')}
+          icon={
+            <Icon>
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+            </Icon>
+          }
+        />
+      )}
 
       <div className="nav-divider" />
 

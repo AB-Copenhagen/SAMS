@@ -208,6 +208,26 @@ CREATE TABLE IF NOT EXISTS "AssetSponsorTag" (
 
 CREATE UNIQUE INDEX IF NOT EXISTS "AssetSponsorTag_assetId_sponsorId_source_key" ON "AssetSponsorTag"("assetId", "sponsorId", "source");
 CREATE INDEX IF NOT EXISTS "AssetSponsorTag_sponsorId_status_idx" ON "AssetSponsorTag"("sponsorId", "status");
+
+CREATE TABLE IF NOT EXISTS "CronRun" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "startedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "finishedAt" DATETIME,
+    "durationMs" INTEGER,
+    "status" TEXT NOT NULL DEFAULT 'running',
+    "errorMessage" TEXT,
+    "facesDone" INTEGER NOT NULL DEFAULT 0,
+    "facesSkipped" INTEGER NOT NULL DEFAULT 0,
+    "facesFailed" INTEGER NOT NULL DEFAULT 0,
+    "facesStillPending" INTEGER NOT NULL DEFAULT 0,
+    "thumbsDone" INTEGER NOT NULL DEFAULT 0,
+    "thumbsSkipped" INTEGER NOT NULL DEFAULT 0,
+    "thumbsFailed" INTEGER NOT NULL DEFAULT 0,
+    "thumbsStillPending" INTEGER NOT NULL DEFAULT 0,
+    "uploadsAborted" INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS "CronRun_startedAt_idx" ON "CronRun"("startedAt");
 `;
 
 const statements = sql
