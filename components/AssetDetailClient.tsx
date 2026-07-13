@@ -233,7 +233,7 @@ export default function AssetDetailClient({
             <span>{formatBytes(asset.fileSize)}</span>
             <span>Uploaded by {asset.uploaderEmail}</span>
             <span>{new Date(asset.uploadedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-            {asset.editedKey && <span style={{ color: '#4361ee', fontWeight: 600 }}>Edited</span>}
+            {asset.editedKey && <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>Edited</span>}
             {!isVideo && (
               <button className="btn-secondary" type="button" onClick={() => setEditing(true)} style={{ marginLeft: 'auto', fontSize: 12, padding: '4px 10px' }}>
                 Edit photo
