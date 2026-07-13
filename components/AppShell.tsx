@@ -18,7 +18,8 @@ export default async function AppShell({
     <div className="app-shell">
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <div className="sidebar-logo-mark">AB</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/ab-logo.svg" alt="AB Copenhagen" className="sidebar-logo-mark" />
           <div>
             <div className="sidebar-logo-text">AB Media</div>
             <div className="sidebar-logo-sub">Asset Manager</div>
