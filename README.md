@@ -24,7 +24,7 @@ A Digital Asset Manager (DAM) built for professional soccer teams. SAMS centrali
 
 ### Media Library
 - Searchable, filterable grid of all club assets
-- Filter by season, collection, category, and tag
+- Filter by season, collection, category, tag, and minimum star rating
 - Fast asset loading via server-side presigned URL caching (Upstash Redis, 23 h TTL — avoids repeated round-trips to Wasabi)
 
 ### Collections
@@ -33,14 +33,27 @@ A Digital Asset Manager (DAM) built for professional soccer teams. SAMS centrali
 - Cover image per collection
 
 ### AI Tagging & Player/Sponsor Recognition
-- Every uploaded image is automatically analyzed by Wasabi AiR and/or Google Cloud Vision (object/scene detection, OCR, generic logo detection) — processed asynchronously via a Vercel Cron sweep, not on the upload request path
+- Every uploaded image is automatically analyzed by AWS Rekognition — processed asynchronously via a Vercel Cron sweep, not on the upload request path
 - **Player face identification** — players' headshots are enrolled once into an AWS Rekognition face collection (Configure → Players → "Enroll all faces"); new photos are searched (per detected face, not just the largest one in frame) and matched players are tagged automatically
-- **Sponsor detection** — matches sponsor names/aliases against OCR text extracted from each photo (cheap — reuses OCR already being run), plus generic pretrained logo-mark detection for globally-recognized brands
-- Jersey-number OCR as a secondary, lower-precision player signal (kept from the original tagging pipeline)
-- High-confidence matches auto-apply as real tags; lower-confidence matches land in a review queue (visible on each player's/sponsor's photo page) requiring a human confirm/reject before becoming a visible tag
+- **Jersey number & name recognition** — reads jersey numbers and printed surnames off the back of a shirt, spatially grounded against a detected person in the frame
+- **Sponsor detection** — matches sponsor names/aliases against text detected anywhere in the frame (LED boards, banners, crests — not just jerseys), reusing the same text-detection call made for jersey recognition
+- All detected matches are applied immediately as confirmed tags — no manual review gate — so newly uploaded photos show their players/sponsors right away; incorrect tags are corrected afterward via the manual multi-select on the asset detail page
 
 ### Player & Sponsor Photo Galleries
 - `/players/{id}` and `/sponsors/{id}` — every confirmed photo of a given player or sponsor, sorted by date, with pending face/sponsor match suggestions surfaced for review right on the page
+
+### Fast Review Workflow
+- `/review` — a keyboard-driven queue for rating newly ingested photos, optimized for speed over a large backlog
+- Surfaces one un-reviewed image at a time (a photo becomes eligible once its face/sponsor tagging has settled, so a rating reflects the fully-tagged asset); next image is prefetched in the background so rating has no perceptible loading delay
+- Rate 1-4 stars with a single keypress or click; optimistic UI advances immediately to the next image without waiting on the network round-trip
+- Every rating is logged on the asset (`rating`, `reviewedAt`, `reviewedBy`) — re-rating an already-reviewed photo (e.g. from its asset detail page) updates the reviewer/timestamp again
+- A sidebar nav badge shows the current count of un-reviewed images
+
+### Photo Editor
+- Available from any asset detail page — crop, brightness, contrast, saturation, and one-click auto color correction, plus grayscale/sepia/vivid filters, all with a live preview
+- Non-destructive: edits are rendered from the pristine original into a single derived version (`editedKey`); the original file is never overwritten and stays reachable via a dedicated "original" route. Re-editing re-renders from the original, so edits never compound
+- Edits apply immediately to the asset everywhere it's shown (media grid, galleries, downloads) once saved; revertible back to the original at any time
+- **Export presets** — render and download a copy sized for a specific destination without affecting the saved asset: Web-optimized (1920px wide), Instagram square (1080×1080), Instagram story (1080×1920), Facebook (1200×630), LinkedIn (1200×627)
 
 ### Configure
 - **Seasons** — define season periods; all assets, collections, and players are scoped to a season
@@ -64,8 +77,7 @@ A Digital Asset Manager (DAM) built for professional soccer teams. SAMS centrali
 | Object Storage | [Wasabi](https://wasabi.com) (S3-compatible) |
 | URL Cache | [Upstash Redis](https://upstash.com) |
 | Auth | [Descope](https://descope.com) |
-| Image/OCR/Logo Tagging | [Wasabi AiR](https://wasabi.com) & [Google Cloud Vision](https://cloud.google.com/vision) |
-| Face Identification | [AWS Rekognition](https://aws.amazon.com/rekognition/) (Collections) |
+| Face ID / Jersey OCR / Sponsor OCR | [AWS Rekognition](https://aws.amazon.com/rekognition/) (Collections) |
 | Scheduled Processing | Vercel Cron |
 | Deployment | [Vercel](https://vercel.com) |
 
@@ -75,11 +87,10 @@ A Digital Asset Manager (DAM) built for professional soccer teams. SAMS centrali
 
 - Node.js 20+
 - A [Turso](https://turso.tech) database
-- A [Wasabi](https://wasabi.com) bucket (+ a Wasabi AiR-enabled IAM user, optional)
+- A [Wasabi](https://wasabi.com) bucket
 - An [Upstash Redis](https://upstash.com) database
 - A [Descope](https://descope.com) project
-- A Google Cloud project with the Vision API enabled (optional — only needed for the GCV tagging path)
-- An AWS account with Rekognition access (optional — only needed for player face identification)
+- An AWS account with Rekognition access (optional — only needed for player face/jersey/sponsor tagging)
 
 ### Environment Variables
 
@@ -97,25 +108,16 @@ WASABI_BUCKET=
 WASABI_ACCESS_KEY_ID=
 WASABI_SECRET_ACCESS_KEY=
 
-# Wasabi AIR — dedicated IAM user credentials (create via Wasabi console → AIR), or a bearer token
-WASABI_AIR_ACCESS_KEY_ID=
-WASABI_AIR_SECRET_ACCESS_KEY=
-WASABI_AIR_API_TOKEN=
-
-# Google Cloud Vision — one of: service account JSON, or Vercel OIDC → GCP Workload Identity Federation
-GOOGLE_CLOUD_CREDENTIALS_JSON=
-GCP_WIF_AUDIENCE=
-GCP_SERVICE_ACCOUNT_EMAIL=
-
-# AWS Rekognition — player face identification (separate, narrowly-scoped IAM credentials;
-# use an EU region for GDPR data residency — face vectors are biometric data)
+# AWS Rekognition — player face/jersey/sponsor identification (separate, narrowly-scoped IAM
+# credentials; use an EU region for GDPR data residency — face vectors are biometric data)
 AWS_REKOGNITION_REGION=
 AWS_REKOGNITION_ACCESS_KEY_ID=
 AWS_REKOGNITION_SECRET_ACCESS_KEY=
-REKOGNITION_COLLECTION_ID=sams-players
-REKOGNITION_AUTO_APPLY_THRESHOLD=97
-REKOGNITION_SUGGEST_THRESHOLD=80
-REKOGNITION_MAX_FACES_PER_IMAGE=15
+
+# Optional tuning (all have sensible built-in defaults, shown here for reference only):
+# REKOGNITION_COLLECTION_ID=sams-players
+# REKOGNITION_SUGGEST_THRESHOLD=80
+# REKOGNITION_MAX_FACES_PER_IMAGE=15
 
 # Upstash Redis
 UPSTASH_REDIS_REST_URL=
@@ -171,7 +173,7 @@ Mint a device key from Configure → Devices in the app first.
 vercel --prod
 ```
 
-`vercel.json` defines a cron job (`/api/cron/process-ingest-jobs`, every 2 minutes) that drives AI tagging, sponsor matching, and face identification. Note: Vercel's Hobby plan only runs cron jobs once a day — a Pro plan (or higher) is required for the 2-minute cadence this app is built around.
+`vercel.json` defines a cron job (`/api/cron/process-ingest-jobs`, every 2 minutes) that drives player face/jersey identification, sponsor matching, and thumbnail generation. Note: Vercel's Hobby plan only runs cron jobs once a day — a Pro plan (or higher) is required for the 2-minute cadence this app is built around.
 
 ## License
 
