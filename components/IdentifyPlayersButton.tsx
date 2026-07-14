@@ -6,7 +6,7 @@ type Status = 'idle' | 'identifying' | 'done' | 'error';
 
 interface Props {
   assetId: string;
-  onComplete: (result: { players: string[]; sponsors: string[] }) => void;
+  onComplete: (result: { players: string[]; sponsors: string[]; playerIds: string[]; sponsorIds: string[] }) => void;
 }
 
 export default function IdentifyPlayersButton({ assetId, onComplete }: Props) {
@@ -23,9 +23,14 @@ export default function IdentifyPlayersButton({ assetId, onComplete }: Props) {
         const body = await res.json().catch(() => ({})) as { message?: string };
         throw new Error(body.message ?? 'Identification failed');
       }
-      const data = await res.json() as { players?: string[]; sponsors?: string[] };
+      const data = await res.json() as { players?: string[]; sponsors?: string[]; playerIds?: string[]; sponsorIds?: string[] };
       setStatus('done');
-      onComplete({ players: data.players ?? [], sponsors: data.sponsors ?? [] });
+      onComplete({
+        players: data.players ?? [],
+        sponsors: data.sponsors ?? [],
+        playerIds: data.playerIds ?? [],
+        sponsorIds: data.sponsorIds ?? [],
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
       setStatus('error');

@@ -24,6 +24,8 @@ export async function POST(_request: Request, { params }: { params: { id: string
     const { faceMatches, jerseyMatches, detectedLines } = await identifyPlayersInImage(asset.objectKey);
     const playerNames = new Set<string>();
     const sponsorNames = new Set<string>();
+    const playerIds = new Set<string>();
+    const sponsorIds = new Set<string>();
 
     // All automated detections are applied immediately as confirmed tags — no review step —
     // so newly uploaded assets show their players/sponsors right away. Wrong tags get corrected
@@ -33,6 +35,7 @@ export async function POST(_request: Request, { params }: { params: { id: string
       const player = await prisma.player.findUnique({ where: { id: match.playerId }, select: { name: true } });
       if (player) {
         playerNames.add(player.name);
+        playerIds.add(match.playerId);
         await addConfirmedStringTag(params.id, `player:${player.name.toLowerCase().replace(/\s+/g, '-')}`);
       }
     }
@@ -42,6 +45,7 @@ export async function POST(_request: Request, { params }: { params: { id: string
       const player = await prisma.player.findUnique({ where: { id: match.playerId }, select: { name: true } });
       if (player) {
         playerNames.add(player.name);
+        playerIds.add(match.playerId);
         await addConfirmedStringTag(params.id, `player:${player.name.toLowerCase().replace(/\s+/g, '-')}`);
       }
     }
@@ -54,13 +58,19 @@ export async function POST(_request: Request, { params }: { params: { id: string
         const sponsor = sponsors.find((s) => s.id === m.sponsorId);
         if (sponsor) {
           sponsorNames.add(sponsor.name);
+          sponsorIds.add(m.sponsorId);
           await addConfirmedStringTag(params.id, `sponsor:${sponsor.name.toLowerCase().replace(/\s+/g, '-')}`);
         }
       }
     }
 
     await prisma.asset.update({ where: { id: params.id }, data: { faceTagStatus: 'done' } });
-    return NextResponse.json({ players: [...playerNames], sponsors: [...sponsorNames] });
+    return NextResponse.json({
+      players: [...playerNames],
+      sponsors: [...sponsorNames],
+      playerIds: [...playerIds],
+      sponsorIds: [...sponsorIds],
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Player identification failed';
     console.error('[assets/tag-faces]', message);

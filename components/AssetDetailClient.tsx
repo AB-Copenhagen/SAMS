@@ -395,7 +395,7 @@ export default function AssetDetailClient({
 
           <IdentifyPlayersButton
             assetId={asset.id}
-            onComplete={({ players, sponsors }) => {
+            onComplete={({ players, sponsors, playerIds: newPlayerIds, sponsorIds: newSponsorIds }) => {
               setDetectedTags((tags) => {
                 const next = [...tags];
                 for (const name of players) {
@@ -408,6 +408,8 @@ export default function AssetDetailClient({
                 }
                 return next;
               });
+              setPlayerIds((ids) => Array.from(new Set([...ids, ...newPlayerIds])));
+              setSponsorIds((ids) => Array.from(new Set([...ids, ...newSponsorIds])));
             }}
           />
         </div>
