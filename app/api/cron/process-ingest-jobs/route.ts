@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '../../../../lib/db';
+import { createClient as createLibsqlClient, type Client as LibsqlClient } from '@libsql/client';
+import { createPrismaClient } from '../../../../lib/db';
 import { abortMultipartUpload } from '../../../../lib/wasabi';
 import { identifyPlayersInImage } from '../../../../lib/rekognition';
 import { upsertPlayerTag, upsertSponsorTag, addConfirmedStringTag } from '../../../../lib/asset-tags';
@@ -8,6 +9,12 @@ import { generateThumbnail } from '../../../../lib/thumbnail';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
+// Next.js patches the global fetch() and applies its own Data Cache to outgoing requests by
+// default. @libsql/client's HTTP transport calls fetch() internally, and every poll of this route
+// issues the literal same query — which is exactly the shape Next.js's fetch cache would collapse
+// into "the first response, forever." `dynamic = 'force-dynamic'` alone did not reliably stop this
+// in testing; this is the documented, stronger override for third-party fetch calls specifically.
+export const fetchCache = 'force-no-store';
 
 const BATCH_SIZE = 20;
 const FACE_BATCH_SIZE = 10;
@@ -15,6 +22,7 @@ const FACE_MAX_ATTEMPTS = 5;
 const THUMBNAIL_BATCH_SIZE = 20;
 const THUMBNAIL_MAX_ATTEMPTS = 5;
 const STUCK_UPLOAD_TIMEOUT_MS = 6 * 60 * 60 * 1000; // 6h
+const RUN_RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // 30d — bounds table growth at a 2-min cadence
 
 function authorized(request: Request): boolean {
   const secret = process.env.CRON_SECRET;
@@ -22,21 +30,36 @@ function authorized(request: Request): boolean {
   return request.headers.get('authorization') === `Bearer ${secret}`;
 }
 
-const RUN_RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // 30d — bounds table growth at a 2-min cadence
+// This route polls the same `status: 'pending'` query dozens of times a day, every day, for as
+// long as a given serverless/dev instance stays warm. Prisma's query engine over the libSQL
+// adapter has been observed, in exactly this repeated-identical-query pattern, to eventually
+// serve a frozen/stale result — writes still commit correctly (confirmed directly against Turso),
+// and other Prisma calls with varying parameters are unaffected, but this exact fixed-literal
+// SELECT stops reflecting reality on the SAME query re-issued enough times, even from a freshly
+// constructed PrismaClient within the same warm process. A raw @libsql/client query (bypassing
+// Prisma's engine entirely) was stress-tested side by side and never showed this — so the two
+// pending-queue lookups below go through it directly; everything else stays on Prisma.
+function rawLibsqlClient(): LibsqlClient {
+  const url = process.env.TURSO_DATABASE_URL;
+  if (!url) throw new Error('TURSO_DATABASE_URL is not set');
+  return createLibsqlClient({ url, authToken: process.env.TURSO_AUTH_TOKEN });
+}
 
 export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
+  const db = createPrismaClient();
+  const raw = rawLibsqlClient();
   const startedAt = new Date();
-  const run = await prisma.cronRun.create({ data: { startedAt, status: 'running' } });
-  prisma.cronRun.deleteMany({ where: { startedAt: { lt: new Date(Date.now() - RUN_RETENTION_MS) } } })
+  const run = await db.cronRun.create({ data: { startedAt, status: 'running' } });
+  db.cronRun.deleteMany({ where: { startedAt: { lt: new Date(Date.now() - RUN_RETENTION_MS) } } })
     .catch((err) => console.error('[cron/process-ingest-jobs] CronRun prune failed:', err));
 
   try {
-    return await runIngestJobs(run.id, startedAt);
+    return await runIngestJobs(db, raw, run.id, startedAt);
   } catch (err) {
     const finishedAt = new Date();
-    await prisma.cronRun.update({
+    await db.cronRun.update({
       where: { id: run.id },
       data: {
         status: 'error',
@@ -47,53 +70,60 @@ export async function GET(request: Request) {
     });
     console.error('[cron/process-ingest-jobs] run failed:', err);
     return NextResponse.json({ message: 'Cron run failed' }, { status: 500 });
+  } finally {
+    await db.$disconnect();
+    raw.close();
   }
 }
 
-async function runIngestJobs(runId: string, startedAt: Date) {
+async function runIngestJobs(db: ReturnType<typeof createPrismaClient>, raw: LibsqlClient, runId: string, startedAt: Date) {
   // Face + jersey-number search (AWS Rekognition) — the only remaining automated tagging step.
   const faceResults = { done: 0, skipped: 0, failed: 0, stillPending: 0 };
 
-  const facePendingAssets = await prisma.asset.findMany({
-    where: { faceTagStatus: 'pending' },
-    take: FACE_BATCH_SIZE,
-    select: { id: true, objectKey: true, faceTagAttempts: true },
+  const facePendingRows = await raw.execute({
+    sql: 'SELECT id, objectKey, faceTagAttempts FROM "Asset" WHERE faceTagStatus = ? ORDER BY uploadedAt ASC LIMIT ?',
+    args: ['pending', FACE_BATCH_SIZE],
   });
+  const facePendingAssets = facePendingRows.rows.map((r) => ({
+    id: String(r.id),
+    objectKey: String(r.objectKey),
+    faceTagAttempts: Number(r.faceTagAttempts),
+  }));
 
   for (const asset of facePendingAssets) {
     try {
-      const { faceMatches, jerseyMatches, detectedLines } = await identifyPlayersInImage(asset.objectKey);
+      const { faceMatches, jerseyMatches, detectedLines } = await identifyPlayersInImage(asset.objectKey, db);
 
       // All automated detections are applied immediately as confirmed tags — no review step —
       // so newly uploaded assets show their players/sponsors right away. Wrong tags get
       // corrected afterward via the existing manual multi-select / reject actions.
       for (const match of faceMatches) {
-        await upsertPlayerTag(asset.id, match.playerId, 'face', match.similarityPct / 100, 'confirmed');
-        const player = await prisma.player.findUnique({ where: { id: match.playerId }, select: { name: true } });
-        if (player) await addConfirmedStringTag(asset.id, `player:${player.name.toLowerCase().replace(/\s+/g, '-')}`);
+        await upsertPlayerTag(asset.id, match.playerId, 'face', match.similarityPct / 100, 'confirmed', db);
+        const player = await db.player.findUnique({ where: { id: match.playerId }, select: { name: true } });
+        if (player) await addConfirmedStringTag(asset.id, `player:${player.name.toLowerCase().replace(/\s+/g, '-')}`, db);
       }
       for (const match of jerseyMatches) {
-        await upsertPlayerTag(asset.id, match.playerId, 'jersey-ocr', null, 'confirmed');
-        const player = await prisma.player.findUnique({ where: { id: match.playerId }, select: { name: true } });
-        if (player) await addConfirmedStringTag(asset.id, `player:${player.name.toLowerCase().replace(/\s+/g, '-')}`);
+        await upsertPlayerTag(asset.id, match.playerId, 'jersey-ocr', null, 'confirmed', db);
+        const player = await db.player.findUnique({ where: { id: match.playerId }, select: { name: true } });
+        if (player) await addConfirmedStringTag(asset.id, `player:${player.name.toLowerCase().replace(/\s+/g, '-')}`, db);
       }
 
       if (detectedLines.length > 0) {
-        const sponsors = await prisma.sponsor.findMany({ where: { active: true }, select: { id: true, name: true, aliasesJson: true } });
+        const sponsors = await db.sponsor.findMany({ where: { active: true }, select: { id: true, name: true, aliasesJson: true } });
         const sponsorMatches = matchSponsorTokens(detectedLines.join(' '), sponsors);
         for (const m of sponsorMatches) {
-          await upsertSponsorTag(asset.id, m.sponsorId, 'ocr-text', m.isFullName ? 1.0 : 0.6, 'confirmed');
+          await upsertSponsorTag(asset.id, m.sponsorId, 'ocr-text', m.isFullName ? 1.0 : 0.6, 'confirmed', db);
           const sponsor = sponsors.find((s) => s.id === m.sponsorId);
-          if (sponsor) await addConfirmedStringTag(asset.id, `sponsor:${sponsor.name.toLowerCase().replace(/\s+/g, '-')}`);
+          if (sponsor) await addConfirmedStringTag(asset.id, `sponsor:${sponsor.name.toLowerCase().replace(/\s+/g, '-')}`, db);
         }
       }
 
-      await prisma.asset.update({ where: { id: asset.id }, data: { faceTagStatus: 'done' } });
+      await db.asset.update({ where: { id: asset.id }, data: { faceTagStatus: 'done' } });
       faceResults.done++;
     } catch (err) {
       console.error('[cron/process-ingest-jobs] identifyPlayersInImage failed for', asset.id, err);
       const attempts = asset.faceTagAttempts + 1;
-      await prisma.asset.update({
+      await db.asset.update({
         where: { id: asset.id },
         data: attempts >= FACE_MAX_ATTEMPTS
           ? { faceTagStatus: 'failed', faceTagAttempts: attempts }
@@ -107,31 +137,32 @@ async function runIngestJobs(runId: string, startedAt: Date) {
   // Thumbnail generation — cheap, independent of AI tagging, so it's gated only on its own status.
   const thumbnailResults = { done: 0, skipped: 0, failed: 0, stillPending: 0 };
 
-  const thumbnailPendingIds = await prisma.$queryRaw<Array<{ id: string }>>`
-    SELECT id FROM "Asset"
-    WHERE "thumbnailStatus" = 'pending'
-    LIMIT ${THUMBNAIL_BATCH_SIZE}
-  `;
-  const thumbnailPendingAssets = await prisma.asset.findMany({
-    where: { id: { in: thumbnailPendingIds.map((r) => r.id) } },
-    select: { id: true, objectKey: true, fileType: true, thumbnailAttempts: true },
+  const thumbnailPendingRows = await raw.execute({
+    sql: 'SELECT id, objectKey, fileType, thumbnailAttempts FROM "Asset" WHERE thumbnailStatus = ? ORDER BY uploadedAt ASC LIMIT ?',
+    args: ['pending', THUMBNAIL_BATCH_SIZE],
   });
+  const thumbnailPendingAssets = thumbnailPendingRows.rows.map((r) => ({
+    id: String(r.id),
+    objectKey: String(r.objectKey),
+    fileType: String(r.fileType),
+    thumbnailAttempts: Number(r.thumbnailAttempts),
+  }));
 
   for (const asset of thumbnailPendingAssets) {
     if (!asset.fileType.startsWith('image/')) {
-      await prisma.asset.update({ where: { id: asset.id }, data: { thumbnailStatus: 'skipped' } });
+      await db.asset.update({ where: { id: asset.id }, data: { thumbnailStatus: 'skipped' } });
       thumbnailResults.skipped++;
       continue;
     }
 
     try {
       const thumbnailKey = await generateThumbnail(asset.objectKey);
-      await prisma.asset.update({ where: { id: asset.id }, data: { thumbnailKey, thumbnailStatus: 'done' } });
+      await db.asset.update({ where: { id: asset.id }, data: { thumbnailKey, thumbnailStatus: 'done' } });
       thumbnailResults.done++;
     } catch (err) {
       console.error('[cron/process-ingest-jobs] generateThumbnail failed for', asset.id, err);
       const attempts = asset.thumbnailAttempts + 1;
-      await prisma.asset.update({
+      await db.asset.update({
         where: { id: asset.id },
         data: attempts >= THUMBNAIL_MAX_ATTEMPTS
           ? { thumbnailStatus: 'failed', thumbnailAttempts: attempts }
@@ -144,7 +175,7 @@ async function runIngestJobs(runId: string, startedAt: Date) {
 
   // Sweep stuck multipart uploads that never completed.
   const stuckCutoff = new Date(Date.now() - STUCK_UPLOAD_TIMEOUT_MS);
-  const stuckJobs = await prisma.ingestJob.findMany({
+  const stuckJobs = await db.ingestJob.findMany({
     where: { status: 'uploading', updatedAt: { lt: stuckCutoff } },
     take: BATCH_SIZE,
   });
@@ -156,12 +187,12 @@ async function runIngestJobs(runId: string, startedAt: Date) {
         console.error('[cron/process-ingest-jobs] abortMultipartUpload failed:', err);
       });
     }
-    await prisma.ingestJob.update({ where: { id: job.id }, data: { status: 'aborted', errorMessage: 'Stuck upload swept by cron' } });
+    await db.ingestJob.update({ where: { id: job.id }, data: { status: 'aborted', errorMessage: 'Stuck upload swept by cron' } });
     aborted++;
   }
 
   const finishedAt = new Date();
-  await prisma.cronRun.update({
+  await db.cronRun.update({
     where: { id: runId },
     data: {
       status: 'success',

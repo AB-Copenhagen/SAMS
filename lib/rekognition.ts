@@ -17,6 +17,7 @@ import {
   type BoundingBox,
 } from '@aws-sdk/client-rekognition';
 import sharp from 'sharp';
+import type { PrismaClient } from '@prisma/client';
 import { getPresignedUrl } from './wasabi';
 import { prisma } from './db';
 
@@ -232,7 +233,7 @@ export interface JerseyDetectionResult {
 // DetectText call — same detections, two independent ways to land on the same player, each
 // spatially grounded against a detected person the same way. Also surfaces every detected text
 // line so callers can run sponsor OCR matching against it without a second Rekognition call.
-async function detectJerseyIdentifiers(bytes: Buffer, faces: DetectedFace[]): Promise<JerseyDetectionResult> {
+async function detectJerseyIdentifiers(bytes: Buffer, faces: DetectedFace[], db: PrismaClient): Promise<JerseyDetectionResult> {
   const res = await getClient().send(new DetectTextCommand({ Image: { Bytes: bytes } }));
   const detections = (res.TextDetections ?? [])
     .filter((t) => (t.Confidence ?? 0) >= DETECT_TEXT_MIN_CONFIDENCE && t.Geometry?.BoundingBox && t.DetectedText);
@@ -254,7 +255,7 @@ async function detectJerseyIdentifiers(bytes: Buffer, faces: DetectedFace[]): Pr
 
   if (numberCandidates.length === 0 && nameCandidates.length === 0) return { matches: [], lines };
 
-  const players = await prisma.player.findMany({ where: { active: true }, select: { id: true, name: true, number: true } });
+  const players = await db.player.findMany({ where: { active: true }, select: { id: true, name: true, number: true } });
   if (players.length === 0) return { matches: [], lines };
 
   const byPlayer = new Map<string, JerseyMatch>();
@@ -302,7 +303,10 @@ export interface IdentifyPlayersResult {
   detectedLines: string[];
 }
 
-export async function identifyPlayersInImage(objectKey: string): Promise<IdentifyPlayersResult> {
+// db defaults to the shared singleton for normal (short-lived, request-scoped) callers; long-lived
+// pollers like the ingest cron should pass in their own disposable client — see createPrismaClient
+// in lib/db.ts for why.
+export async function identifyPlayersInImage(objectKey: string, db: PrismaClient = prisma): Promise<IdentifyPlayersResult> {
   const raw = await fetchImageBytes(objectKey);
   // Rekognition's bounding boxes are relative to the EXIF-corrected orientation of the image.
   // Bake that rotation into the buffer up front (and strip the EXIF tag) so sharp's pixel math
@@ -313,7 +317,7 @@ export async function identifyPlayersInImage(objectKey: string): Promise<Identif
 
   const [faceMatches, jerseyResult] = await Promise.all([
     searchFaces(bytes, largestFaces(faces)),
-    detectJerseyIdentifiers(bytes, faces),
+    detectJerseyIdentifiers(bytes, faces, db),
   ]);
 
   return { faceMatches, jerseyMatches: jerseyResult.matches, detectedLines: jerseyResult.lines };

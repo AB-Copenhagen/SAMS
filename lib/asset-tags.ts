@@ -1,3 +1,4 @@
+import type { PrismaClient } from '@prisma/client';
 import { prisma } from './db';
 
 type TagStatus = 'confirmed' | 'suggested' | 'rejected';
@@ -6,18 +7,22 @@ type TagStatus = 'confirmed' | 'suggested' | 'rejected';
 // default 'suggested', later reprocessing/backfill passes must not silently overwrite that —
 // otherwise a dismissed suggestion would just reappear on the next enrichment run.
 
+// db defaults to the shared singleton for normal (short-lived, request-scoped) callers; long-lived
+// pollers like the ingest cron should pass in their own disposable client — see createPrismaClient
+// in lib/db.ts for why.
 export async function upsertPlayerTag(
   assetId: string,
   playerId: string,
   source: string,
   confidence: number | null,
   status: TagStatus,
+  db: PrismaClient = prisma,
 ) {
   const where = { assetId_playerId_source: { assetId, playerId, source } };
-  const existing = await prisma.assetPlayerTag.findUnique({ where });
+  const existing = await db.assetPlayerTag.findUnique({ where });
   if (existing && existing.status !== 'suggested') return existing;
 
-  return prisma.assetPlayerTag.upsert({
+  return db.assetPlayerTag.upsert({
     where,
     create: { assetId, playerId, source, confidence, status },
     update: { confidence, status },
@@ -30,12 +35,13 @@ export async function upsertSponsorTag(
   source: string,
   confidence: number | null,
   status: TagStatus,
+  db: PrismaClient = prisma,
 ) {
   const where = { assetId_sponsorId_source: { assetId, sponsorId, source } };
-  const existing = await prisma.assetSponsorTag.findUnique({ where });
+  const existing = await db.assetSponsorTag.findUnique({ where });
   if (existing && existing.status !== 'suggested') return existing;
 
-  return prisma.assetSponsorTag.upsert({
+  return db.assetSponsorTag.upsert({
     where,
     create: { assetId, sponsorId, source, confidence, status },
     update: { confidence, status },
@@ -45,15 +51,15 @@ export async function upsertSponsorTag(
 // Appends a `player:slug` / `sponsor:slug` string tag to Asset.detectedTagsJson, idempotently.
 // Only ever called for CONFIRMED matches — a 'suggested' (unreviewed) tag must never land here,
 // or it becomes indistinguishable from a confirmed tag in the existing free-text search UI.
-export async function addConfirmedStringTag(assetId: string, tag: string): Promise<void> {
-  const asset = await prisma.asset.findUnique({ where: { id: assetId }, select: { detectedTagsJson: true } });
+export async function addConfirmedStringTag(assetId: string, tag: string, db: PrismaClient = prisma): Promise<void> {
+  const asset = await db.asset.findUnique({ where: { id: assetId }, select: { detectedTagsJson: true } });
   if (!asset) return;
 
   const tags: string[] = asset.detectedTagsJson ? JSON.parse(asset.detectedTagsJson) : [];
   if (tags.includes(tag)) return;
 
   tags.push(tag);
-  await prisma.asset.update({ where: { id: assetId }, data: { detectedTagsJson: JSON.stringify(tags) } });
+  await db.asset.update({ where: { id: assetId }, data: { detectedTagsJson: JSON.stringify(tags) } });
 }
 
 export async function removeConfirmedStringTag(assetId: string, tag: string): Promise<void> {
