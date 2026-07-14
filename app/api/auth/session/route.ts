@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyDescopeSession } from '../../../../lib/descope';
-import { createSessionCookie } from '../../../../lib/auth';
+import { createSessionCookie, isAdminEmail } from '../../../../lib/auth';
 import type { UserRole } from '../../../../lib/auth';
 
 export async function POST(request: Request) {
@@ -14,6 +14,10 @@ export async function POST(request: Request) {
   const descopeUser = await verifyDescopeSession(sessionToken);
   if (!descopeUser) {
     return NextResponse.json({ message: 'Invalid or expired session.' }, { status: 401 });
+  }
+
+  if (!isAdminEmail(descopeUser.email)) {
+    return NextResponse.json({ message: 'Your account does not have access to this app.' }, { status: 403 });
   }
 
   const role: UserRole = 'ADMIN';

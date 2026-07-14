@@ -44,7 +44,7 @@ export default function DescopeLoginForm() {
   return (
     <>
       <Descope
-        flowId="sign-in"
+        flowId="si-app"
         onSuccess={handleSuccess}
         onError={handleError}
       />

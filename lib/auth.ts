@@ -13,6 +13,14 @@ export type User = {
 
 const SESSION_COOKIE_NAME = 'dam_session';
 
+export function isAdminEmail(email: string): boolean {
+  const allowlist = (process.env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return allowlist.includes(email.toLowerCase());
+}
+
 function getSecret(): string {
   const secret = process.env.SESSION_SECRET;
   if (!secret) throw new Error('SESSION_SECRET is not set');
@@ -61,7 +69,7 @@ export async function getCurrentUser(): Promise<User | null> {
 
   // Fallback: raw Descope session token (covers legacy cookies and direct API calls)
   const descopeSession = await verifyDescopeSession(session.value);
-  if (!descopeSession) return null;
+  if (!descopeSession || !isAdminEmail(descopeSession.email)) return null;
 
   return {
     id: descopeSession.id,
