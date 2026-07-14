@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/process-ingest-jobs",
-      "schedule": "*/2 * * * *"
+      "schedule": "*/15 * * * *"
     }
   ]
 }

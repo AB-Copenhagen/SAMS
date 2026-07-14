@@ -18,7 +18,7 @@ type QueueStatus = {
   failedAssets: QueuedAsset[];
 };
 
-const CRON_INTERVAL_MS = 2 * 60 * 1000;
+const CRON_INTERVAL_MS = 15 * 60 * 1000;
 
 function nextCronRunAt(from: number): number {
   return Math.ceil((from + 1000) / CRON_INTERVAL_MS) * CRON_INTERVAL_MS;
@@ -80,10 +80,11 @@ export default function JobsClient() {
   return (
     <div>
       <div className="card" style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Next tagging run</div>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Next reconciliation sweep</div>
         <div style={{ fontSize: 20, fontWeight: 600 }}>{formatCountdown(msUntilNext)}</div>
         <div style={{ fontSize: 12, color: '#8890b4', marginTop: 4 }}>
-          Runs every 2 minutes via Vercel Cron (timing is approximate)
+          New uploads are tagged within seconds via a QStash job queue — this sweep runs every 15
+          minutes and only re-enqueues stragglers (timing is approximate)
           {lastRun && (
             <>
               {' · last run '}{formatRelative(lastRun.startedAt)}
@@ -154,7 +155,7 @@ export default function JobsClient() {
       )}
 
       <div className="card">
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Recent cron runs</div>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Recent reconciliation sweeps</div>
         <div className="config-list">
           {runs?.map((r) => (
             <div key={r.id} className="config-item">
@@ -171,8 +172,7 @@ export default function JobsClient() {
                 </div>
                 <div className="config-item-sub">
                   {r.status === 'error' ? r.errorMessage : (
-                    `faces ${r.facesDone} done / ${r.facesFailed} failed / ${r.facesStillPending} retry-pending`
-                    + ` · thumbnails ${r.thumbsDone} done / ${r.thumbsFailed} failed`
+                    `${r.facesStillPending} tagging job(s) re-enqueued · ${r.thumbsStillPending} thumbnail job(s) re-enqueued`
                     + (r.uploadsAborted ? ` · ${r.uploadsAborted} stuck upload(s) aborted` : '')
                     + (r.durationMs != null ? ` · ${(r.durationMs / 1000).toFixed(1)}s` : '')
                   )}
@@ -181,7 +181,7 @@ export default function JobsClient() {
             </div>
           ))}
           {runs && runs.length === 0 && (
-            <div className="empty-state" style={{ padding: '24px 0' }}><p>No cron runs recorded yet.</p></div>
+            <div className="empty-state" style={{ padding: '24px 0' }}><p>No reconciliation sweeps recorded yet.</p></div>
           )}
           {!runs && <p style={{ color: '#8890b4', fontSize: 13 }}>Loading…</p>}
         </div>

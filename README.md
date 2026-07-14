@@ -33,7 +33,7 @@ A Digital Asset Manager (DAM) built for professional soccer teams. SAMS centrali
 - Cover image per collection
 
 ### AI Tagging & Player/Sponsor Recognition
-- Every uploaded image is automatically analyzed by AWS Rekognition — processed asynchronously via a Vercel Cron sweep, not on the upload request path
+- Every uploaded image is automatically analyzed by AWS Rekognition — enqueued as an [Upstash QStash](https://upstash.com/docs/qstash) job the moment upload completes (not on the upload request path itself), so photos are typically tagged within seconds rather than waiting on a fixed poll interval. A low-frequency reconciliation sweep (Vercel Cron, every 15 min) re-enqueues anything that slips through
 - **Player face identification** — players' headshots are enrolled once into an AWS Rekognition face collection (Configure → Players → "Enroll all faces"); new photos are searched (per detected face, not just the largest one in frame) and matched players are tagged automatically
 - **Jersey number & name recognition** — reads jersey numbers and printed surnames off the back of a shirt, spatially grounded against a detected person in the frame
 - **Sponsor detection** — matches sponsor names/aliases against text detected anywhere in the frame (LED boards, banners, crests — not just jerseys), reusing the same text-detection call made for jersey recognition
@@ -76,9 +76,10 @@ A Digital Asset Manager (DAM) built for professional soccer teams. SAMS centrali
 | Database | [Turso](https://turso.tech) (libSQL / SQLite) via Prisma ORM |
 | Object Storage | [Wasabi](https://wasabi.com) (S3-compatible) |
 | URL Cache | [Upstash Redis](https://upstash.com) |
+| Job Queue | [Upstash QStash](https://upstash.com/docs/qstash) |
 | Auth | [Descope](https://descope.com) |
 | Face ID / Jersey OCR / Sponsor OCR | [AWS Rekognition](https://aws.amazon.com/rekognition/) (Collections) |
-| Scheduled Processing | Vercel Cron |
+| Scheduled Processing | Vercel Cron (reconciliation sweep only) |
 | Deployment | [Vercel](https://vercel.com) |
 
 ## Getting Started
@@ -122,6 +123,16 @@ AWS_REKOGNITION_SECRET_ACCESS_KEY=
 # Upstash Redis
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
+
+# Upstash QStash — job queue for post-upload tagging/thumbnail generation
+# If QSTASH_TOKEN is unset, jobs silently aren't enqueued at upload time and only get picked up
+# by the (much slower) reconciliation cron sweep.
+QSTASH_TOKEN=
+QSTASH_CURRENT_SIGNING_KEY=
+QSTASH_NEXT_SIGNING_KEY=
+
+# Canonical https URL of this deployment — QStash calls back to ${APP_BASE_URL}/api/jobs/*
+APP_BASE_URL=
 
 # Descope
 NEXT_PUBLIC_DESCOPE_PROJECT_ID=
@@ -173,7 +184,7 @@ Mint a device key from Configure → Devices in the app first.
 vercel --prod
 ```
 
-`vercel.json` defines a cron job (`/api/cron/process-ingest-jobs`, every 2 minutes) that drives player face/jersey identification, sponsor matching, and thumbnail generation. Note: Vercel's Hobby plan only runs cron jobs once a day — a Pro plan (or higher) is required for the 2-minute cadence this app is built around.
+Player/sponsor tagging and thumbnail generation run as [Upstash QStash](https://upstash.com/docs/qstash) jobs, enqueued directly at upload completion — set `APP_BASE_URL` to this deployment's own URL so QStash knows where to call back, and configure the QStash project's signing keys (`QSTASH_CURRENT_SIGNING_KEY`/`QSTASH_NEXT_SIGNING_KEY`) so `/api/jobs/*` only accepts genuine QStash requests. `vercel.json` still defines a cron job (`/api/cron/process-ingest-jobs`, every 15 minutes) but it now only sweeps stuck multipart uploads and re-enqueues any asset that's been stuck `pending` for an unexpectedly long time — a safety net, not the primary path. If you're migrating an existing deployment with assets already `pending` from before this change, run `node scripts/backfill-qstash-jobs.mjs` once after deploying to enqueue jobs for them immediately instead of waiting on the sweep.
 
 ## License
 
