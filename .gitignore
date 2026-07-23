@@ -5,3 +5,4 @@ out
 !.env.example
 prisma/dev.db
 .vercel
+.DS_Store
