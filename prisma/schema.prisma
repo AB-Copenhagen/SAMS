@@ -122,6 +122,8 @@ model IngestJob {
   completedAt    DateTime?
 
   @@index([status, updatedAt])
+  @@index([uploaderEmail, updatedAt])
+  @@index([deviceId, updatedAt])
 }
 
 model CronRun {

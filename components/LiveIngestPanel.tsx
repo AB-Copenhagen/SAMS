@@ -19,7 +19,9 @@ type IngestJob = {
   device: { name: string } | null;
 };
 
-const POLL_INTERVAL_MS = 2500;
+const ACTIVE_POLL_INTERVAL_MS = 2500;
+const IDLE_POLL_INTERVAL_MS = 15000;
+const TERMINAL_STATUSES: JobStatus[] = ['complete', 'failed', 'aborted', 'duplicate'];
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -59,6 +61,8 @@ export default function LiveIngestPanel() {
   const sinceRef = useRef<string | null>(null);
   const jobsRef = useRef<Map<string, IngestJob>>(new Map());
 
+  const hasActiveRef = useRef(true);
+
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -74,25 +78,30 @@ export default function LiveIngestPanel() {
           for (const job of data.jobs) jobsRef.current.set(job.id, job);
           sinceRef.current = data.serverTime;
 
-          if (!cancelled) {
-            const merged = Array.from(jobsRef.current.values())
-              .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-              .slice(0, 50);
-            setJobs(merged);
-          }
+          const merged = Array.from(jobsRef.current.values())
+            .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+            .slice(0, 50);
+          // keep jobsRef bounded to what's actually displayed, so a long-lived
+          // tab doesn't accumulate every terminal job it's ever seen
+          jobsRef.current = new Map(merged.map((j) => [j.id, j]));
+          hasActiveRef.current = merged.some((j) => !TERMINAL_STATUSES.includes(j.status));
+
+          if (!cancelled) setJobs(merged);
         }
       } catch {
         // transient network error — next poll tick will retry
       }
-      if (!cancelled) timer = setTimeout(poll, POLL_INTERVAL_MS);
+      if (!cancelled) {
+        timer = setTimeout(poll, hasActiveRef.current ? ACTIVE_POLL_INTERVAL_MS : IDLE_POLL_INTERVAL_MS);
+      }
     }
 
     poll();
     return () => { cancelled = true; clearTimeout(timer); };
   }, []);
 
-  const active = jobs.filter((j) => !['complete', 'failed', 'aborted', 'duplicate'].includes(j.status));
-  const recent = jobs.filter((j) => ['complete', 'failed', 'aborted', 'duplicate'].includes(j.status)).slice(0, 10);
+  const active = jobs.filter((j) => !TERMINAL_STATUSES.includes(j.status));
+  const recent = jobs.filter((j) => TERMINAL_STATUSES.includes(j.status)).slice(0, 10);
 
   if (!jobs.length) return null;
 

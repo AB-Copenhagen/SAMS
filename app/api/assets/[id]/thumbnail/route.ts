@@ -14,5 +14,10 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   if (!asset) return NextResponse.json({ message: 'Not found' }, { status: 404 });
 
   const url = await getPresignedUrl(asset.thumbnailKey ?? asset.objectKey);
-  return NextResponse.redirect(url, { status: 307 });
+  // getPresignedUrl's Redis cache always evicts >= 1h before the signed URL itself
+  // expires, so this redirect is safe to let the browser cache for up to that long
+  return NextResponse.redirect(url, {
+    status: 307,
+    headers: { 'Cache-Control': 'private, max-age=3300' },
+  });
 }

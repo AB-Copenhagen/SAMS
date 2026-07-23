@@ -147,6 +147,8 @@ CREATE TABLE IF NOT EXISTS "IngestJob" (
 CREATE UNIQUE INDEX IF NOT EXISTS "IngestJob_objectKey_key" ON "IngestJob"("objectKey");
 CREATE UNIQUE INDEX IF NOT EXISTS "IngestJob_assetId_key" ON "IngestJob"("assetId");
 CREATE INDEX IF NOT EXISTS "IngestJob_status_updatedAt_idx" ON "IngestJob"("status", "updatedAt");
+CREATE INDEX IF NOT EXISTS "IngestJob_uploaderEmail_updatedAt_idx" ON "IngestJob"("uploaderEmail", "updatedAt");
+CREATE INDEX IF NOT EXISTS "IngestJob_deviceId_updatedAt_idx" ON "IngestJob"("deviceId", "updatedAt");
 
 CREATE TABLE IF NOT EXISTS "Player" (
     "id" TEXT NOT NULL PRIMARY KEY,
