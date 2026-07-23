@@ -6,7 +6,8 @@ import { getPresignedUrl } from '../../../lib/wasabi';
 import AppShell from '../../../components/AppShell';
 import AssetDetailClient from '../../../components/AssetDetailClient';
 
-export default async function AssetDetailPage({ params }: { params: { id: string } }) {
+export default async function AssetDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) redirect('/login');
 

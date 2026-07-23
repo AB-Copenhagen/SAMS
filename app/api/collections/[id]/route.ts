@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export async function GET(_: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   const collection = await prisma.collection.findUnique({
@@ -13,7 +14,8 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   return NextResponse.json(collection);
 }
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   const body = await request.json() as { name?: string; date?: string | null; opponent?: string | null; venue?: string | null };
@@ -29,7 +31,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   return NextResponse.json(collection);
 }
 
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   await prisma.collection.delete({ where: { id: params.id } });

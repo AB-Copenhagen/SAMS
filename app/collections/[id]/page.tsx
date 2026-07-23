@@ -6,7 +6,8 @@ import AppShell from '../../../components/AppShell';
 import CollectionEditForm from '../../../components/CollectionEditForm';
 import AssetGallery from '../../../components/AssetGallery';
 
-export default async function CollectionPage({ params }: { params: { id: string } }) {
+export default async function CollectionPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) redirect('/login');
 

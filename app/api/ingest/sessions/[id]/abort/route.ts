@@ -4,7 +4,8 @@ import { prisma } from '../../../../../../lib/db';
 import { abortMultipartUpload } from '../../../../../../lib/wasabi';
 import { canAccessJob } from '../../../../../../lib/ingest';
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const actor = await getIngestActor(request);
   if (!actor) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 

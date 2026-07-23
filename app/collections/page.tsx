@@ -20,7 +20,8 @@ function viewUrl(view: View, perPage: number) {
   return '/collections' + (s ? '?' + s : '');
 }
 
-export default async function CollectionsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function CollectionsPage(props: { searchParams: Promise<SearchParams> }) {
+  const searchParams = await props.searchParams;
   const user = await getCurrentUser();
   if (!user) redirect('/login');
 

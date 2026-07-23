@@ -4,7 +4,8 @@ import { prisma } from '../../../../lib/db';
 import { deleteFileFromWasabi } from '../../../../lib/wasabi';
 import { syncPlayerTags, syncSponsorTags } from '../../../../lib/asset-tags';
 
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export async function GET(_: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
@@ -16,7 +17,8 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   return NextResponse.json(asset);
 }
 
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
@@ -34,7 +36,8 @@ export async function DELETE(_: Request, { params }: { params: { id: string } })
   return NextResponse.json({ success: true });
 }
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 

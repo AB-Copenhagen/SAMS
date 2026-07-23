@@ -15,7 +15,8 @@ type SearchParams = {
   page?: string; perPage?: string;
 };
 
-export default async function MediaPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function MediaPage(props: { searchParams: Promise<SearchParams> }) {
+  const searchParams = await props.searchParams;
   const user = await getCurrentUser();
   if (!user) redirect('/login');
 

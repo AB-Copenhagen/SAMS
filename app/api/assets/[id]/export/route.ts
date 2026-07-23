@@ -5,7 +5,8 @@ import { renderExport, EXPORT_PRESETS } from '../../../../../lib/export-presets'
 
 export const maxDuration = 60;
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 

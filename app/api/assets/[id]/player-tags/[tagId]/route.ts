@@ -9,8 +9,9 @@ function slugify(name: string): string {
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string; tagId: string } },
+  props: { params: Promise<{ id: string; tagId: string }> }
 ) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 

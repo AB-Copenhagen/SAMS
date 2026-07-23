@@ -3,9 +3,7 @@ const nextConfig = {
   images: {
     remotePatterns: [{ protocol: 'https', hostname: '**' }],
   },
-  experimental: {
-    serverComponentsExternalPackages: ['exifr'],
-  },
+  serverExternalPackages: ['exifr'],
 };
 
 module.exports = nextConfig;

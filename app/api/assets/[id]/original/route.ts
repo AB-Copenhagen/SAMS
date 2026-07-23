@@ -5,7 +5,8 @@ import { getPresignedUrl } from '../../../../../lib/wasabi';
 
 // Always the pristine original, regardless of editedKey — used by the photo editor and the edit
 // pipeline so edits always render from source rather than compounding on a prior edit.
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export async function GET(_: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 

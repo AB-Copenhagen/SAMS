@@ -5,7 +5,8 @@ import { syncPlayerTags, syncSponsorTags } from '../../../../../lib/asset-tags';
 
 // Single fast-path action for the /review workflow: rate + sync tags + stamp the review log
 // in one round trip, so rating an asset (click or 1-4 key) is a single network call.
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 

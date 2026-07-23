@@ -59,7 +59,7 @@ function parseSessionCookie(value: string): User | null {
 }
 
 export async function getCurrentUser(): Promise<User | null> {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const session = cookieStore.get(SESSION_COOKIE_NAME);
 
   if (!session?.value) return null;

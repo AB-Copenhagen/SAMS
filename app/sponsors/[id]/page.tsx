@@ -8,12 +8,14 @@ import TagReviewList from '../../../components/TagReviewList';
 
 const PER_PAGE = 30;
 
-export default async function SponsorPhotosPage({
-  params, searchParams,
-}: {
-  params: { id: string };
-  searchParams: { page?: string };
-}) {
+export default async function SponsorPhotosPage(
+  props: {
+    params: Promise<{ id: string }>;
+    searchParams: Promise<{ page?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) redirect('/login');
 

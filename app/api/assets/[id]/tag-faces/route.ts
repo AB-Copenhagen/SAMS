@@ -10,7 +10,8 @@ export const maxDuration = 60;
 // Synchronous, single-asset player identification (face + jersey number) — the on-demand
 // counterpart to the cron's batched sweep. Triggered by "Auto-tag with AI" so a user gets an
 // immediate result on click instead of waiting for the next cron pass.
-export async function POST(_request: Request, { params }: { params: { id: string } }) {
+export async function POST(_request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
