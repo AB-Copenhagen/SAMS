@@ -90,6 +90,9 @@ export default function JobsClient() {
               {' · last run '}{formatRelative(lastRun.startedAt)}
               {lastRun.status === 'error'   && <span style={{ color: '#dc2626' }}> · failed</span>}
               {lastRun.status === 'running' && <span> · still running</span>}
+              {(lastRun.facesSkipped > 0 || lastRun.thumbsSkipped > 0) && (
+                <span style={{ color: '#dc2626' }}> · QSTASH_TOKEN not configured, jobs not enqueued</span>
+              )}
             </>
           )}
         </div>
@@ -175,6 +178,11 @@ export default function JobsClient() {
                     `${r.facesStillPending} tagging job(s) re-enqueued · ${r.thumbsStillPending} thumbnail job(s) re-enqueued`
                     + (r.uploadsAborted ? ` · ${r.uploadsAborted} stuck upload(s) aborted` : '')
                     + (r.durationMs != null ? ` · ${(r.durationMs / 1000).toFixed(1)}s` : '')
+                  )}
+                  {(r.facesSkipped > 0 || r.thumbsSkipped > 0) && (
+                    <span style={{ color: '#dc2626' }}>
+                      {' · '}{r.facesSkipped} tagging + {r.thumbsSkipped} thumbnail job(s) skipped (QSTASH_TOKEN not configured)
+                    </span>
                   )}
                 </div>
               </div>

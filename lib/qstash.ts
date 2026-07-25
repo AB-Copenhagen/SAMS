@@ -11,13 +11,15 @@ function baseUrl(): string {
 
 // Enqueues a job for asynchronous processing via QStash. If QSTASH_TOKEN isn't configured (e.g.
 // local dev, or before the Upstash QStash project is wired up), this logs and no-ops rather than
-// throwing — the asset is still created successfully, and the reconciliation cron sweep in
-// process-ingest-jobs picks up anything that never got enqueued.
-export async function publishJob(path: string, body: unknown, retries = DEFAULT_RETRIES): Promise<void> {
+// throwing — the asset is still created successfully. Callers must check the returned boolean
+// (false = skipped, not published) rather than assume a resolved promise means the job is queued —
+// the reconciliation cron sweep in process-ingest-jobs relies on this to avoid reporting a skipped
+// enqueue as a successful one.
+export async function publishJob(path: string, body: unknown, retries = DEFAULT_RETRIES): Promise<boolean> {
   const token = process.env.QSTASH_TOKEN;
   if (!token) {
     console.warn(`[qstash] QSTASH_TOKEN not set — skipping enqueue of ${path}; the reconciliation sweep will pick it up`);
-    return;
+    return false;
   }
 
   const client = new Client({ token });
@@ -27,6 +29,7 @@ export async function publishJob(path: string, body: unknown, retries = DEFAULT_
     retries,
     failureCallback: `${baseUrl()}/api/jobs/failed`,
   });
+  return true;
 }
 
 // Verifies the Upstash-Signature header on an incoming QStash callback. If no signing key is

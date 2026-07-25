@@ -77,9 +77,10 @@ async function runReconciliation(db: ReturnType<typeof createPrismaClient>, raw:
     args: ['pending', staleCutoff, RECONCILE_BATCH_SIZE],
   });
   let facesReenqueued = 0;
+  let facesSkipped = 0;
   for (const row of staleFaceRows.rows) {
     await publishJob('/api/jobs/tag-asset', { assetId: String(row.id) })
-      .then(() => facesReenqueued++)
+      .then((published) => (published ? facesReenqueued++ : facesSkipped++))
       .catch((err) => console.error('[cron/process-ingest-jobs] failed to re-enqueue tag-asset for', row.id, err));
   }
 
@@ -88,10 +89,17 @@ async function runReconciliation(db: ReturnType<typeof createPrismaClient>, raw:
     args: ['pending', staleCutoff, RECONCILE_BATCH_SIZE],
   });
   let thumbsReenqueued = 0;
+  let thumbsSkipped = 0;
   for (const row of staleThumbRows.rows) {
     await publishJob('/api/jobs/generate-thumbnail', { assetId: String(row.id) })
-      .then(() => thumbsReenqueued++)
+      .then((published) => (published ? thumbsReenqueued++ : thumbsSkipped++))
       .catch((err) => console.error('[cron/process-ingest-jobs] failed to re-enqueue generate-thumbnail for', row.id, err));
+  }
+
+  if (facesSkipped > 0 || thumbsSkipped > 0) {
+    console.error(
+      `[cron/process-ingest-jobs] QSTASH_TOKEN not configured — skipped enqueueing ${facesSkipped} tag-asset and ${thumbsSkipped} generate-thumbnail job(s) that should have been reenqueued`
+    );
   }
 
   // Sweep stuck multipart uploads that never completed.
@@ -120,10 +128,12 @@ async function runReconciliation(db: ReturnType<typeof createPrismaClient>, raw:
       finishedAt,
       durationMs: finishedAt.getTime() - startedAt.getTime(),
       facesStillPending: facesReenqueued,
+      facesSkipped,
       thumbsStillPending: thumbsReenqueued,
+      thumbsSkipped,
       uploadsAborted: aborted,
     },
   });
 
-  return NextResponse.json({ facesReenqueued, thumbsReenqueued, aborted });
+  return NextResponse.json({ facesReenqueued, facesSkipped, thumbsReenqueued, thumbsSkipped, aborted });
 }
