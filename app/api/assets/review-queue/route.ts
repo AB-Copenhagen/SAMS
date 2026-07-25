@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
-import { REVIEWABLE_IMAGE_WHERE } from '../../../../lib/asset-review';
+import { REVIEWABLE_ASSET_WHERE } from '../../../../lib/asset-review';
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
@@ -12,12 +12,12 @@ export async function GET(request: Request) {
 
   const [assets, total] = await Promise.all([
     prisma.asset.findMany({
-      where: REVIEWABLE_IMAGE_WHERE,
+      where: REVIEWABLE_ASSET_WHERE,
       orderBy: { uploadedAt: 'asc' },
       take: limit,
-      select: { id: true, title: true, uploadedAt: true, manualTagsJson: true },
+      select: { id: true, title: true, uploadedAt: true, manualTagsJson: true, fileType: true },
     }),
-    prisma.asset.count({ where: REVIEWABLE_IMAGE_WHERE }),
+    prisma.asset.count({ where: REVIEWABLE_ASSET_WHERE }),
   ]);
 
   const ids = assets.map((a) => a.id);
@@ -45,6 +45,7 @@ export async function GET(request: Request) {
       title: a.title,
       uploadedAt: a.uploadedAt,
       manualTagsJson: a.manualTagsJson,
+      fileType: a.fileType,
       playerIds: playerIdsByAsset.get(a.id) ?? [],
       sponsorIds: sponsorIdsByAsset.get(a.id) ?? [],
     })),

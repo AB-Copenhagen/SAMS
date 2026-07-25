@@ -68,7 +68,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         seasonId: metadata.seasonId || null,
         exifJson: exifJson ?? null,
         faceTagStatus: job.fileType.startsWith('image/') ? 'pending' : 'skipped',
-        thumbnailStatus: job.fileType.startsWith('image/') ? 'pending' : 'skipped',
+        thumbnailStatus: (job.fileType.startsWith('image/') || job.fileType.startsWith('video/')) ? 'pending' : 'skipped',
       },
     });
   } catch (err) {
@@ -89,12 +89,18 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
   // QStash jobs, tracked on the Asset itself (faceTagStatus/thumbnailStatus), not on this ingest
   // job. publishJob no-ops (with a warning) if QSTASH_TOKEN isn't configured — the reconciliation
   // sweep in the ingest cron picks up anything that doesn't get enqueued here.
-  if (job.fileType.startsWith('image/')) {
-    await Promise.all([
-      publishJob('/api/jobs/tag-asset', { assetId: asset.id }).catch((err) => console.error('[ingest/complete] failed to enqueue tag-asset job:', err)),
-      publishJob('/api/jobs/generate-thumbnail', { assetId: asset.id }).catch((err) => console.error('[ingest/complete] failed to enqueue generate-thumbnail job:', err)),
-    ]);
+  // Face/sponsor tagging is image-only (Rekognition's image APIs can't process video); thumbnail
+  // generation covers both, since lib/video-thumbnail.ts handles the video branch.
+  const isImage = job.fileType.startsWith('image/');
+  const isVideo = job.fileType.startsWith('video/');
+  const enqueueJobs: Promise<unknown>[] = [];
+  if (isImage) {
+    enqueueJobs.push(publishJob('/api/jobs/tag-asset', { assetId: asset.id }).catch((err) => console.error('[ingest/complete] failed to enqueue tag-asset job:', err)));
   }
+  if (isImage || isVideo) {
+    enqueueJobs.push(publishJob('/api/jobs/generate-thumbnail', { assetId: asset.id }).catch((err) => console.error('[ingest/complete] failed to enqueue generate-thumbnail job:', err)));
+  }
+  await Promise.all(enqueueJobs);
 
   return NextResponse.json({ status: 'ok', assetId: asset.id, job: { ...job, status: 'complete', assetId: asset.id } });
 }

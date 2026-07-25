@@ -393,25 +393,27 @@ export default function AssetDetailClient({
             </div>
           )}
 
-          <IdentifyPlayersButton
-            assetId={asset.id}
-            onComplete={({ players, sponsors, playerIds: newPlayerIds, sponsorIds: newSponsorIds }) => {
-              setDetectedTags((tags) => {
-                const next = [...tags];
-                for (const name of players) {
-                  const slug = `player:${name.toLowerCase().replace(/\s+/g, '-')}`;
-                  if (!next.includes(slug)) next.push(slug);
-                }
-                for (const name of sponsors) {
-                  const slug = `sponsor:${name.toLowerCase().replace(/\s+/g, '-')}`;
-                  if (!next.includes(slug)) next.push(slug);
-                }
-                return next;
-              });
-              setPlayerIds((ids) => Array.from(new Set([...ids, ...newPlayerIds])));
-              setSponsorIds((ids) => Array.from(new Set([...ids, ...newSponsorIds])));
-            }}
-          />
+          {!isVideo && (
+            <IdentifyPlayersButton
+              assetId={asset.id}
+              onComplete={({ players, sponsors, playerIds: newPlayerIds, sponsorIds: newSponsorIds }) => {
+                setDetectedTags((tags) => {
+                  const next = [...tags];
+                  for (const name of players) {
+                    const slug = `player:${name.toLowerCase().replace(/\s+/g, '-')}`;
+                    if (!next.includes(slug)) next.push(slug);
+                  }
+                  for (const name of sponsors) {
+                    const slug = `sponsor:${name.toLowerCase().replace(/\s+/g, '-')}`;
+                    if (!next.includes(slug)) next.push(slug);
+                  }
+                  return next;
+                });
+                setPlayerIds((ids) => Array.from(new Set([...ids, ...newPlayerIds])));
+                setSponsorIds((ids) => Array.from(new Set([...ids, ...newSponsorIds])));
+              }}
+            />
+          )}
         </div>
       </div>
     </div>

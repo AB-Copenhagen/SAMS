@@ -7,6 +7,7 @@ import TagInput from './TagInput';
 type QueueItem = {
   id: string;
   title: string | null;
+  fileType: string;
   playerIds: string[];
   sponsorIds: string[];
   tags: string[];
@@ -15,6 +16,7 @@ type QueueItem = {
 type RawQueueAsset = {
   id: string;
   title: string | null;
+  fileType: string;
   manualTagsJson: string | null;
   playerIds: string[];
   sponsorIds: string[];
@@ -23,7 +25,7 @@ type RawQueueAsset = {
 function toQueueItem(a: RawQueueAsset): QueueItem {
   let tags: string[] = [];
   try { tags = a.manualTagsJson ? JSON.parse(a.manualTagsJson) : []; } catch { tags = []; }
-  return { id: a.id, title: a.title, playerIds: a.playerIds, sponsorIds: a.sponsorIds, tags };
+  return { id: a.id, title: a.title, fileType: a.fileType, playerIds: a.playerIds, sponsorIds: a.sponsorIds, tags };
 }
 
 const REFILL_THRESHOLD = 5;
@@ -87,9 +89,12 @@ export default function ReviewWorkflowClient({
     }
   }, [current?.id]);
 
-  // Prefetch the next couple of full-res images so advancing feels instant.
+  // Prefetch the next couple of full-res images so advancing feels instant. Skipped for video —
+  // an Image() element can't meaningfully prefetch a video, and blindly pulling a multi-GB file
+  // 1-2 items ahead of when it's needed would waste real bandwidth.
   useEffect(() => {
     for (const item of queue.slice(1, 3)) {
+      if (item.fileType.startsWith('video/')) continue;
       const img = new window.Image();
       img.src = `/api/assets/${item.id}/download`;
     }
@@ -162,13 +167,22 @@ export default function ReviewWorkflowClient({
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 20, alignItems: 'start' }}>
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            key={current.id}
-            src={`/api/assets/${current.id}/download`}
-            alt={current.title ?? ''}
-            style={{ width: '100%', display: 'block', maxHeight: 640, objectFit: 'contain', background: '#0d0f1c' }}
-          />
+          {current.fileType.startsWith('video/') ? (
+            <video
+              key={current.id}
+              src={`/api/assets/${current.id}/download`}
+              controls
+              style={{ width: '100%', display: 'block', maxHeight: 640, background: '#0d0f1c' }}
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={current.id}
+              src={`/api/assets/${current.id}/download`}
+              alt={current.title ?? ''}
+              style={{ width: '100%', display: 'block', maxHeight: 640, objectFit: 'contain', background: '#0d0f1c' }}
+            />
+          )}
         </div>
 
         <div className="card">

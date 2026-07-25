@@ -3,6 +3,7 @@ import { identifyPlayersInImage } from './rekognition';
 import { upsertPlayerTag, upsertSponsorTag, addConfirmedStringTag } from './asset-tags';
 import { matchSponsorTokens } from './sponsor-matching';
 import { generateThumbnail } from './thumbnail';
+import { generateVideoThumbnail } from './video-thumbnail';
 
 // Single-asset processing bodies shared by the QStash job endpoints (app/api/jobs/*) and the
 // reconciliation sweep in app/api/cron/process-ingest-jobs — one copy of the actual tagging logic,
@@ -42,8 +43,17 @@ export async function processFaceTagging(assetId: string, db: PrismaClient): Pro
 }
 
 export async function processThumbnail(assetId: string, db: PrismaClient): Promise<void> {
-  const asset = await db.asset.findUnique({ where: { id: assetId }, select: { objectKey: true } });
+  const asset = await db.asset.findUnique({ where: { id: assetId }, select: { objectKey: true, fileType: true } });
   if (!asset) return; // asset was deleted since the job was enqueued — nothing to do
+
+  if (asset.fileType.startsWith('video/')) {
+    const { thumbnailKey, durationMs, width, height } = await generateVideoThumbnail(asset.objectKey);
+    await db.asset.update({
+      where: { id: assetId },
+      data: { thumbnailKey, thumbnailStatus: 'done', durationMs, videoWidth: width, videoHeight: height },
+    });
+    return;
+  }
 
   const thumbnailKey = await generateThumbnail(asset.objectKey);
   await db.asset.update({ where: { id: assetId }, data: { thumbnailKey, thumbnailStatus: 'done' } });

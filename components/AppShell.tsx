@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { User } from '../lib/auth';
 import { prisma } from '../lib/db';
-import { REVIEWABLE_IMAGE_WHERE } from '../lib/asset-review';
+import { REVIEWABLE_ASSET_WHERE } from '../lib/asset-review';
 import NavLinks from './NavLinks';
 import LogoutButton from './LogoutButton';
 
@@ -12,7 +12,7 @@ export default async function AppShell({
   user: User;
   children: React.ReactNode;
 }) {
-  const unreviewedCount = await prisma.asset.count({ where: REVIEWABLE_IMAGE_WHERE });
+  const unreviewedCount = await prisma.asset.count({ where: REVIEWABLE_ASSET_WHERE });
 
   return (
     <div className="app-shell">

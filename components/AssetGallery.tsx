@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import AssetThumbnail from './AssetThumbnail';
 
 export type GalleryAsset = {
   id: string;
@@ -8,6 +9,8 @@ export type GalleryAsset = {
   location: string | null;
   fileType: string;
   fileSize: number;
+  thumbnailKey: string | null;
+  thumbnailStatus: string;
 };
 
 interface AssetGalleryProps {
@@ -24,11 +27,7 @@ export default function AssetGallery({ assets, metaMode = 'date', renderExtra }:
       {assets.map((a) => (
         <a key={a.id} href={`/media/${a.id}`} className="asset-card">
           <div className="asset-thumb">
-            {a.fileType.startsWith('image/') ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={`/api/assets/${a.id}/thumbnail`} alt={a.title ?? ''} loading="lazy" />
-            ) : '🎬'}
-            {a.fileType.startsWith('video/') && <span className="video-badge">Video</span>}
+            <AssetThumbnail id={a.id} title={a.title} fileType={a.fileType} thumbnailKey={a.thumbnailKey} thumbnailStatus={a.thumbnailStatus} />
           </div>
           <div className="asset-card-body">
             <div className="asset-card-title">{a.title || a.eventName || 'Untitled'}</div>

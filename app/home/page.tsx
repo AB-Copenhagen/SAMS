@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { getCurrentUser } from '../../lib/auth';
 import { prisma } from '../../lib/db';
 import AppShell from '../../components/AppShell';
+import AssetThumbnail from '../../components/AssetThumbnail';
 
 function timeAgo(date: Date): string {
   const s = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -21,7 +22,7 @@ export default async function HomePage() {
     prisma.collection.count(),
     prisma.player.count({ where: { active: true } }),
     prisma.asset.aggregate({ _sum: { fileSize: true } }),
-    prisma.asset.findMany({ orderBy: { uploadedAt: 'desc' }, take: 8, select: { id: true, title: true, assetUrl: true, fileType: true, eventName: true, uploadedAt: true } }),
+    prisma.asset.findMany({ orderBy: { uploadedAt: 'desc' }, take: 8, select: { id: true, title: true, assetUrl: true, fileType: true, eventName: true, uploadedAt: true, thumbnailKey: true, thumbnailStatus: true } }),
     prisma.collection.findMany({ orderBy: { createdAt: 'desc' }, take: 5, include: { _count: { select: { assets: true } }, season: { select: { name: true } } } }),
   ]);
 
@@ -73,11 +74,7 @@ export default async function HomePage() {
               {recentAssets.map((a) => (
                 <a key={a.id} href={`/media/${a.id}`} className="asset-card">
                   <div className="asset-thumb">
-                    {a.fileType.startsWith('image/') ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={`/api/assets/${a.id}/thumbnail`} alt={a.title ?? a.id} />
-                    ) : '🎬'}
-                    {a.fileType.startsWith('video/') && <span className="video-badge">Video</span>}
+                    <AssetThumbnail id={a.id} title={a.title} fileType={a.fileType} thumbnailKey={a.thumbnailKey} thumbnailStatus={a.thumbnailStatus} />
                   </div>
                   <div className="asset-card-body">
                     <div className="asset-card-title">{a.title || a.eventName || 'Untitled'}</div>

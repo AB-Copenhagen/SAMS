@@ -39,6 +39,9 @@ model Asset {
   thumbnailKey       String?
   thumbnailStatus    String      @default("pending")
   thumbnailAttempts  Int         @default(0)
+  durationMs         Int?
+  videoWidth         Int?
+  videoHeight        Int?
   rating             Int?
   reviewedAt         DateTime?
   reviewedBy         String?

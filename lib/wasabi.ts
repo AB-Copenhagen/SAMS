@@ -100,7 +100,9 @@ export async function createMultipartUpload(objectKey: string, contentType: stri
   return res.UploadId;
 }
 
-export async function presignUploadPart(objectKey: string, uploadId: string, partNumber: number, expiresIn = 300): Promise<string> {
+// Default bumped from 300s: with concurrent part uploads, a batch of URLs may be requested
+// slightly ahead of when every part in that batch actually starts uploading.
+export async function presignUploadPart(objectKey: string, uploadId: string, partNumber: number, expiresIn = 600): Promise<string> {
   const { client, bucket } = getClient();
   return getSignedUrl(
     client,

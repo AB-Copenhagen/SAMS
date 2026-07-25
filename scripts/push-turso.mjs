@@ -99,6 +99,9 @@ ALTER TABLE "Asset" ADD COLUMN "reviewedAt" DATETIME;
 ALTER TABLE "Asset" ADD COLUMN "reviewedBy" TEXT;
 ALTER TABLE "Asset" ADD COLUMN "editedKey" TEXT;
 ALTER TABLE "Asset" ADD COLUMN "editParamsJson" TEXT;
+ALTER TABLE "Asset" ADD COLUMN "durationMs" INTEGER;
+ALTER TABLE "Asset" ADD COLUMN "videoWidth" INTEGER;
+ALTER TABLE "Asset" ADD COLUMN "videoHeight" INTEGER;
 
 CREATE UNIQUE INDEX IF NOT EXISTS "Asset_objectKey_key" ON "Asset"("objectKey");
 CREATE UNIQUE INDEX IF NOT EXISTS "Asset_contentHash_key" ON "Asset"("contentHash");
