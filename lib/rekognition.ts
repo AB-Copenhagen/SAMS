@@ -145,7 +145,10 @@ async function cropFace(imageBuffer: Buffer, box: BoundingBox): Promise<Buffer> 
   const width  = Math.min(imgW - left, Math.round(boxW + padX * 2));
   const height = Math.min(imgH - top,  Math.round(boxH + padY * 2));
 
-  return sharp(imageBuffer).extract({ left, top, width, height }).toBuffer();
+  // sharp's native binding can return a Buffer backed by a SharedArrayBuffer, which the
+  // Rekognition SDK's fetch-based HTTP handler rejects — Buffer.from(buffer) (unlike
+  // Buffer.from(arrayBuffer)) copies the bytes into a fresh, guaranteed-non-shared buffer.
+  return Buffer.from(await sharp(imageBuffer).extract({ left, top, width, height }).toBuffer());
 }
 
 export interface FaceMatch {
@@ -312,7 +315,9 @@ export async function identifyPlayersInImage(objectKey: string, db: PrismaClient
   // Bake that rotation into the buffer up front (and strip the EXIF tag) so sharp's pixel math
   // in cropFace() lines up with Rekognition's coordinates — otherwise a rotated photo (extremely
   // common from phones/cameras) produces a crop that doesn't actually contain the detected face.
-  const bytes = await sharp(raw).rotate().toBuffer();
+  // See the comment in cropFace() — sharp's output buffer needs an explicit copy to shed a
+  // potential SharedArrayBuffer backing before it's usable as a Rekognition Image.Bytes payload.
+  const bytes = Buffer.from(await sharp(raw).rotate().toBuffer());
   const faces = await detectFaces(bytes);
 
   const [faceMatches, jerseyResult] = await Promise.all([
