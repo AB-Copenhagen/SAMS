@@ -18,15 +18,6 @@ const DOWNLOAD_PRESETS: { key: string; label: string }[] = [
   { key: 'linkedin', label: 'LinkedIn' },
 ];
 
-// Same "N★ & up" semantics as the admin MediaFilterBar, for a consistent mental model.
-const RATING_OPTIONS = [
-  { value: 0, label: 'Any rating' },
-  { value: 4, label: '★★★★ only' },
-  { value: 3, label: '★★★ & up' },
-  { value: 2, label: '★★ & up' },
-  { value: 1, label: '★ & up' },
-];
-
 function isImage(asset: PublicAsset) {
   return asset.fileType.startsWith('image/');
 }
@@ -198,22 +189,17 @@ function ShareAction({ asset }: { asset: PublicAsset }) {
 }
 
 export default function PublicAssetGallery({ token, assets }: Props) {
-  const [ratingFilter, setRatingFilter] = useState(0);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  const hasAnyRating = assets.some((a) => a.rating != null);
-
   const visibleAssets = useMemo(() => {
-    const filtered = ratingFilter > 0 ? assets.filter((a) => (a.rating ?? 0) >= ratingFilter) : assets;
-    const sorted = [...filtered].sort((a, b) =>
+    return [...assets].sort((a, b) =>
       sortOrder === 'newest' ? sortTimestamp(b) - sortTimestamp(a) : sortTimestamp(a) - sortTimestamp(b));
-    return sorted;
-  }, [assets, ratingFilter, sortOrder]);
+  }, [assets, sortOrder]);
 
-  // Filters/sorting can change which assets exist at a given index — close the lightbox rather
-  // than risk it pointing at a different asset than the one the visitor opened.
-  useEffect(() => { setLightboxIndex(null); }, [ratingFilter, sortOrder]);
+  // Sorting can change which assets exist at a given index — close the lightbox rather than risk
+  // it pointing at a different asset than the one the visitor opened.
+  useEffect(() => { setLightboxIndex(null); }, [sortOrder]);
 
   const lightboxAsset = lightboxIndex != null ? visibleAssets[lightboxIndex] : null;
 
@@ -252,26 +238,19 @@ export default function PublicAssetGallery({ token, assets }: Props) {
   return (
     <>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
-        {hasAnyRating && (
-          <select value={ratingFilter} onChange={(e) => setRatingFilter(Number(e.target.value))}>
-            {RATING_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        )}
         <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}>
           <option value="newest">Newest first</option>
           <option value="oldest">Oldest first</option>
         </select>
         <span style={{ fontSize: 12, color: '#8890b4' }}>
-          {visibleAssets.length} of {assets.length} item{assets.length !== 1 ? 's' : ''}
+          {visibleAssets.length} item{visibleAssets.length !== 1 ? 's' : ''}
         </span>
       </div>
 
       {visibleAssets.length === 0 ? (
         <div className="empty-state card">
-          <h3>No matching items</h3>
-          <p>Try a different rating filter.</p>
+          <h3>Nothing here yet</h3>
+          <p>Check back later.</p>
         </div>
       ) : (
         <div className="gallery">
