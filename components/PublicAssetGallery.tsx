@@ -8,10 +8,42 @@ interface Props {
   assets: PublicAsset[];
 }
 
+// Kept in sync with lib/export-presets.ts's EXPORT_PRESETS keys/labels — duplicated here (rather
+// than imported) because that module pulls in `sharp`, which can't be bundled into client code.
+const DOWNLOAD_PRESETS: { key: string; label: string }[] = [
+  { key: 'web', label: 'Web' },
+  { key: 'instagram-square', label: 'Instagram (square)' },
+  { key: 'instagram-story', label: 'Instagram (story)' },
+  { key: 'facebook', label: 'Facebook' },
+  { key: 'linkedin', label: 'LinkedIn' },
+];
+
+function isImage(asset: PublicAsset) {
+  return asset.fileType.startsWith('image/');
+}
+
+function originalUrl(token: string, assetId: string) {
+  return `/api/share/${token}/assets/${assetId}/download`;
+}
+
+function exportUrl(token: string, assetId: string, preset: string) {
+  return `/api/share/${token}/assets/${assetId}/export?preset=${preset}`;
+}
+
+/** Fast default for quick-tap downloads — web-optimized for photos, original for video (no resize pipeline). */
+function quickDownloadUrl(token: string, asset: PublicAsset) {
+  return isImage(asset) ? exportUrl(token, asset.id, 'web') : originalUrl(token, asset.id);
+}
+
+function displayDate(asset: PublicAsset): { label: string; value: string } {
+  if (asset.dateTaken) return { label: 'Taken', value: new Date(asset.dateTaken).toLocaleString('en-GB') };
+  if (asset.eventDate) return { label: 'Event date', value: new Date(asset.eventDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) };
+  return { label: 'Uploaded', value: new Date(asset.uploadedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) };
+}
+
 function Thumb({ token, asset }: { token: string; asset: PublicAsset }) {
-  const isImage = asset.fileType.startsWith('image/');
   const isVideo = asset.fileType.startsWith('video/');
-  const showThumbnail = isImage || (isVideo && asset.thumbnailKey && asset.thumbnailStatus === 'done');
+  const showThumbnail = isImage(asset) || (isVideo && asset.thumbnailKey && asset.thumbnailStatus === 'done');
 
   return showThumbnail ? (
     // eslint-disable-next-line @next/next/no-img-element
@@ -21,8 +53,55 @@ function Thumb({ token, asset }: { token: string; asset: PublicAsset }) {
   );
 }
 
-function downloadUrl(token: string, assetId: string) {
-  return `/api/share/${token}/assets/${assetId}/download`;
+function AssetDetails({ asset }: { asset: PublicAsset }) {
+  const date = displayDate(asset);
+  const hasTags = asset.tags.players.length > 0 || asset.tags.sponsors.length > 0;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, color: '#3b4070', marginTop: 12 }}>
+      {asset.description && <p style={{ margin: 0, color: '#3b4070' }}>{asset.description}</p>}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', color: '#6b7491' }}>
+        <span><strong style={{ color: '#3b4070' }}>{date.label}:</strong> {date.value}</span>
+        {asset.location && <span><strong style={{ color: '#3b4070' }}>Location:</strong> {asset.location}</span>}
+      </div>
+      {hasTags && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
+          {asset.tags.players.map((p) => (
+            <span key={p.id} className="tag-chip">{p.name}{p.number != null ? ` #${p.number}` : ''}</span>
+          ))}
+          {asset.tags.sponsors.map((s) => (
+            <span key={s.id} className="tag-chip">{s.name}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DownloadOptions({ token, asset }: { token: string; asset: PublicAsset }) {
+  if (!isImage(asset)) {
+    return (
+      <a className="btn-primary" style={{ textDecoration: 'none', display: 'inline-block' }} href={originalUrl(token, asset.id)}>
+        Download
+      </a>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+      <span style={{ fontSize: 11, color: '#8890b4' }}>Download as</span>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end' }}>
+        {DOWNLOAD_PRESETS.map((p) => (
+          <a key={p.key} className="btn-secondary" style={{ textDecoration: 'none', fontSize: 12, padding: '5px 10px' }} href={exportUrl(token, asset.id, p.key)}>
+            {p.label}
+          </a>
+        ))}
+        <a className="btn-primary" style={{ textDecoration: 'none', fontSize: 12, padding: '5px 10px' }} href={originalUrl(token, asset.id)}>
+          Original (full size)
+        </a>
+      </div>
+    </div>
+  );
 }
 
 export default function PublicAssetGallery({ token, assets }: Props) {
@@ -48,9 +127,9 @@ export default function PublicAssetGallery({ token, assets }: Props) {
             <div className="asset-thumb">
               <Thumb token={token} asset={a} />
               <a
-                href={downloadUrl(token, a.id)}
+                href={quickDownloadUrl(token, a)}
                 onClick={(e) => e.stopPropagation()}
-                title="Download"
+                title="Download (web-optimized)"
                 aria-label={`Download ${a.title || a.eventName || 'asset'}`}
                 style={{
                   position: 'absolute',
@@ -79,7 +158,7 @@ export default function PublicAssetGallery({ token, assets }: Props) {
                   {a.fileSize ? ' · ' + (a.fileSize / 1024 / 1024).toFixed(1) + ' MB' : ''}
                 </span>
                 <a
-                  href={downloadUrl(token, a.id)}
+                  href={quickDownloadUrl(token, a)}
                   onClick={(e) => e.stopPropagation()}
                   style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}
                 >
@@ -99,22 +178,26 @@ export default function PublicAssetGallery({ token, assets }: Props) {
               <button className="modal-close" type="button" onClick={() => setLightboxIndex(null)}>×</button>
             </div>
             <div className="modal-body">
-              {lightboxAsset.fileType.startsWith('image/') ? (
+              {isImage(lightboxAsset) ? (
+                // Web-optimized preview, not the full original — much faster on mobile. Full size
+                // is one tap away via the download options below.
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={downloadUrl(token, lightboxAsset.id)}
+                  src={exportUrl(token, lightboxAsset.id, 'web')}
                   alt={lightboxAsset.title ?? ''}
                   style={{ width: '100%', height: 'auto', borderRadius: 8, maxHeight: '70vh', objectFit: 'contain', background: '#0d0f1c' }}
                 />
               ) : (
                 <video
-                  src={downloadUrl(token, lightboxAsset.id)}
+                  src={originalUrl(token, lightboxAsset.id)}
                   controls
                   style={{ width: '100%', borderRadius: 8, maxHeight: '70vh' }}
                 />
               )}
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+              <AssetDetails asset={lightboxAsset} />
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 14, flexWrap: 'wrap', gap: 12 }}>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button
                     className="btn-secondary"
@@ -136,13 +219,7 @@ export default function PublicAssetGallery({ token, assets }: Props) {
                     {lightboxIndex + 1} / {assets.length}
                   </span>
                 </div>
-                <a
-                  className="btn-primary"
-                  style={{ textDecoration: 'none', display: 'inline-block' }}
-                  href={downloadUrl(token, lightboxAsset.id)}
-                >
-                  Download
-                </a>
+                <DownloadOptions token={token} asset={lightboxAsset} />
               </div>
             </div>
           </div>

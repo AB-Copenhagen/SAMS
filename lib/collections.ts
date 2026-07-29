@@ -1,5 +1,5 @@
 import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
-import { Prisma, type Asset, type Collection } from '@prisma/client';
+import { Prisma, type Collection } from '@prisma/client';
 import { prisma } from './db';
 
 const SHARE_TOKEN_BYTES = 18; // ~24 base62 chars
@@ -29,13 +29,21 @@ type CollectionWithRules = Collection & {
   sponsorRules: { sponsorId: string }[];
 };
 
+const CONFIRMED_TAGS_INCLUDE = {
+  playerTags: { where: { status: 'confirmed' as const }, include: { player: true } },
+  sponsorTags: { where: { status: 'confirmed' as const }, include: { sponsor: true } },
+};
+
+export type AssetWithTags = Prisma.AssetGetPayload<{ include: typeof CONFIRMED_TAGS_INCLUDE }>;
+
 /**
  * Union of an asset's legacy single-collection FK (game/event collections), manual
  * CollectionAsset membership, and any confirmed player/sponsor tag matching one of the
  * collection's auto-include rules. Shared by the admin collection page and the public share API
- * so membership logic lives in exactly one place.
+ * so membership logic lives in exactly one place. Always includes confirmed player/sponsor tags
+ * so callers can show "featuring" credits without a second query.
  */
-export async function resolveCollectionAssets(collection: CollectionWithRules): Promise<Asset[]> {
+export async function resolveCollectionAssets(collection: CollectionWithRules): Promise<AssetWithTags[]> {
   const playerIds = collection.playerRules.map((r) => r.playerId);
   const sponsorIds = collection.sponsorRules.map((r) => r.sponsorId);
 
@@ -49,7 +57,21 @@ export async function resolveCollectionAssets(collection: CollectionWithRules): 
   return prisma.asset.findMany({
     where: { OR: or },
     orderBy: { uploadedAt: 'desc' },
+    include: CONFIRMED_TAGS_INCLUDE,
   });
+}
+
+/** Pulls only the capture timestamp out of the raw EXIF blob — never expose GPS/camera/lens details publicly. */
+function extractDateTaken(exifJson: string | null): string | null {
+  if (!exifJson) return null;
+  try {
+    const exif = JSON.parse(exifJson) as { DateTimeOriginal?: string };
+    if (!exif.DateTimeOriginal) return null;
+    const parsed = new Date(exif.DateTimeOriginal);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+  } catch {
+    return null;
+  }
 }
 
 export type PublicAsset = {
@@ -68,10 +90,15 @@ export type PublicAsset = {
   videoWidth: number | null;
   videoHeight: number | null;
   uploadedAt: Date;
+  dateTaken: string | null;
+  tags: {
+    players: { id: string; name: string; number: number | null }[];
+    sponsors: { id: string; name: string }[];
+  };
 };
 
 /** Whitelist projection for anonymous/public consumption — never leak uploader, review, or raw AI/EXIF fields. */
-export function sanitizePublicAsset(asset: Asset): PublicAsset {
+export function sanitizePublicAsset(asset: AssetWithTags): PublicAsset {
   return {
     id: asset.id,
     title: asset.title,
@@ -88,6 +115,11 @@ export function sanitizePublicAsset(asset: Asset): PublicAsset {
     videoWidth: asset.videoWidth,
     videoHeight: asset.videoHeight,
     uploadedAt: asset.uploadedAt,
+    dateTaken: extractDateTaken(asset.exifJson),
+    tags: {
+      players: asset.playerTags.map((t) => ({ id: t.player.id, name: t.player.name, number: t.player.number })),
+      sponsors: asset.sponsorTags.map((t) => ({ id: t.sponsor.id, name: t.sponsor.name })),
+    },
   };
 }
 
