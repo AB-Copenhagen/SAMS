@@ -9,6 +9,7 @@ export default function NewCollectionForm({ seasons }: { seasons: Season[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: '', type: 'game', date: '', opponent: '', venue: '', seasonId: '' });
+  const isCustom = form.type === 'custom';
   const [saving, setSaving] = useState(false);
 
   async function submit() {
@@ -45,40 +46,49 @@ export default function NewCollectionForm({ seasons }: { seasons: Season[] }) {
         <div className="modal-body">
           <div className="field">
             <label>Name *</label>
-            <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="AB vs Thisted FC" />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div className="field">
-              <label>Type</label>
-              <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
-                <option value="game">Game</option>
-                <option value="training">Training</option>
-                <option value="event">Event</option>
-                <option value="press">Press</option>
-              </select>
-            </div>
-            <div className="field">
-              <label>Date</label>
-              <input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} />
-            </div>
+            <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder={isCustom ? 'Sponsor X — 2026 highlights' : 'AB vs Thisted FC'} />
           </div>
           <div className="field">
-            <label>Opponent</label>
-            <input value={form.opponent} onChange={(e) => setForm((f) => ({ ...f, opponent: e.target.value }))} placeholder="FC Nordsjælland" />
-          </div>
-          <div className="field">
-            <label>Venue</label>
-            <input value={form.venue} onChange={(e) => setForm((f) => ({ ...f, venue: e.target.value }))} placeholder="Gladsaxe Stadion" />
-          </div>
-          <div className="field">
-            <label>Season</label>
-            <select value={form.seasonId} onChange={(e) => setForm((f) => ({ ...f, seasonId: e.target.value }))}>
-              <option value="">No season</option>
-              {seasons.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
+            <label>Type</label>
+            <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
+              <option value="game">Game</option>
+              <option value="training">Training</option>
+              <option value="event">Event</option>
+              <option value="press">Press</option>
+              <option value="custom">Custom / Shareable</option>
             </select>
           </div>
+          {isCustom ? (
+            <p style={{ color: '#6b7491', fontSize: 13, marginTop: -4 }}>
+              Build this one manually or with auto-include rules after creating it, and optionally share it externally via a link.
+            </p>
+          ) : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div className="field">
+                  <label>Date</label>
+                  <input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} />
+                </div>
+                <div className="field">
+                  <label>Season</label>
+                  <select value={form.seasonId} onChange={(e) => setForm((f) => ({ ...f, seasonId: e.target.value }))}>
+                    <option value="">No season</option>
+                    {seasons.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="field">
+                <label>Opponent</label>
+                <input value={form.opponent} onChange={(e) => setForm((f) => ({ ...f, opponent: e.target.value }))} placeholder="FC Nordsjælland" />
+              </div>
+              <div className="field">
+                <label>Venue</label>
+                <input value={form.venue} onChange={(e) => setForm((f) => ({ ...f, venue: e.target.value }))} placeholder="Gladsaxe Stadion" />
+              </div>
+            </>
+          )}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
             <button className="btn-secondary" type="button" onClick={() => setOpen(false)}>Cancel</button>
             <button className="btn-primary" type="button" onClick={submit} disabled={saving}>

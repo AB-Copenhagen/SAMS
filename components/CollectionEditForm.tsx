@@ -9,9 +9,10 @@ interface Props {
   date: string | null;   // ISO date string YYYY-MM-DD or null
   opponent: string | null;
   venue: string | null;
+  isCustom?: boolean;
 }
 
-export default function CollectionEditForm({ id, name, date, opponent, venue }: Props) {
+export default function CollectionEditForm({ id, name, date, opponent, venue, isCustom = false }: Props) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [saving,  setSaving]  = useState(false);
@@ -76,7 +77,7 @@ export default function CollectionEditForm({ id, name, date, opponent, venue }: 
       width: '100%',
       maxWidth: 480,
     }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isCustom ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 12 }}>
         <div className="field" style={{ margin: 0, gridColumn: '1 / -1' }}>
           <label>Name</label>
           <input
@@ -86,32 +87,36 @@ export default function CollectionEditForm({ id, name, date, opponent, venue }: 
             autoFocus
           />
         </div>
-        <div className="field" style={{ margin: 0 }}>
-          <label>Date</label>
-          <input
-            type="date"
-            value={form.date}
-            onChange={(e) => set('date', e.target.value)}
-          />
-        </div>
-        <div className="field" style={{ margin: 0 }}>
-          <label>Opponent</label>
-          <input
-            type="text"
-            value={form.opponent}
-            onChange={(e) => set('opponent', e.target.value)}
-            placeholder="e.g. Thisted FC"
-          />
-        </div>
-        <div className="field" style={{ margin: 0, gridColumn: '1 / -1' }}>
-          <label>Venue</label>
-          <input
-            type="text"
-            value={form.venue}
-            onChange={(e) => set('venue', e.target.value)}
-            placeholder="e.g. Gladsaxe Stadion"
-          />
-        </div>
+        {!isCustom && (
+          <>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Date</label>
+              <input
+                type="date"
+                value={form.date}
+                onChange={(e) => set('date', e.target.value)}
+              />
+            </div>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Opponent</label>
+              <input
+                type="text"
+                value={form.opponent}
+                onChange={(e) => set('opponent', e.target.value)}
+                placeholder="e.g. Thisted FC"
+              />
+            </div>
+            <div className="field" style={{ margin: 0, gridColumn: '1 / -1' }}>
+              <label>Venue</label>
+              <input
+                type="text"
+                value={form.venue}
+                onChange={(e) => set('venue', e.target.value)}
+                placeholder="e.g. Gladsaxe Stadion"
+              />
+            </div>
+          </>
+        )}
       </div>
 
       {error && <div className="alert alert-error" style={{ marginBottom: 10 }}>{error}</div>}

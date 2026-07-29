@@ -233,6 +233,47 @@ CREATE TABLE IF NOT EXISTS "CronRun" (
 );
 
 CREATE INDEX IF NOT EXISTS "CronRun_startedAt_idx" ON "CronRun"("startedAt");
+
+ALTER TABLE "Collection" ADD COLUMN "isPublic" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Collection" ADD COLUMN "shareToken" TEXT;
+ALTER TABLE "Collection" ADD COLUMN "sharePasswordSalt" TEXT;
+ALTER TABLE "Collection" ADD COLUMN "sharePasswordHash" TEXT;
+ALTER TABLE "Collection" ADD COLUMN "shareUpdatedAt" DATETIME;
+
+CREATE UNIQUE INDEX IF NOT EXISTS "Collection_shareToken_key" ON "Collection"("shareToken");
+
+CREATE TABLE IF NOT EXISTS "CollectionAsset" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "collectionId" TEXT NOT NULL,
+    "assetId" TEXT NOT NULL,
+    "addedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "addedBy" TEXT,
+    CONSTRAINT "CollectionAsset_collectionId_fkey" FOREIGN KEY ("collectionId") REFERENCES "Collection" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "CollectionAsset_assetId_fkey" FOREIGN KEY ("assetId") REFERENCES "Asset" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "CollectionAsset_collectionId_assetId_key" ON "CollectionAsset"("collectionId", "assetId");
+CREATE INDEX IF NOT EXISTS "CollectionAsset_assetId_idx" ON "CollectionAsset"("assetId");
+
+CREATE TABLE IF NOT EXISTS "CollectionPlayerRule" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "collectionId" TEXT NOT NULL,
+    "playerId" TEXT NOT NULL,
+    CONSTRAINT "CollectionPlayerRule_collectionId_fkey" FOREIGN KEY ("collectionId") REFERENCES "Collection" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "CollectionPlayerRule_playerId_fkey" FOREIGN KEY ("playerId") REFERENCES "Player" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "CollectionPlayerRule_collectionId_playerId_key" ON "CollectionPlayerRule"("collectionId", "playerId");
+
+CREATE TABLE IF NOT EXISTS "CollectionSponsorRule" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "collectionId" TEXT NOT NULL,
+    "sponsorId" TEXT NOT NULL,
+    CONSTRAINT "CollectionSponsorRule_collectionId_fkey" FOREIGN KEY ("collectionId") REFERENCES "Collection" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "CollectionSponsorRule_sponsorId_fkey" FOREIGN KEY ("sponsorId") REFERENCES "Sponsor" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "CollectionSponsorRule_collectionId_sponsorId_key" ON "CollectionSponsorRule"("collectionId", "sponsorId");
 `;
 
 const statements = sql

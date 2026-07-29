@@ -49,6 +49,7 @@ model Asset {
   editParamsJson     String?
   playerTags         AssetPlayerTag[]
   sponsorTags        AssetSponsorTag[]
+  collectionMemberships CollectionAsset[]
 }
 
 model AssetPlayerTag {
@@ -174,6 +175,7 @@ model Player {
   faceEnrolledAt    DateTime?
   rekognitionFaceId String?
   assetTags         AssetPlayerTag[]
+  collectionRules   CollectionPlayerRule[]
 }
 
 model Sponsor {
@@ -185,6 +187,7 @@ model Sponsor {
   createdAt   DateTime          @default(now())
   aliasesJson String?
   assetTags   AssetSponsorTag[]
+  collectionRules CollectionSponsorRule[]
 }
 
 model Stadium {
@@ -196,17 +199,58 @@ model Stadium {
 }
 
 model Collection {
-  id        String    @id @default(cuid())
-  name      String
-  type      String    @default("game")
-  date      DateTime?
-  opponent  String?
-  venue     String?
-  coverUrl  String?
-  createdAt DateTime  @default(now())
-  seasonId  String?
-  season    Season?   @relation(fields: [seasonId], references: [id])
-  stadiumId String?
-  stadium   Stadium?  @relation(fields: [stadiumId], references: [id])
-  assets    Asset[]
+  id                String    @id @default(cuid())
+  name              String
+  type              String    @default("game")
+  date              DateTime?
+  opponent          String?
+  venue             String?
+  coverUrl          String?
+  createdAt         DateTime  @default(now())
+  seasonId          String?
+  season            Season?   @relation(fields: [seasonId], references: [id])
+  stadiumId         String?
+  stadium           Stadium?  @relation(fields: [stadiumId], references: [id])
+  assets            Asset[]
+  isPublic          Boolean   @default(false)
+  shareToken        String?   @unique
+  sharePasswordSalt String?
+  sharePasswordHash String?
+  shareUpdatedAt    DateTime?
+  manualAssets      CollectionAsset[]
+  playerRules       CollectionPlayerRule[]
+  sponsorRules      CollectionSponsorRule[]
+}
+
+model CollectionAsset {
+  id           String     @id @default(cuid())
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  assetId      String
+  asset        Asset      @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  addedAt      DateTime   @default(now())
+  addedBy      String?
+
+  @@unique([collectionId, assetId])
+  @@index([assetId])
+}
+
+model CollectionPlayerRule {
+  id           String     @id @default(cuid())
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  playerId     String
+  player       Player     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, playerId])
+}
+
+model CollectionSponsorRule {
+  id           String     @id @default(cuid())
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  sponsorId    String
+  sponsor      Sponsor    @relation(fields: [sponsorId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, sponsorId])
 }

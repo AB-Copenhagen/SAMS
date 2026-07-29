@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
+import { generateShareToken, hashSharePassword } from '../../../../lib/collections';
 
 export async function GET(_: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -8,17 +9,47 @@ export async function GET(_: Request, props: { params: Promise<{ id: string }> }
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   const collection = await prisma.collection.findUnique({
     where: { id: params.id },
-    include: { season: true, stadium: true, assets: { orderBy: { uploadedAt: 'desc' } } },
+    include: {
+      season: true,
+      stadium: true,
+      assets: { orderBy: { uploadedAt: 'desc' } },
+      playerRules: { include: { player: true } },
+      sponsorRules: { include: { sponsor: true } },
+    },
   });
   if (!collection) return NextResponse.json({ message: 'Not found' }, { status: 404 });
   return NextResponse.json(collection);
 }
 
+type PatchBody = {
+  name?: string;
+  date?: string | null;
+  opponent?: string | null;
+  venue?: string | null;
+  isPublic?: boolean;
+  password?: string | null; // string to set/change, null to clear, omit to leave unchanged
+  regenerateToken?: boolean;
+};
+
 export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  const body = await request.json() as { name?: string; date?: string | null; opponent?: string | null; venue?: string | null };
+  const body = await request.json() as PatchBody;
+
+  const existing = await prisma.collection.findUnique({ where: { id: params.id }, select: { shareToken: true } });
+  if (!existing) return NextResponse.json({ message: 'Not found' }, { status: 404 });
+
+  let passwordFields: { sharePasswordSalt: string | null; sharePasswordHash: string | null } | undefined;
+  if (body.password === null) {
+    passwordFields = { sharePasswordSalt: null, sharePasswordHash: null };
+  } else if (typeof body.password === 'string' && body.password.length > 0) {
+    const { salt, hash } = hashSharePassword(body.password);
+    passwordFields = { sharePasswordSalt: salt, sharePasswordHash: hash };
+  }
+
+  const needsToken = (body.isPublic === true || body.regenerateToken) && (body.regenerateToken || !existing.shareToken);
+
   const collection = await prisma.collection.update({
     where: { id: params.id },
     data: {
@@ -26,6 +57,9 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       ...(body.date      !== undefined && { date: body.date ? new Date(body.date) : null }),
       ...(body.opponent  !== undefined && { opponent: body.opponent || null }),
       ...(body.venue     !== undefined && { venue: body.venue || null }),
+      ...(body.isPublic  !== undefined && { isPublic: body.isPublic }),
+      ...(passwordFields && { ...passwordFields, shareUpdatedAt: new Date() }),
+      ...(needsToken && { shareToken: generateShareToken() }),
     },
   });
   return NextResponse.json(collection);
