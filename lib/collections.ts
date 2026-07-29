@@ -91,6 +91,7 @@ export type PublicAsset = {
   videoHeight: number | null;
   uploadedAt: Date;
   dateTaken: string | null;
+  rating: number | null;
   tags: {
     players: { id: string; name: string; number: number | null }[];
     sponsors: { id: string; name: string }[];
@@ -116,6 +117,7 @@ export function sanitizePublicAsset(asset: AssetWithTags): PublicAsset {
     videoHeight: asset.videoHeight,
     uploadedAt: asset.uploadedAt,
     dateTaken: extractDateTaken(asset.exifJson),
+    rating: asset.rating,
     tags: {
       players: asset.playerTags.map((t) => ({ id: t.player.id, name: t.player.name, number: t.player.number })),
       sponsors: asset.sponsorTags.map((t) => ({ id: t.sponsor.id, name: t.sponsor.name })),

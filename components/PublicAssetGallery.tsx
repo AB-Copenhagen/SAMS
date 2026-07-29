@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { PublicAsset } from '../lib/collections';
 
 interface Props {
@@ -18,6 +18,15 @@ const DOWNLOAD_PRESETS: { key: string; label: string }[] = [
   { key: 'linkedin', label: 'LinkedIn' },
 ];
 
+// Same "N★ & up" semantics as the admin MediaFilterBar, for a consistent mental model.
+const RATING_OPTIONS = [
+  { value: 0, label: 'Any rating' },
+  { value: 4, label: '★★★★ only' },
+  { value: 3, label: '★★★ & up' },
+  { value: 2, label: '★★ & up' },
+  { value: 1, label: '★ & up' },
+];
+
 function isImage(asset: PublicAsset) {
   return asset.fileType.startsWith('image/');
 }
@@ -33,6 +42,11 @@ function exportUrl(token: string, assetId: string, preset: string) {
 /** Fast default for quick-tap downloads — web-optimized for photos, original for video (no resize pipeline). */
 function quickDownloadUrl(token: string, asset: PublicAsset) {
   return isImage(asset) ? exportUrl(token, asset.id, 'web') : originalUrl(token, asset.id);
+}
+
+function sortTimestamp(asset: PublicAsset): number {
+  const raw = asset.dateTaken ?? asset.eventDate ?? asset.uploadedAt;
+  return new Date(raw).getTime();
 }
 
 function displayDate(asset: PublicAsset): { label: string; value: string } {
@@ -63,6 +77,7 @@ function AssetDetails({ asset }: { asset: PublicAsset }) {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', color: '#6b7491' }}>
         <span><strong style={{ color: '#3b4070' }}>{date.label}:</strong> {date.value}</span>
         {asset.location && <span><strong style={{ color: '#3b4070' }}>Location:</strong> {asset.location}</span>}
+        {asset.rating != null && <span><strong style={{ color: '#3b4070' }}>Rating:</strong> {'★'.repeat(asset.rating)}</span>}
       </div>
       {hasTags && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
@@ -105,70 +120,127 @@ function DownloadOptions({ token, asset }: { token: string; asset: PublicAsset }
 }
 
 export default function PublicAssetGallery({ token, assets }: Props) {
+  const [ratingFilter, setRatingFilter] = useState(0);
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const lightboxAsset = lightboxIndex != null ? assets[lightboxIndex] : null;
+
+  const hasAnyRating = assets.some((a) => a.rating != null);
+
+  const visibleAssets = useMemo(() => {
+    const filtered = ratingFilter > 0 ? assets.filter((a) => (a.rating ?? 0) >= ratingFilter) : assets;
+    const sorted = [...filtered].sort((a, b) =>
+      sortOrder === 'newest' ? sortTimestamp(b) - sortTimestamp(a) : sortTimestamp(a) - sortTimestamp(b));
+    return sorted;
+  }, [assets, ratingFilter, sortOrder]);
+
+  // Filters/sorting can change which assets exist at a given index — close the lightbox rather
+  // than risk it pointing at a different asset than the one the visitor opened.
+  useEffect(() => { setLightboxIndex(null); }, [ratingFilter, sortOrder]);
+
+  const lightboxAsset = lightboxIndex != null ? visibleAssets[lightboxIndex] : null;
 
   useEffect(() => {
     if (lightboxIndex == null) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setLightboxIndex(null);
-      if (e.key === 'ArrowRight') setLightboxIndex((i) => (i == null ? null : Math.min(i + 1, assets.length - 1)));
+      if (e.key === 'ArrowRight') setLightboxIndex((i) => (i == null ? null : Math.min(i + 1, visibleAssets.length - 1)));
       if (e.key === 'ArrowLeft') setLightboxIndex((i) => (i == null ? null : Math.max(i - 1, 0)));
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [lightboxIndex, assets.length]);
+  }, [lightboxIndex, visibleAssets.length]);
 
   return (
     <>
-      <div className="gallery">
-        {assets.map((a, i) => (
-          <div key={a.id} className="asset-card" style={{ cursor: 'pointer' }} onClick={() => setLightboxIndex(i)}>
-            <div className="asset-thumb">
-              <Thumb token={token} asset={a} />
-              <a
-                href={quickDownloadUrl(token, a)}
-                onClick={(e) => e.stopPropagation()}
-                title="Download (web-optimized)"
-                aria-label={`Download ${a.title || a.eventName || 'asset'}`}
-                style={{
-                  position: 'absolute',
-                  top: 8,
-                  right: 8,
-                  width: 30,
-                  height: 30,
-                  borderRadius: '50%',
-                  background: 'rgba(13,15,28,0.7)',
-                  color: 'white',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  textDecoration: 'none',
-                  fontSize: 15,
-                }}
-              >
-                ⬇
-              </a>
-            </div>
-            <div className="asset-card-body">
-              <div className="asset-card-title">{a.title || a.eventName || 'Untitled'}</div>
-              <div className="asset-card-meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>
-                  {a.fileType.startsWith('image/') ? 'Photo' : 'Video'}
-                  {a.fileSize ? ' · ' + (a.fileSize / 1024 / 1024).toFixed(1) + ' MB' : ''}
-                </span>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
+        {hasAnyRating && (
+          <select value={ratingFilter} onChange={(e) => setRatingFilter(Number(e.target.value))}>
+            {RATING_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        )}
+        <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}>
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+        </select>
+        <span style={{ fontSize: 12, color: '#8890b4' }}>
+          {visibleAssets.length} of {assets.length} item{assets.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+
+      {visibleAssets.length === 0 ? (
+        <div className="empty-state card">
+          <h3>No matching items</h3>
+          <p>Try a different rating filter.</p>
+        </div>
+      ) : (
+        <div className="gallery">
+          {visibleAssets.map((a, i) => (
+            <div key={a.id} className="asset-card" style={{ cursor: 'pointer' }} onClick={() => setLightboxIndex(i)}>
+              <div className="asset-thumb">
+                <Thumb token={token} asset={a} />
                 <a
                   href={quickDownloadUrl(token, a)}
                   onClick={(e) => e.stopPropagation()}
-                  style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}
+                  title="Download (web-optimized)"
+                  aria-label={`Download ${a.title || a.eventName || 'asset'}`}
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    width: 30,
+                    height: 30,
+                    borderRadius: '50%',
+                    background: 'rgba(13,15,28,0.7)',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textDecoration: 'none',
+                    fontSize: 15,
+                  }}
                 >
-                  Download
+                  ⬇
                 </a>
+                {a.rating != null && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      bottom: 6,
+                      left: 6,
+                      background: 'rgba(0,0,0,0.65)',
+                      color: '#ffd54a',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                    }}
+                  >
+                    {'★'.repeat(a.rating)}
+                  </span>
+                )}
+              </div>
+              <div className="asset-card-body">
+                <div className="asset-card-title">{a.title || a.eventName || 'Untitled'}</div>
+                <div className="asset-card-meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>
+                    {a.fileType.startsWith('image/') ? 'Photo' : 'Video'}
+                    {a.fileSize ? ' · ' + (a.fileSize / 1024 / 1024).toFixed(1) + ' MB' : ''}
+                  </span>
+                  <a
+                    href={quickDownloadUrl(token, a)}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}
+                  >
+                    Download
+                  </a>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {lightboxAsset && lightboxIndex != null && (
         <div className="modal-backdrop" onClick={() => setLightboxIndex(null)}>
@@ -210,13 +282,13 @@ export default function PublicAssetGallery({ token, assets }: Props) {
                   <button
                     className="btn-secondary"
                     type="button"
-                    disabled={lightboxIndex >= assets.length - 1}
-                    onClick={() => setLightboxIndex((i) => (i == null ? null : Math.min(i + 1, assets.length - 1)))}
+                    disabled={lightboxIndex >= visibleAssets.length - 1}
+                    onClick={() => setLightboxIndex((i) => (i == null ? null : Math.min(i + 1, visibleAssets.length - 1)))}
                   >
                     Next →
                   </button>
                   <span style={{ alignSelf: 'center', fontSize: 12, color: '#8890b4' }}>
-                    {lightboxIndex + 1} / {assets.length}
+                    {lightboxIndex + 1} / {visibleAssets.length}
                   </span>
                 </div>
                 <DownloadOptions token={token} asset={lightboxAsset} />
