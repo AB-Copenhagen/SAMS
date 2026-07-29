@@ -9,7 +9,7 @@ import PerPageSelector from '../../components/PerPageSelector';
 
 const PER_PAGE_OPTIONS = [25, 50, 100];
 
-type View = 'event' | 'player' | 'sponsor';
+type View = 'event' | 'player' | 'sponsor' | 'custom';
 type SearchParams = { page?: string; perPage?: string; view?: string };
 
 function viewUrl(view: View, perPage: number) {
@@ -25,14 +25,15 @@ export default async function CollectionsPage(props: { searchParams: Promise<Sea
   const user = await getCurrentUser();
   if (!user) redirect('/login');
 
-  const view: View = searchParams.view === 'player' || searchParams.view === 'sponsor' ? searchParams.view : 'event';
+  const view: View = ['player', 'sponsor', 'custom'].includes(searchParams.view ?? '') ? (searchParams.view as View) : 'event';
   const page    = Math.max(1, parseInt(searchParams.page ?? '1'));
   const perPage = PER_PAGE_OPTIONS.includes(parseInt(searchParams.perPage ?? '')) ? parseInt(searchParams.perPage!) : 25;
 
   const [total, collections, seasons] = await Promise.all([
-    prisma.collection.count(),
+    prisma.collection.count({ where: { type: { not: 'custom' } } }),
     view === 'event'
       ? prisma.collection.findMany({
+          where: { type: { not: 'custom' } },
           orderBy: { date: 'desc' },
           take: perPage,
           skip: (page - 1) * perPage,
@@ -44,6 +45,14 @@ export default async function CollectionsPage(props: { searchParams: Promise<Sea
       : Promise.resolve([]),
     prisma.season.findMany({ orderBy: { startDate: 'desc' }, select: { id: true, name: true } }),
   ]);
+
+  const customCollections = view === 'custom'
+    ? await prisma.collection.findMany({
+        where: { type: 'custom' },
+        orderBy: { createdAt: 'desc' },
+        include: { playerRules: true, sponsorRules: true },
+      })
+    : [];
 
   const players = view === 'player'
     ? await prisma.player.findMany({
@@ -80,6 +89,7 @@ export default async function CollectionsPage(props: { searchParams: Promise<Sea
             {view === 'event' && `${total} collection${total !== 1 ? 's' : ''} · games and events`}
             {view === 'player' && `${sortedPlayers.length} player${sortedPlayers.length !== 1 ? 's' : ''}`}
             {view === 'sponsor' && `${sortedSponsors.length} sponsor${sortedSponsors.length !== 1 ? 's' : ''}`}
+            {view === 'custom' && `${customCollections.length} custom collection${customCollections.length !== 1 ? 's' : ''}`}
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -88,7 +98,7 @@ export default async function CollectionsPage(props: { searchParams: Promise<Sea
               <PerPageSelector options={PER_PAGE_OPTIONS} current={perPage} />
             </Suspense>
           )}
-          {view === 'event' && <NewCollectionForm seasons={seasons} />}
+          {(view === 'event' || view === 'custom') && <NewCollectionForm seasons={seasons} />}
         </div>
       </div>
 
@@ -96,6 +106,7 @@ export default async function CollectionsPage(props: { searchParams: Promise<Sea
         <Link href={viewUrl('event', perPage)} className={'tab-btn' + (view === 'event' ? ' active' : '')}>By Event</Link>
         <Link href={viewUrl('player', perPage)} className={'tab-btn' + (view === 'player' ? ' active' : '')}>By Player</Link>
         <Link href={viewUrl('sponsor', perPage)} className={'tab-btn' + (view === 'sponsor' ? ' active' : '')}>By Sponsor</Link>
+        <Link href={viewUrl('custom', perPage)} className={'tab-btn' + (view === 'custom' ? ' active' : '')}>Custom / Shared</Link>
       </div>
 
       {view === 'player' && (
@@ -152,6 +163,53 @@ export default async function CollectionsPage(props: { searchParams: Promise<Sea
                     </td>
                     <td style={{ padding: '10px 16px', color: '#6b7491' }}>{s.tier ?? '—'}</td>
                     <td style={{ padding: '10px 16px', textAlign: 'right', color: '#6b7491' }}>{s._count.assetTags}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
+
+      {view === 'custom' && (
+        customCollections.length === 0 ? (
+          <div className="empty-state card">
+            <h3>No custom collections yet</h3>
+            <p>Create one to hand-pick or auto-include assets and optionally share them externally.</p>
+          </div>
+        ) : (
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#f7f8fc', borderBottom: '1px solid #e8eaf4' }}>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#3b4070' }}>Name</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#3b4070' }}>Created</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#3b4070' }}>Rules</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 600, color: '#3b4070' }}>Sharing</th>
+                </tr>
+              </thead>
+              <tbody>
+                {customCollections.map((c, i) => (
+                  <tr key={c.id} style={{ borderBottom: i < customCollections.length - 1 ? '1px solid #f0f2f7' : undefined }}>
+                    <td style={{ padding: '10px 16px' }}>
+                      <Link href={`/collections/${c.id}`} style={{ fontWeight: 600, color: '#12141f', textDecoration: 'none' }} className="row-link">
+                        {c.name}
+                      </Link>
+                    </td>
+                    <td style={{ padding: '10px 16px', color: '#6b7491', whiteSpace: 'nowrap' }}>
+                      {new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </td>
+                    <td style={{ padding: '10px 16px', color: '#6b7491' }}>
+                      {c.playerRules.length === 0 && c.sponsorRules.length === 0
+                        ? '—'
+                        : [
+                            c.playerRules.length ? `${c.playerRules.length} player${c.playerRules.length !== 1 ? 's' : ''}` : null,
+                            c.sponsorRules.length ? `${c.sponsorRules.length} sponsor${c.sponsorRules.length !== 1 ? 's' : ''}` : null,
+                          ].filter(Boolean).join(' · ')}
+                    </td>
+                    <td style={{ padding: '10px 16px', textAlign: 'right' }}>
+                      {c.isPublic ? <span className="coll-type-badge">🔗 Public</span> : <span style={{ color: '#8890b4' }}>Private</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
