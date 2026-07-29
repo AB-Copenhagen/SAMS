@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { PublicAsset } from '../lib/collections';
 
 interface Props {
@@ -126,27 +126,73 @@ function assetPermalink(assetId: string): string {
   return url.toString();
 }
 
+function socialShareTargets(url: string, text: string) {
+  const encodedUrl = encodeURIComponent(url);
+  return [
+    { key: 'facebook', label: 'Facebook', glyph: 'f', color: '#1877F2', href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}` },
+    { key: 'x', label: 'X', glyph: '𝕏', color: '#000000', href: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodeURIComponent(text)}` },
+    { key: 'whatsapp', label: 'WhatsApp', glyph: '💬', color: '#25D366', href: `https://api.whatsapp.com/send?text=${encodeURIComponent(text + ' ' + url)}` },
+    { key: 'linkedin', label: 'LinkedIn', glyph: 'in', color: '#0A66C2', href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}` },
+    { key: 'email', label: 'Email', glyph: '✉', color: '#6b7491', href: `mailto:?subject=${encodeURIComponent(text)}&body=${encodeURIComponent(url)}` },
+  ];
+}
+
+function ShareIconButton({ label, glyph, color, onClick, href }: { label: string; glyph: string; color: string; onClick?: () => void; href?: string }) {
+  const style: CSSProperties = {
+    width: 32,
+    height: 32,
+    borderRadius: '50%',
+    background: color,
+    color: 'white',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 14,
+    fontWeight: 700,
+    textDecoration: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    flexShrink: 0,
+  };
+  if (href) {
+    return <a href={href} target="_blank" rel="noopener noreferrer" title={label} aria-label={label} style={style}>{glyph}</a>;
+  }
+  return <button type="button" title={label} aria-label={label} onClick={onClick} style={style}>{glyph}</button>;
+}
+
 function ShareAction({ asset }: { asset: PublicAsset }) {
   const [copied, setCopied] = useState(false);
+  const [hasNativeShare, setHasNativeShare] = useState(false);
 
-  async function share() {
-    const url = assetPermalink(asset.id);
-    const shareData = { title: asset.title || 'Photo', url };
-    if (navigator.share) {
-      try { await navigator.share(shareData); } catch { /* user cancelled — not an error */ }
-      return;
-    }
+  useEffect(() => {
+    setHasNativeShare(typeof navigator !== 'undefined' && typeof navigator.share === 'function');
+  }, []);
+
+  const url = typeof window !== 'undefined' ? assetPermalink(asset.id) : '';
+  const text = asset.title || asset.eventName || 'Check out this photo';
+
+  async function copyLink() {
     await navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
+  async function nativeShare() {
+    try { await navigator.share({ title: text, url }); } catch { /* user cancelled — not an error */ }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <span style={{ fontSize: 11, color: '#8890b4' }}>Share this</span>
-      <button className="btn-secondary" type="button" onClick={share} style={{ alignSelf: 'flex-start' }}>
-        {copied ? 'Link copied!' : '📤 Share this photo'}
-      </button>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+        {socialShareTargets(url, text).map((t) => (
+          <ShareIconButton key={t.key} label={t.label} glyph={t.glyph} color={t.color} href={t.href} />
+        ))}
+        <ShareIconButton label="Copy link" glyph={copied ? '✓' : '🔗'} color={copied ? 'var(--color-primary)' : '#8890b4'} onClick={copyLink} />
+        {hasNativeShare && (
+          <ShareIconButton label="More sharing options" glyph="•••" color="var(--color-primary)" onClick={nativeShare} />
+        )}
+      </div>
     </div>
   );
 }
