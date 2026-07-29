@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PublicAsset } from '../lib/collections';
 
 interface Props {
@@ -72,7 +72,7 @@ function AssetDetails({ asset }: { asset: PublicAsset }) {
   const hasTags = asset.tags.players.length > 0 || asset.tags.sponsors.length > 0;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, color: '#3b4070', marginTop: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, color: '#3b4070' }}>
       {asset.description && <p style={{ margin: 0, color: '#3b4070' }}>{asset.description}</p>}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', color: '#6b7491' }}>
         <span><strong style={{ color: '#3b4070' }}>{date.label}:</strong> {date.value}</span>
@@ -103,9 +103,9 @@ function DownloadOptions({ token, asset }: { token: string; asset: PublicAsset }
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <span style={{ fontSize: 11, color: '#8890b4' }}>Download as</span>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {DOWNLOAD_PRESETS.map((p) => (
           <a key={p.key} className="btn-secondary" style={{ textDecoration: 'none', fontSize: 12, padding: '5px 10px' }} href={exportUrl(token, asset.id, p.key)}>
             {p.label}
@@ -115,6 +115,38 @@ function DownloadOptions({ token, asset }: { token: string; asset: PublicAsset }
           Original (full size)
         </a>
       </div>
+    </div>
+  );
+}
+
+/** Builds a permalink back to this exact asset within the shared gallery (?asset=<id>). */
+function assetPermalink(assetId: string): string {
+  const url = new URL(window.location.href);
+  url.searchParams.set('asset', assetId);
+  return url.toString();
+}
+
+function ShareAction({ asset }: { asset: PublicAsset }) {
+  const [copied, setCopied] = useState(false);
+
+  async function share() {
+    const url = assetPermalink(asset.id);
+    const shareData = { title: asset.title || 'Photo', url };
+    if (navigator.share) {
+      try { await navigator.share(shareData); } catch { /* user cancelled — not an error */ }
+      return;
+    }
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <span style={{ fontSize: 11, color: '#8890b4' }}>Share this</span>
+      <button className="btn-secondary" type="button" onClick={share} style={{ alignSelf: 'flex-start' }}>
+        {copied ? 'Link copied!' : '📤 Share this photo'}
+      </button>
     </div>
   );
 }
@@ -138,6 +170,27 @@ export default function PublicAssetGallery({ token, assets }: Props) {
   useEffect(() => { setLightboxIndex(null); }, [ratingFilter, sortOrder]);
 
   const lightboxAsset = lightboxIndex != null ? visibleAssets[lightboxIndex] : null;
+
+  // Deep-link support: opening a photo (or navigating prev/next) updates ?asset=<id> so the
+  // "Share this photo" link reopens straight to it, and a matching id in the URL on first load
+  // (e.g. from a shared link) auto-opens that photo.
+  const didInitFromUrl = useRef(false);
+  useEffect(() => {
+    if (didInitFromUrl.current) return;
+    didInitFromUrl.current = true;
+    const assetId = new URLSearchParams(window.location.search).get('asset');
+    if (!assetId) return;
+    const idx = visibleAssets.findIndex((a) => a.id === assetId);
+    if (idx !== -1) setLightboxIndex(idx);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (lightboxAsset) url.searchParams.set('asset', lightboxAsset.id);
+    else url.searchParams.delete('asset');
+    window.history.replaceState(null, '', url.toString());
+  }, [lightboxAsset]);
 
   useEffect(() => {
     if (lightboxIndex == null) return;
@@ -244,33 +297,31 @@ export default function PublicAssetGallery({ token, assets }: Props) {
 
       {lightboxAsset && lightboxIndex != null && (
         <div className="modal-backdrop" onClick={() => setLightboxIndex(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 900 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 1100 }}>
             <div className="modal-header">
               <h3>{lightboxAsset.title || lightboxAsset.eventName || 'Untitled'}</h3>
               <button className="modal-close" type="button" onClick={() => setLightboxIndex(null)}>×</button>
             </div>
-            <div className="modal-body">
-              {isImage(lightboxAsset) ? (
-                // Web-optimized preview, not the full original — much faster on mobile. Full size
-                // is one tap away via the download options below.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={exportUrl(token, lightboxAsset.id, 'web')}
-                  alt={lightboxAsset.title ?? ''}
-                  style={{ width: '100%', height: 'auto', borderRadius: 8, maxHeight: '70vh', objectFit: 'contain', background: '#0d0f1c' }}
-                />
-              ) : (
-                <video
-                  src={originalUrl(token, lightboxAsset.id)}
-                  controls
-                  style={{ width: '100%', borderRadius: 8, maxHeight: '70vh' }}
-                />
-              )}
+            <div className="modal-body" style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+              <div style={{ flex: '1 1 440px', minWidth: 260 }}>
+                {isImage(lightboxAsset) ? (
+                  // Web-optimized preview, not the full original — much faster on mobile. Full
+                  // size is one tap away via the download options in the side column.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={exportUrl(token, lightboxAsset.id, 'web')}
+                    alt={lightboxAsset.title ?? ''}
+                    style={{ width: '100%', height: 'auto', borderRadius: 8, maxHeight: '65vh', objectFit: 'contain', background: '#0d0f1c' }}
+                  />
+                ) : (
+                  <video
+                    src={originalUrl(token, lightboxAsset.id)}
+                    controls
+                    style={{ width: '100%', borderRadius: 8, maxHeight: '65vh' }}
+                  />
+                )}
 
-              <AssetDetails asset={lightboxAsset} />
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 14, flexWrap: 'wrap', gap: 12 }}>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
                   <button
                     className="btn-secondary"
                     type="button"
@@ -287,11 +338,16 @@ export default function PublicAssetGallery({ token, assets }: Props) {
                   >
                     Next →
                   </button>
-                  <span style={{ alignSelf: 'center', fontSize: 12, color: '#8890b4' }}>
+                  <span style={{ fontSize: 12, color: '#8890b4' }}>
                     {lightboxIndex + 1} / {visibleAssets.length}
                   </span>
                 </div>
+              </div>
+
+              <div style={{ flex: '0 1 260px', minWidth: 220, display: 'flex', flexDirection: 'column', gap: 18 }}>
+                <AssetDetails asset={lightboxAsset} />
                 <DownloadOptions token={token} asset={lightboxAsset} />
+                <ShareAction asset={lightboxAsset} />
               </div>
             </div>
           </div>

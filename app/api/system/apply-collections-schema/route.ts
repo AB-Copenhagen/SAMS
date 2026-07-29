@@ -50,6 +50,8 @@ export async function POST() {
       CONSTRAINT "CollectionSponsorRule_sponsorId_fkey" FOREIGN KEY ("sponsorId") REFERENCES "Sponsor" ("id") ON DELETE CASCADE ON UPDATE CASCADE
     );`,
     'CREATE UNIQUE INDEX IF NOT EXISTS "CollectionSponsorRule_collectionId_sponsorId_key" ON "CollectionSponsorRule"("collectionId", "sponsorId");',
+    'ALTER TABLE "Collection" ADD COLUMN "shareMinRating" INTEGER;',
+    'ALTER TABLE "Collection" ADD COLUMN "shareDateRangeDays" INTEGER;',
   ];
 
   const results: { statement: string; ok: boolean; error?: string }[] = [];

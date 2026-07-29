@@ -74,6 +74,32 @@ function extractDateTaken(exifJson: string | null): string | null {
   }
 }
 
+/** Same fallback chain as the public gallery's client-side sort: EXIF capture time, then event date, then upload date. */
+function assetEffectiveDate(asset: Pick<AssetWithTags, 'exifJson' | 'eventDate' | 'uploadedAt'>): Date {
+  const taken = extractDateTaken(asset.exifJson);
+  if (taken) return new Date(taken);
+  return asset.eventDate ?? asset.uploadedAt;
+}
+
+type ShareFilterConfig = Pick<Collection, 'shareMinRating' | 'shareDateRangeDays'>;
+
+/**
+ * Admin-configured constraints on what a public share link exposes — independent of collection
+ * membership itself (a manually-added or rule-matched asset can still be filtered out of the
+ * *shared* view without being removed from the collection). Applied only in public-facing code
+ * paths; the admin collection page always shows full membership for management.
+ */
+export function applyShareFilters<T extends AssetWithTags>(assets: T[], collection: ShareFilterConfig): T[] {
+  return assets.filter((asset) => {
+    if (collection.shareMinRating && (asset.rating ?? 0) < collection.shareMinRating) return false;
+    if (collection.shareDateRangeDays) {
+      const cutoff = Date.now() - collection.shareDateRangeDays * 24 * 60 * 60 * 1000;
+      if (assetEffectiveDate(asset).getTime() < cutoff) return false;
+    }
+    return true;
+  });
+}
+
 export type PublicAsset = {
   id: string;
   title: string | null;

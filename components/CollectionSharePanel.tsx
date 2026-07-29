@@ -9,9 +9,18 @@ interface Props {
   hasPassword: boolean;
   shareToken: string | null;
   appBaseUrl: string;
+  shareMinRating: number | null;
+  shareDateRangeDays: number | null;
 }
 
-export default function CollectionSharePanel({ id, isPublic, hasPassword, shareToken, appBaseUrl }: Props) {
+const DATE_RANGE_OPTIONS = [
+  { value: '', label: 'All time' },
+  { value: '7', label: 'Last 7 days' },
+  { value: '14', label: 'Last 14 days' },
+  { value: '30', label: 'Last month' },
+];
+
+export default function CollectionSharePanel({ id, isPublic, hasPassword, shareToken, appBaseUrl, shareMinRating, shareDateRangeDays }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [password, setPassword] = useState('');
@@ -101,6 +110,38 @@ export default function CollectionSharePanel({ id, isPublic, hasPassword, shareT
               </button>
             )}
           </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 14, paddingTop: 14, borderTop: '1px solid #e8eaf4', flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#3b4070' }}>
+              Minimum rating
+              <select
+                value={shareMinRating ?? ''}
+                disabled={saving}
+                onChange={(e) => patch({ shareMinRating: e.target.value ? Number(e.target.value) : null })}
+              >
+                <option value="">Any rating</option>
+                <option value="4">★★★★ only</option>
+                <option value="3">★★★ &amp; up</option>
+                <option value="2">★★ &amp; up</option>
+                <option value="1">★ &amp; up</option>
+              </select>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#3b4070' }}>
+              Date range
+              <select
+                value={shareDateRangeDays ?? ''}
+                disabled={saving}
+                onChange={(e) => patch({ shareDateRangeDays: e.target.value ? Number(e.target.value) : null })}
+              >
+                {DATE_RANGE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <p style={{ fontSize: 12, color: '#8890b4', marginTop: 6, marginBottom: 0 }}>
+            These only limit what the public link shows — nothing is removed from the collection itself.
+          </p>
         </>
       )}
 

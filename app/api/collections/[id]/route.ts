@@ -29,6 +29,8 @@ type PatchBody = {
   isPublic?: boolean;
   password?: string | null; // string to set/change, null to clear, omit to leave unchanged
   regenerateToken?: boolean;
+  shareMinRating?: number | null;
+  shareDateRangeDays?: number | null;
 };
 
 export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
@@ -58,6 +60,8 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       ...(body.opponent  !== undefined && { opponent: body.opponent || null }),
       ...(body.venue     !== undefined && { venue: body.venue || null }),
       ...(body.isPublic  !== undefined && { isPublic: body.isPublic }),
+      ...(body.shareMinRating     !== undefined && { shareMinRating: body.shareMinRating }),
+      ...(body.shareDateRangeDays !== undefined && { shareDateRangeDays: body.shareDateRangeDays }),
       ...(passwordFields && { ...passwordFields, shareUpdatedAt: new Date() }),
       ...(needsToken && { shareToken: generateShareToken() }),
     },

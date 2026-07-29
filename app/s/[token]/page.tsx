@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getPublicCollectionByToken, resolveCollectionAssets, sanitizePublicAsset } from '../../../lib/collections';
+import { applyShareFilters, getPublicCollectionByToken, resolveCollectionAssets, sanitizePublicAsset } from '../../../lib/collections';
 import { isShareUnlocked } from '../../../lib/share-auth';
 import SharePasswordForm from '../../../components/SharePasswordForm';
 import PublicAssetGallery from '../../../components/PublicAssetGallery';
@@ -15,7 +15,7 @@ export default async function SharedCollectionPage(props: { params: Promise<{ to
     return <SharePasswordForm token={token} name={collection.name} />;
   }
 
-  const assets = await resolveCollectionAssets(collection);
+  const assets = applyShareFilters(await resolveCollectionAssets(collection), collection);
   const publicAssets = assets.map(sanitizePublicAsset);
 
   return (

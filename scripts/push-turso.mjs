@@ -274,6 +274,9 @@ CREATE TABLE IF NOT EXISTS "CollectionSponsorRule" (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS "CollectionSponsorRule_collectionId_sponsorId_key" ON "CollectionSponsorRule"("collectionId", "sponsorId");
+
+ALTER TABLE "Collection" ADD COLUMN "shareMinRating" INTEGER;
+ALTER TABLE "Collection" ADD COLUMN "shareDateRangeDays" INTEGER;
 `;
 
 const statements = sql

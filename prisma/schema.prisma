@@ -217,6 +217,8 @@ model Collection {
   sharePasswordSalt String?
   sharePasswordHash String?
   shareUpdatedAt    DateTime?
+  shareMinRating    Int?
+  shareDateRangeDays Int?
   manualAssets      CollectionAsset[]
   playerRules       CollectionPlayerRule[]
   sponsorRules      CollectionSponsorRule[]

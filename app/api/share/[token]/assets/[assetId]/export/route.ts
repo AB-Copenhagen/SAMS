@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getPublicCollectionByToken, resolveCollectionAssets } from '../../../../../../../lib/collections';
+import { applyShareFilters, getPublicCollectionByToken, resolveCollectionAssets } from '../../../../../../../lib/collections';
 import { isShareUnlocked } from '../../../../../../../lib/share-auth';
 import { renderExport, EXPORT_PRESETS } from '../../../../../../../lib/export-presets';
 
@@ -23,7 +23,7 @@ export async function GET(request: Request, props: { params: Promise<{ token: st
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  const assets = await resolveCollectionAssets(collection);
+  const assets = applyShareFilters(await resolveCollectionAssets(collection), collection);
   const asset = assets.find((a) => a.id === assetId);
   if (!asset) return NextResponse.json({ message: 'Not found' }, { status: 404 });
   if (!asset.fileType.startsWith('image/')) {

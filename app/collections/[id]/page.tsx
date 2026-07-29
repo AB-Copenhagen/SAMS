@@ -89,6 +89,8 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
             hasPassword={Boolean(collection.sharePasswordHash)}
             shareToken={collection.shareToken}
             appBaseUrl={appBaseUrl}
+            shareMinRating={collection.shareMinRating}
+            shareDateRangeDays={collection.shareDateRangeDays}
           />
           <CollectionRulesEditor
             collectionId={collection.id}
