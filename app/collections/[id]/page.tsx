@@ -37,7 +37,7 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
       ])
     : [[], []];
 
-  const appBaseUrl = (process.env.APP_BASE_URL ?? '').replace(/\/$/, '');
+  const appBaseUrl = (process.env.PUBLIC_SHARE_BASE_URL ?? process.env.APP_BASE_URL ?? '').replace(/\/$/, '');
 
   return (
     <AppShell user={user}>
