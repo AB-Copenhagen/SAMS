@@ -239,7 +239,7 @@ export default function AssetDetailClient({
             {asset.editedKey && <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>Edited</span>}
             {!isVideo && (
               <button className="btn-secondary" type="button" onClick={() => setEditing(true)} style={{ marginLeft: 'auto', fontSize: 12, padding: '4px 10px' }}>
-                Edit photo
+                Edit and Download
               </button>
             )}
           </div>
