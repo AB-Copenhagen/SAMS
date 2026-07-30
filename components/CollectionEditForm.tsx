@@ -14,13 +14,29 @@ interface Props {
 
 export default function CollectionEditForm({ id, name, date, opponent, venue, isCustom = false }: Props) {
   const router = useRouter();
-  const [editing, setEditing] = useState(false);
-  const [saving,  setSaving]  = useState(false);
-  const [error,   setError]   = useState('');
+  const [editing,  setEditing]  = useState(false);
+  const [saving,   setSaving]   = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error,    setError]    = useState('');
   const [form, setForm] = useState({ name, date: date ?? '', opponent: opponent ?? '', venue: venue ?? '' });
 
   function set(field: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  async function deleteCollection() {
+    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    setDeleting(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/collections/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+      router.push('/collections?view=custom');
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Delete failed');
+      setDeleting(false);
+    }
   }
 
   async function save() {
@@ -56,14 +72,30 @@ export default function CollectionEditForm({ id, name, date, opponent, venue, is
 
   if (!editing) {
     return (
-      <button
-        className="btn-secondary"
-        type="button"
-        onClick={() => setEditing(true)}
-        style={{ fontSize: 13 }}
-      >
-        Edit
-      </button>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            className="btn-secondary"
+            type="button"
+            onClick={() => setEditing(true)}
+            style={{ fontSize: 13 }}
+          >
+            Edit
+          </button>
+          {isCustom && (
+            <button
+              className="btn-secondary"
+              type="button"
+              onClick={deleteCollection}
+              disabled={deleting}
+              style={{ fontSize: 13, color: '#c0392b' }}
+            >
+              {deleting ? <><span className="spinner" /> Deleting…</> : 'Delete'}
+            </button>
+          )}
+        </div>
+        {error && <div className="alert alert-error" style={{ fontSize: 12 }}>{error}</div>}
+      </div>
     );
   }
 
