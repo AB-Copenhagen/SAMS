@@ -60,6 +60,7 @@ export async function PUT(request: Request, props: { params: Promise<{ id: strin
     data: {
       title:       body.title       ?? undefined,
       description: body.description ?? undefined,
+      shareText:   body.shareText   ?? undefined,
       eventName:   body.eventName   ?? undefined,
       eventDate:   body.eventDate   ? new Date(body.eventDate) : null,
       location:    body.location    ?? undefined,

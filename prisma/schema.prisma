@@ -10,6 +10,7 @@ model Asset {
   id                 String      @id @default(cuid())
   title              String?
   description        String?
+  shareText          String?
   eventName          String?
   eventDate          DateTime?
   location           String?

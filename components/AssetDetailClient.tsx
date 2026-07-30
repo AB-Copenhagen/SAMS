@@ -22,6 +22,7 @@ type AssetProps = {
   id: string;
   title: string;
   description: string;
+  shareText: string;
   eventName: string;
   eventDate: string;
   location: string;
@@ -144,6 +145,7 @@ export default function AssetDetailClient({
   const [form, setForm] = useState({
     title:       asset.title,
     description: asset.description,
+    shareText:   asset.shareText,
     eventName:   asset.eventName,
     eventDate:   asset.eventDate,
     location:    asset.location,
@@ -186,6 +188,7 @@ export default function AssetDetailClient({
       body: JSON.stringify({
         title:       form.title,
         description: form.description,
+        shareText:   form.shareText,
         eventName:   form.eventName,
         eventDate:   form.eventDate || null,
         location:    form.location,
@@ -343,6 +346,18 @@ export default function AssetDetailClient({
               placeholder="Optional description"
               style={{ resize: 'vertical', minHeight: 60 }}
             />
+          </div>
+          <div className="field">
+            <label>Sample sharing text</label>
+            <textarea
+              value={form.shareText}
+              onChange={(e) => set('shareText', e.target.value)}
+              placeholder="Suggested caption for fans sharing this photo, e.g. &quot;Great save from Nikolaj! 🧤&quot;"
+              style={{ resize: 'vertical', minHeight: 60 }}
+            />
+            <p style={{ fontSize: 12, color: '#8890b4', marginTop: 4 }}>
+              Shown to visitors as a starting point when they share this photo — AB&apos;s Facebook and Instagram links are added automatically.
+            </p>
           </div>
           <div className="field">
             <label>Rating</label>

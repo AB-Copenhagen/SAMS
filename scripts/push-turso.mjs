@@ -277,6 +277,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS "CollectionSponsorRule_collectionId_sponsorId_
 
 ALTER TABLE "Collection" ADD COLUMN "shareMinRating" INTEGER;
 ALTER TABLE "Collection" ADD COLUMN "shareDateRangeDays" INTEGER;
+
+ALTER TABLE "Asset" ADD COLUMN "shareText" TEXT;
 `;
 
 const statements = sql

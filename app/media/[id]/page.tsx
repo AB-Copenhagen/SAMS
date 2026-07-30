@@ -44,6 +44,7 @@ export default async function AssetDetailPage(props: { params: Promise<{ id: str
           id:              asset.id,
           title:           asset.title ?? '',
           description:     asset.description ?? '',
+          shareText:       asset.shareText ?? '',
           eventName:       asset.eventName ?? '',
           eventDate:       asset.eventDate ? asset.eventDate.toISOString().split('T')[0] : '',
           location:        asset.location ?? '',

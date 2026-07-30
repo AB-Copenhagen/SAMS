@@ -104,6 +104,7 @@ export type PublicAsset = {
   id: string;
   title: string | null;
   description: string | null;
+  shareText: string | null;
   fileType: string;
   fileSize: number;
   thumbnailKey: string | null;
@@ -130,6 +131,7 @@ export function sanitizePublicAsset(asset: AssetWithTags): PublicAsset {
     id: asset.id,
     title: asset.title,
     description: asset.description,
+    shareText: asset.shareText,
     fileType: asset.fileType,
     fileSize: asset.fileSize,
     thumbnailKey: asset.thumbnailKey,

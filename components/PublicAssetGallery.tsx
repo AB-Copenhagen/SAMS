@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { PublicAsset } from '../lib/collections';
+import { buildShareCaption } from '../lib/social';
 
 interface Props {
   token: string;
@@ -120,7 +121,7 @@ function assetPermalink(assetId: string): string {
 function socialShareTargets(url: string, text: string) {
   const encodedUrl = encodeURIComponent(url);
   return [
-    { key: 'facebook', label: 'Facebook', glyph: 'f', color: '#1877F2', href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}` },
+    { key: 'facebook', label: 'Facebook', glyph: 'f', color: '#1877F2', href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodeURIComponent(text)}` },
     { key: 'x', label: 'X', glyph: '𝕏', color: '#000000', href: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodeURIComponent(text)}` },
     { key: 'whatsapp', label: 'WhatsApp', glyph: '💬', color: '#25D366', href: `https://api.whatsapp.com/send?text=${encodeURIComponent(text + ' ' + url)}` },
     { key: 'linkedin', label: 'LinkedIn', glyph: 'in', color: '#0A66C2', href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}` },
@@ -153,6 +154,7 @@ function ShareIconButton({ label, glyph, color, onClick, href }: { label: string
 
 function ShareAction({ asset }: { asset: PublicAsset }) {
   const [copied, setCopied] = useState(false);
+  const [captionCopied, setCaptionCopied] = useState(false);
   const [hasNativeShare, setHasNativeShare] = useState(false);
 
   useEffect(() => {
@@ -160,12 +162,21 @@ function ShareAction({ asset }: { asset: PublicAsset }) {
   }, []);
 
   const url = typeof window !== 'undefined' ? assetPermalink(asset.id) : '';
-  const text = asset.title || asset.eventName || 'Check out this photo';
+  const fallbackText = asset.title || asset.eventName || 'Check out this photo';
+  const text = buildShareCaption(asset.shareText, fallbackText);
 
   async function copyLink() {
     await navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  // Instagram has no web share-intent URL — the standard flow is to copy a caption and paste it
+  // manually when posting, so give that its own action rather than pretending a link would work.
+  async function copyCaption() {
+    await navigator.clipboard.writeText(`${text}\n${url}`);
+    setCaptionCopied(true);
+    setTimeout(() => setCaptionCopied(false), 2000);
   }
 
   async function nativeShare() {
@@ -175,10 +186,21 @@ function ShareAction({ asset }: { asset: PublicAsset }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <span style={{ fontSize: 11, color: '#8890b4' }}>Share this</span>
+      {asset.shareText && (
+        <p style={{ margin: 0, fontSize: 12, color: '#6b7491', fontStyle: 'italic', whiteSpace: 'pre-wrap' }}>
+          &ldquo;{asset.shareText}&rdquo;
+        </p>
+      )}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
         {socialShareTargets(url, text).map((t) => (
           <ShareIconButton key={t.key} label={t.label} glyph={t.glyph} color={t.color} href={t.href} />
         ))}
+        <ShareIconButton
+          label="Copy caption for Instagram"
+          glyph={captionCopied ? '✓' : '📷'}
+          color={captionCopied ? 'var(--color-primary)' : '#E1306C'}
+          onClick={copyCaption}
+        />
         <ShareIconButton label="Copy link" glyph={copied ? '✓' : '🔗'} color={copied ? 'var(--color-primary)' : '#8890b4'} onClick={copyLink} />
         {hasNativeShare && (
           <ShareIconButton label="More sharing options" glyph="•••" color="var(--color-primary)" onClick={nativeShare} />
