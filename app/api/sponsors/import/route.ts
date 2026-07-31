@@ -4,15 +4,21 @@ import { prisma } from '../../../../lib/db';
 import { uploadFileToWasabi } from '../../../../lib/wasabi';
 
 const TIER_MAP: Record<string, string> = {
-  'HOVEDSPONSOR':  'title',
-  'AB PARTNER':    'gold',
-  'PARTNER':       'gold',
-  'SØLVPARTNER':   'silver',
-  'BRONZEPARTNER': 'bronze',
+  'Our supreme partners':        'title',
+  'Our premium partners':        'gold',
+  'Our local hero partners':     'silver',
+  'The AB 1889 partner network': 'bronze',
 };
+
+function decodeEntities(s: string) {
+  return s.replace(/&#0*39;/g, "'").replace(/&#0*38;/g, '&').replace(/&amp;/g, '&');
+}
 
 type ParsedSponsor = { name: string; sourceImageUrl: string | null; tier: string | null };
 
+// ab.dk repeats a handful of top-tier logos in a decorative strip near the footer, using plain
+// `<a class="shrink-0 ...">` markup (no "flex flex-col") — the class check below excludes it so
+// those sponsors aren't double-processed with the wrong tier.
 function parseSponsors(html: string): ParsedSponsor[] {
   const results: ParsedSponsor[] = [];
   const sections = html.split(/<h2[^>]*>/i).slice(1);
@@ -22,20 +28,27 @@ function parseSponsors(html: string): ParsedSponsor[] {
     if (h2End === -1) continue;
 
     const tierRaw = section.slice(0, h2End).replace(/<[^>]+>/g, '').trim();
-    const tier = TIER_MAP[tierRaw] ?? tierRaw.toLowerCase() ?? null;
+    const tier = TIER_MAP[tierRaw] ?? tierRaw.toLowerCase();
     const body = section.slice(h2End + 5);
 
-    const imgRx = /<img[^>]+src="([^"]+)"[^>]*>/gi;
+    const cardRx = /<a href="\/en\/partners\/[^"]+"[^>]*>([\s\S]*?)<\/a>/g;
     let m: RegExpExecArray | null;
-    while ((m = imgRx.exec(body)) !== null) {
-      const after = body.slice(m.index + m[0].length, m.index + m[0].length + 500);
-      const h3 = after.match(/<h3[^>]*>([^<]+)<\/h3>/i);
-      if (!h3) continue;
+    while ((m = cardRx.exec(body)) !== null) {
+      const openTag = m[0].slice(0, m[0].indexOf('>') + 1);
+      if (!/flex flex-col/.test(openTag)) continue;
 
-      const rawSrc = m[1].replace(/&#0*38;/g, '&').replace(/&amp;/g, '&');
-      const sourceImageUrl = rawSrc.split('?')[0] + '?resize=300,150&ssl=1';
+      const img = m[1].match(/<img[^>]+src="([^"]+)"[^>]+alt="([^"]+)"/);
+      if (!img) continue;
 
-      results.push({ name: h3[1].trim(), sourceImageUrl, tier });
+      const name = decodeEntities(img[2]).trim();
+      if (!name) continue;
+
+      // ab.dk shows a generic placeholder graphic for sponsors without a real logo uploaded yet —
+      // skip it rather than store that placeholder as if it were the sponsor's actual logo.
+      const isPlaceholder = /partner_logo_placeholder/.test(img[1]);
+      const sourceImageUrl = isPlaceholder ? null : new URL(decodeEntities(img[1]), 'https://ab.dk').toString();
+
+      results.push({ name, sourceImageUrl, tier });
     }
   }
 
@@ -72,7 +85,7 @@ export async function POST() {
 
   let html: string;
   try {
-    const res = await fetch('https://ab.dk/sponsorer/', {
+    const res = await fetch('https://ab.dk/en/partners', {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AB-DAM/1.0)' },
       cache: 'no-store',
       signal: controller.signal,
