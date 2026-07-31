@@ -4,37 +4,51 @@ import { prisma } from '../../../../lib/db';
 import { uploadFileToWasabi } from '../../../../lib/wasabi';
 
 const POSITION_MAP: Record<string, string> = {
-  'Målmand':  'Goalkeeper',
-  'Forsvar':  'Defender',
-  'Midtbane': 'Midfielder',
-  'Angreb':   'Forward',
+  keeper:     'Goalkeeper',
+  defender:   'Defender',
+  midfielder: 'Midfielder',
+  forward:    'Forward',
 };
+
+function decodeEntities(s: string) {
+  return s.replace(/&#0*39;/g, "'").replace(/&#0*38;/g, '&').replace(/&amp;/g, '&');
+}
 
 type ParsedPlayer = {
   name: string;
   number: number | null;
   position: string | null;
   sourceImageUrl: string | null;
+  fallbackImageUrl: string | null;
 };
 
 function parsePlayers(html: string): ParsedPlayer[] {
-  const cards = html.split('<div class="trupen-card">').slice(1);
+  const cards = html.split('class="squad-card').slice(1);
 
   return cards.flatMap((card) => {
-    const name   = card.match(/<div class="trupen-card-name">\s*([^<]+?)\s*<\/div>/)?.[1]?.trim();
-    const numStr = card.match(/<div class="trupen-card-number">\s*(\d+)\s*<\/div>/)?.[1];
-    const role   = card.match(/<div class="trupen-card-role">\s*([^<]+?)\s*<\/div>/)?.[1]?.trim();
-    const rawSrc = card.match(/<div class="trupen-card-photo">[\s\S]*?<img[^>]+src="([^"]+)"/)?.[1];
+    const dataPosition = card.match(/data-position="([^"]*)"/)?.[1];
+    const nameBlock = card.match(/font-black leading-tight"[^>]*>([\s\S]*?)<\/p>/)?.[1];
+    const numStr = card.match(/font-black leading-none select-none"[^>]*>(\d+)<\/p>/)?.[1];
+    const rawSrc = card.match(/<img src="([^"]+)"/)?.[1];
+    const rawFallback = card.match(/data-si-fallback="([^"]+)"/)?.[1];
 
+    if (!nameBlock) return [];
+    const [firstRaw, lastRaw] = nameBlock.split(/<br\s*\/?>/);
+    const first = decodeEntities((firstRaw ?? '').replace(/<[^>]+>/g, '')).trim();
+    const last  = decodeEntities((lastRaw ?? '').replace(/<[^>]+>/g, '')).trim();
+    const name = [first, last].filter(Boolean).join(' ');
     if (!name) return [];
 
-    let sourceImageUrl: string | null = null;
-    if (rawSrc) {
-      const decoded = rawSrc.replace(/&#0*38;/g, '&').replace(/&amp;/g, '&');
-      sourceImageUrl = decoded.split('?')[0] + '?resize=320,480&ssl=1';
-    }
+    const sourceImageUrl = rawSrc ? new URL(decodeEntities(rawSrc), 'https://ab.dk').toString() : null;
+    const fallbackImageUrl = rawFallback ? decodeEntities(rawFallback) : null;
 
-    return [{ name, number: numStr ? parseInt(numStr, 10) : null, position: role ? (POSITION_MAP[role] ?? role) : null, sourceImageUrl }];
+    return [{
+      name,
+      number: numStr ? parseInt(numStr, 10) : null,
+      position: dataPosition ? (POSITION_MAP[dataPosition] ?? dataPosition) : null,
+      sourceImageUrl,
+      fallbackImageUrl,
+    }];
   });
 }
 
@@ -42,21 +56,24 @@ function nameToSlug(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
-async function fetchAndUpload(sourceUrl: string, objectKey: string): Promise<string | null> {
-  const ac = new AbortController();
-  const t = setTimeout(() => ac.abort(), 10_000);
-  try {
-    const res = await fetch(sourceUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AB-DAM/1.0)' }, signal: ac.signal });
-    clearTimeout(t);
-    if (!res.ok) return null;
-    const buffer = Buffer.from(await res.arrayBuffer());
-    const contentType = res.headers.get('content-type') ?? 'image/jpeg';
-    await uploadFileToWasabi(objectKey, buffer, contentType);
-    return objectKey;
-  } catch {
-    clearTimeout(t);
-    return null;
+async function fetchAndUpload(candidateUrls: (string | null)[], objectKey: string): Promise<string | null> {
+  for (const sourceUrl of candidateUrls) {
+    if (!sourceUrl) continue;
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), 10_000);
+    try {
+      const res = await fetch(sourceUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AB-DAM/1.0)' }, signal: ac.signal });
+      clearTimeout(t);
+      if (!res.ok) continue;
+      const buffer = Buffer.from(await res.arrayBuffer());
+      const contentType = res.headers.get('content-type') ?? 'image/jpeg';
+      await uploadFileToWasabi(objectKey, buffer, contentType);
+      return objectKey;
+    } catch {
+      clearTimeout(t);
+    }
   }
+  return null;
 }
 
 export async function POST() {
@@ -90,8 +107,8 @@ export async function POST() {
   // Download and upload all headshots to Wasabi in parallel
   const withImages = await Promise.all(
     parsed.map(async (p) => {
-      const objectKey = p.sourceImageUrl
-        ? await fetchAndUpload(p.sourceImageUrl, `players/${nameToSlug(p.name)}.jpg`)
+      const objectKey = (p.sourceImageUrl || p.fallbackImageUrl)
+        ? await fetchAndUpload([p.sourceImageUrl, p.fallbackImageUrl], `players/${nameToSlug(p.name)}.jpg`)
         : null;
       return { ...p, headshotObjectKey: objectKey };
     })
