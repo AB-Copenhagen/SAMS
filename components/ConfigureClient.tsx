@@ -50,7 +50,7 @@ function PlayersTab() {
   const [enrollResult, setEnrollResult] = useState<{ total: number; enrolled: number; errors: unknown[] } | null>(null);
   const [saveWarning, setSaveWarning] = useState('');
   const [merging, setMerging] = useState(false);
-  const [mergeResult, setMergeResult] = useState<{ playersDeleted: number; mergedNames: string[] } | null>(null);
+  const [mergeResult, setMergeResult] = useState<{ playersDeleted: number; mergedNames: string[]; skippedConflicts: string[] } | null>(null);
   const [mergeError, setMergeError] = useState('');
 
   function openPlayer(p: Player) {
@@ -170,6 +170,7 @@ function PlayersTab() {
               {mergeResult.playersDeleted > 0
                 ? `Merged ${mergeResult.playersDeleted} duplicate${mergeResult.playersDeleted === 1 ? '' : 's'} (${mergeResult.mergedNames.join(', ')})`
                 : 'No duplicates found'}
+              {mergeResult.skippedConflicts.length > 0 && ` — skipped (number conflict): ${mergeResult.skippedConflicts.join(', ')}`}
             </span>
           )}
           {mergeError && <span style={{ fontSize: 13, color: '#dc2626' }}>{mergeError}</span>}

@@ -3,21 +3,20 @@ import { getCurrentUser, isAdmin } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { deletePlayerFace } from '../../../../lib/rekognition';
 import { addConfirmedStringTag, removeConfirmedStringTag } from '../../../../lib/asset-tags';
-
-function normalizeName(name: string): string {
-  return name.replace(/[‘’]/g, "'").trim().replace(/\s+/g, ' ').toLowerCase();
-}
+import { normalizePlayerName } from '../../../../lib/player-name';
 
 function slugify(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '-');
 }
 
 // One-time cleanup: the ab.dk squad-page scraper used to dedupe players by an exact string match
-// on `name`, so a name re-scraped with a different apostrophe encoding (straight vs. curly quote —
-// ab.dk's CMS isn't consistent) failed to match the existing row and created a duplicate Player
-// instead of updating it (see the normalizeName fix in app/api/players/import/route.ts). This
-// finds any players that now normalize to the same name, merges their asset tags and collection
-// rules onto one surviving record, and deletes the duplicate(s). Idempotent — safe to re-run.
+// on `name`, so a name re-scraped with any different punctuation (straight vs. curly quote, a
+// dropped apostrophe — ab.dk's CMS isn't consistent) failed to match the existing row and created
+// a duplicate Player instead of updating it (now fixed in app/api/players/import/route.ts, which
+// also matches on the stable siPlayerId once a record has one). This finds any players that still
+// normalize to the same name — stripping ALL punctuation, not just apostrophes, since we don't
+// know in advance which character differed — merges their asset tags and collection rules onto
+// one surviving record, and deletes the duplicate(s). Idempotent — safe to re-run.
 export async function POST() {
   const user = await getCurrentUser();
   if (!isAdmin(user)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
@@ -28,7 +27,7 @@ export async function POST() {
 
   const groups = new Map<string, typeof players>();
   for (const p of players) {
-    const key = normalizeName(p.name);
+    const key = normalizePlayerName(p.name);
     const list = groups.get(key) ?? [];
     list.push(p);
     groups.set(key, list);
@@ -38,16 +37,26 @@ export async function POST() {
   let tagsReassigned = 0;
   let tagsDropped = 0;
   const mergedNames: string[] = [];
+  const skippedConflicts: string[] = [];
 
   for (const group of groups.values()) {
     if (group.length < 2) continue;
 
     // Prefer keeping the record with an enrolled face, then the one with the most existing tags,
     // then the oldest (first-created) record — in that order.
-    const [keeper, ...losers] = [...group].sort((a, b) => {
+    const [keeper, ...candidates] = [...group].sort((a, b) => {
       if (!!b.rekognitionFaceId !== !!a.rekognitionFaceId) return (b.rekognitionFaceId ? 1 : 0) - (a.rekognitionFaceId ? 1 : 0);
       if (b._count.assetTags !== a._count.assetTags) return b._count.assetTags - a._count.assetTags;
       return a.createdAt.getTime() - b.createdAt.getTime();
+    });
+
+    // Same normalized name but explicitly different squad numbers on both sides reads as two
+    // different real players (e.g. an unrelated same-surname signing), not a scrape duplicate —
+    // leave those alone rather than guessing.
+    const losers = candidates.filter((c) => {
+      const conflicts = keeper.number != null && c.number != null && keeper.number !== c.number;
+      if (conflicts) skippedConflicts.push(`${c.name} (#${c.number} vs. keeper #${keeper.number})`);
+      return !conflicts;
     });
 
     for (const loser of losers) {
@@ -106,5 +115,5 @@ export async function POST() {
     mergedNames.push(keeper.name);
   }
 
-  return NextResponse.json({ playersDeleted, tagsReassigned, tagsDropped, mergedNames });
+  return NextResponse.json({ playersDeleted, tagsReassigned, tagsDropped, mergedNames, skippedConflicts });
 }

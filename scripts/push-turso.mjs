@@ -279,6 +279,9 @@ ALTER TABLE "Collection" ADD COLUMN "shareMinRating" INTEGER;
 ALTER TABLE "Collection" ADD COLUMN "shareDateRangeDays" INTEGER;
 
 ALTER TABLE "Asset" ADD COLUMN "shareText" TEXT;
+
+ALTER TABLE "Player" ADD COLUMN "siPlayerId" TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS "Player_siPlayerId_key" ON "Player"("siPlayerId");
 `;
 
 const statements = sql

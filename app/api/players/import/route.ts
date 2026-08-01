@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { uploadFileToWasabi } from '../../../../lib/wasabi';
+import { normalizePlayerName } from '../../../../lib/player-name';
 
 const POSITION_MAP: Record<string, string> = {
   keeper:     'Goalkeeper',
@@ -22,11 +23,11 @@ function decodeEntities(s: string) {
     .replace(/&#0*38;|&amp;/gi, '&');
 }
 
-// Collapses apostrophe variants the same way decodeEntities does, so a name freshly scraped from
-// ab.dk still matches an existing Player row even if that row was saved before this normalization
-// existed (or via some other path that preserved a different apostrophe character).
-function normalizeName(name: string): string {
-  return name.replace(/[‘’]/g, "'").trim().replace(/\s+/g, ' ');
+// The numeric filename in ab.dk's data-si-fallback image URL (e.g. ".../9805/1339202.png") is a
+// stable per-player ID from their squad-data vendor (Sport-IT) — unlike the printed name, which
+// the CMS doesn't encode consistently across scrapes. Source of truth for matching.
+function extractSiPlayerId(fallbackImageUrl: string | null): string | null {
+  return fallbackImageUrl?.match(/\/(\d+)\.\w+$/)?.[1] ?? null;
 }
 
 type ParsedPlayer = {
@@ -35,6 +36,7 @@ type ParsedPlayer = {
   position: string | null;
   sourceImageUrl: string | null;
   fallbackImageUrl: string | null;
+  siPlayerId: string | null;
 };
 
 function parsePlayers(html: string): ParsedPlayer[] {
@@ -63,6 +65,7 @@ function parsePlayers(html: string): ParsedPlayer[] {
       position: dataPosition ? (POSITION_MAP[dataPosition] ?? dataPosition) : null,
       sourceImageUrl,
       fallbackImageUrl,
+      siPlayerId: extractSiPlayerId(fallbackImageUrl),
     }];
   });
 }
@@ -129,19 +132,26 @@ export async function POST() {
     })
   );
 
-  const existing = await prisma.player.findMany({ select: { id: true, name: true } });
-  const byName = new Map(existing.map((p) => [normalizeName(p.name), p.id]));
+  const existing = await prisma.player.findMany({ select: { id: true, name: true, siPlayerId: true } });
+  const bySiId = new Map(existing.filter((p) => p.siPlayerId).map((p) => [p.siPlayerId!, p.id]));
+  const byName = new Map(existing.map((p) => [normalizePlayerName(p.name), p.id]));
 
   let created = 0, updated = 0;
   for (const p of withImages) {
-    const existingId = byName.get(normalizeName(p.name));
+    // The SI ID is authoritative once a record has one — the printed name can still legitimately
+    // change (spelling correction, marriage, etc.) without that meaning a new player. Only fall
+    // back to name matching for records that don't have an SI ID yet, backfilling it once matched
+    // so future scrapes for this player no longer depend on the name lining up at all.
+    const existingId = (p.siPlayerId && bySiId.get(p.siPlayerId)) || byName.get(normalizePlayerName(p.name));
     if (existingId) {
       await prisma.player.update({
         where: { id: existingId },
         data: {
+          name:        p.name,
           number:      p.number,
           position:    p.position,
           headshotUrl: p.headshotObjectKey ?? undefined,
+          siPlayerId:  p.siPlayerId ?? undefined,
           active:      true,
         },
       });
@@ -153,6 +163,7 @@ export async function POST() {
           number:      p.number,
           position:    p.position,
           headshotUrl: p.headshotObjectKey ?? null,
+          siPlayerId:  p.siPlayerId,
           active:      true,
         },
       });

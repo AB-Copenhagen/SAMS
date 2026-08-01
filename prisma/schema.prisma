@@ -175,6 +175,11 @@ model Player {
   createdAt         DateTime         @default(now())
   faceEnrolledAt    DateTime?
   rekognitionFaceId String?
+  // ab.dk's squad page embeds this as the numeric filename in each player's data-si-fallback
+  // image URL (Sport-IT, their squad-data vendor) — a stable per-player ID, unlike their printed
+  // name, which the CMS doesn't encode consistently across scrapes. Source of truth for matching
+  // a scraped player back to their existing record.
+  siPlayerId        String?          @unique
   assetTags         AssetPlayerTag[]
   collectionRules   CollectionPlayerRule[]
 }
