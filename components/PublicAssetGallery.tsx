@@ -67,6 +67,7 @@ function AssetDetails({ asset }: { asset: PublicAsset }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, color: '#3b4070' }}>
       {asset.description && <p style={{ margin: 0, color: '#3b4070' }}>{asset.description}</p>}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', color: '#6b7491' }}>
+        {asset.eventName && <span><strong style={{ color: '#3b4070' }}>Match/Event:</strong> {asset.eventName}</span>}
         <span><strong style={{ color: '#3b4070' }}>{date.label}:</strong> {date.value}</span>
         {asset.location && <span><strong style={{ color: '#3b4070' }}>Location:</strong> {asset.location}</span>}
         {asset.rating != null && <span><strong style={{ color: '#3b4070' }}>Rating:</strong> {'★'.repeat(asset.rating)}</span>}
@@ -302,6 +303,10 @@ export default function PublicAssetGallery({ token, assets }: Props) {
               </div>
               <div className="asset-card-body">
                 <div className="asset-card-title">{a.title || a.eventName || 'Untitled'}</div>
+                {/* Only a separate line when eventName isn't already standing in as the title above. */}
+                {a.title && a.eventName && (
+                  <div className="asset-card-meta" style={{ color: '#6b7491', marginTop: -2 }}>{a.eventName}</div>
+                )}
                 <div className="asset-card-meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>
                     {a.fileType.startsWith('image/') ? 'Photo' : 'Video'}
