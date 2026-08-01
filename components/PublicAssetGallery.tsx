@@ -118,15 +118,8 @@ function assetPermalink(assetId: string): string {
   return url.toString();
 }
 
-function socialShareTargets(url: string, text: string) {
-  const encodedUrl = encodeURIComponent(url);
-  return [
-    { key: 'facebook', label: 'Facebook', glyph: 'f', color: '#1877F2', href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodeURIComponent(text)}` },
-    { key: 'x', label: 'X', glyph: '𝕏', color: '#000000', href: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodeURIComponent(text)}` },
-    { key: 'whatsapp', label: 'WhatsApp', glyph: '💬', color: '#25D366', href: `https://api.whatsapp.com/send?text=${encodeURIComponent(text + ' ' + url)}` },
-    { key: 'linkedin', label: 'LinkedIn', glyph: 'in', color: '#0A66C2', href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}` },
-    { key: 'email', label: 'Email', glyph: '✉', color: '#6b7491', href: `mailto:?subject=${encodeURIComponent(text)}&body=${encodeURIComponent(url)}` },
-  ];
+function emailShareHref(url: string, text: string) {
+  return `mailto:?subject=${encodeURIComponent(text)}&body=${encodeURIComponent(url)}`;
 }
 
 function ShareIconButton({ label, glyph, color, onClick, href }: { label: string; glyph: string; color: string; onClick?: () => void; href?: string }) {
@@ -153,34 +146,20 @@ function ShareIconButton({ label, glyph, color, onClick, href }: { label: string
 }
 
 function ShareAction({ asset }: { asset: PublicAsset }) {
-  const [copied, setCopied] = useState(false);
-  const [captionCopied, setCaptionCopied] = useState(false);
-  const [hasNativeShare, setHasNativeShare] = useState(false);
-
-  useEffect(() => {
-    setHasNativeShare(typeof navigator !== 'undefined' && typeof navigator.share === 'function');
-  }, []);
+  const [igCaptionCopied, setIgCaptionCopied] = useState(false);
+  const [ttCaptionCopied, setTtCaptionCopied] = useState(false);
 
   const url = typeof window !== 'undefined' ? assetPermalink(asset.id) : '';
   const fallbackText = asset.title || asset.eventName || 'Check out this photo';
   const text = buildShareCaption(asset.shareText, fallbackText);
 
-  async function copyLink() {
-    await navigator.clipboard.writeText(url);
+  // Neither Instagram nor TikTok has a web share-intent URL for posting — the standard flow on
+  // both is to copy a caption and paste it manually when posting, so each gets its own copy
+  // action rather than pretending a link would work.
+  async function copyCaption(setCopied: (v: boolean) => void) {
+    await navigator.clipboard.writeText(`${text}\n${url}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  }
-
-  // Instagram has no web share-intent URL — the standard flow is to copy a caption and paste it
-  // manually when posting, so give that its own action rather than pretending a link would work.
-  async function copyCaption() {
-    await navigator.clipboard.writeText(`${text}\n${url}`);
-    setCaptionCopied(true);
-    setTimeout(() => setCaptionCopied(false), 2000);
-  }
-
-  async function nativeShare() {
-    try { await navigator.share({ title: text, url }); } catch { /* user cancelled — not an error */ }
   }
 
   return (
@@ -192,19 +171,19 @@ function ShareAction({ asset }: { asset: PublicAsset }) {
         </p>
       )}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-        {socialShareTargets(url, text).map((t) => (
-          <ShareIconButton key={t.key} label={t.label} glyph={t.glyph} color={t.color} href={t.href} />
-        ))}
         <ShareIconButton
           label="Copy caption for Instagram"
-          glyph={captionCopied ? '✓' : '📷'}
-          color={captionCopied ? 'var(--color-primary)' : '#E1306C'}
-          onClick={copyCaption}
+          glyph={igCaptionCopied ? '✓' : '📷'}
+          color={igCaptionCopied ? 'var(--color-primary)' : '#E1306C'}
+          onClick={() => copyCaption(setIgCaptionCopied)}
         />
-        <ShareIconButton label="Copy link" glyph={copied ? '✓' : '🔗'} color={copied ? 'var(--color-primary)' : '#8890b4'} onClick={copyLink} />
-        {hasNativeShare && (
-          <ShareIconButton label="More sharing options" glyph="•••" color="var(--color-primary)" onClick={nativeShare} />
-        )}
+        <ShareIconButton
+          label="Copy caption for TikTok"
+          glyph={ttCaptionCopied ? '✓' : '🎵'}
+          color={ttCaptionCopied ? 'var(--color-primary)' : '#000000'}
+          onClick={() => copyCaption(setTtCaptionCopied)}
+        />
+        <ShareIconButton label="Email" glyph="✉" color="#6b7491" href={emailShareHref(url, text)} />
       </div>
     </div>
   );
