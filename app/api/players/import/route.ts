@@ -11,7 +11,22 @@ const POSITION_MAP: Record<string, string> = {
 };
 
 function decodeEntities(s: string) {
-  return s.replace(/&#0*39;/g, "'").replace(/&#0*38;/g, '&').replace(/&amp;/g, '&');
+  return s
+    // Straight apostrophe, in both its decimal and hex numeric-entity forms.
+    .replace(/&#0*39;|&#x0*27;/gi, "'")
+    // Typographic (curly) apostrophe — ab.dk's CMS emits this for names sometimes instead of a
+    // plain "'", both as a named/numeric entity and as the raw UTF-8 character. Normalizing all
+    // of these down to one canonical "'" is what keeps a name matching itself across scrapes.
+    .replace(/&rsquo;|&#0*8217;|&#x0*2019;/gi, "'")
+    .replace(/[‘’]/g, "'")
+    .replace(/&#0*38;|&amp;/gi, '&');
+}
+
+// Collapses apostrophe variants the same way decodeEntities does, so a name freshly scraped from
+// ab.dk still matches an existing Player row even if that row was saved before this normalization
+// existed (or via some other path that preserved a different apostrophe character).
+function normalizeName(name: string): string {
+  return name.replace(/[‘’]/g, "'").trim().replace(/\s+/g, ' ');
 }
 
 type ParsedPlayer = {
@@ -115,11 +130,11 @@ export async function POST() {
   );
 
   const existing = await prisma.player.findMany({ select: { id: true, name: true } });
-  const byName = new Map(existing.map((p) => [p.name, p.id]));
+  const byName = new Map(existing.map((p) => [normalizeName(p.name), p.id]));
 
   let created = 0, updated = 0;
   for (const p of withImages) {
-    const existingId = byName.get(p.name);
+    const existingId = byName.get(normalizeName(p.name));
     if (existingId) {
       await prisma.player.update({
         where: { id: existingId },

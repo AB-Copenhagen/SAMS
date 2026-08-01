@@ -49,6 +49,9 @@ function PlayersTab() {
   const [enrolling, setEnrolling] = useState(false);
   const [enrollResult, setEnrollResult] = useState<{ total: number; enrolled: number; errors: unknown[] } | null>(null);
   const [saveWarning, setSaveWarning] = useState('');
+  const [merging, setMerging] = useState(false);
+  const [mergeResult, setMergeResult] = useState<{ playersDeleted: number; mergedNames: string[] } | null>(null);
+  const [mergeError, setMergeError] = useState('');
 
   function openPlayer(p: Player) {
     setSelected(p);
@@ -127,6 +130,22 @@ function PlayersTab() {
     setV((n) => n + 1);
   }
 
+  async function mergeDuplicates() {
+    if (!confirm('Merge duplicate players (same name, different apostrophe/spacing)? This deletes the duplicate records after moving their tags to the surviving one.')) return;
+    setMerging(true);
+    setMergeResult(null);
+    setMergeError('');
+    const res = await apiFetch('/api/players/merge-duplicates', 'POST');
+    const body = await res.json().catch(() => ({}));
+    if (res.ok) {
+      setMergeResult(body);
+      setV((n) => n + 1);
+    } else {
+      setMergeError(body.message ?? 'Merge failed');
+    }
+    setMerging(false);
+  }
+
   function ef(key: string, val: string) {
     setEditing((f) => ({ ...f, [key]: val }));
   }
@@ -146,6 +165,17 @@ function PlayersTab() {
               Enrolled {enrollResult.enrolled}/{enrollResult.total} faces{enrollResult.errors.length ? ` — ${enrollResult.errors.length} failed` : ''}
             </span>
           )}
+          {mergeResult && (
+            <span style={{ fontSize: 13, color: '#16a34a' }}>
+              {mergeResult.playersDeleted > 0
+                ? `Merged ${mergeResult.playersDeleted} duplicate${mergeResult.playersDeleted === 1 ? '' : 's'} (${mergeResult.mergedNames.join(', ')})`
+                : 'No duplicates found'}
+            </span>
+          )}
+          {mergeError && <span style={{ fontSize: 13, color: '#dc2626' }}>{mergeError}</span>}
+          <button className="btn-secondary" type="button" onClick={mergeDuplicates} disabled={merging}>
+            {merging ? <><span className="spinner" /> Merging…</> : 'Merge duplicate players'}
+          </button>
           <button className="btn-secondary" type="button" onClick={enrollAllFaces} disabled={enrolling}>
             {enrolling ? <><span className="spinner" /> Enrolling…</> : 'Enroll all faces'}
           </button>
