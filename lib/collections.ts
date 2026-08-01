@@ -29,10 +29,15 @@ type CollectionWithRules = Collection & {
   sponsorRules: { sponsorId: string }[];
 };
 
+// A photo can be matched to the same player/sponsor via more than one source (face + jersey-ocr,
+// or logo + ocr-text), which creates multiple confirmed rows for the same (assetId, playerId)
+// pair by design (each source tracks its own confirmation independently — see lib/asset-tags.ts).
+// distinct collapses those back to one row per player/sponsor so "featuring" credits don't list
+// the same person twice.
 const CONFIRMED_TAGS_INCLUDE = {
-  playerTags: { where: { status: 'confirmed' as const }, include: { player: true } },
-  sponsorTags: { where: { status: 'confirmed' as const }, include: { sponsor: true } },
-};
+  playerTags: { where: { status: 'confirmed' as const }, include: { player: true }, distinct: ['playerId'] },
+  sponsorTags: { where: { status: 'confirmed' as const }, include: { sponsor: true }, distinct: ['sponsorId'] },
+} satisfies Prisma.AssetInclude;
 
 export type AssetWithTags = Prisma.AssetGetPayload<{ include: typeof CONFIRMED_TAGS_INCLUDE }>;
 
