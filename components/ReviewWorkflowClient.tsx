@@ -48,6 +48,7 @@ export default function ReviewWorkflowClient({
   const [playerIds, setPlayerIds] = useState<string[]>([]);
   const [sponsorIds, setSponsorIds] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState(false);
 
   const queueRef = useRef(queue);
   queueRef.current = queue;
@@ -129,6 +130,30 @@ export default function ReviewWorkflowClient({
 
   const skip = useCallback(() => {
     setQueue((prev) => (prev.length > 1 ? [...prev.slice(1), prev[0]] : prev));
+  }, []);
+
+  // No keyboard shortcut for this — 1-4/S are pressed fast during review and a stray keystroke
+  // must never delete an asset. Confirm dialog is a deliberate extra guard for the same reason.
+  const deleteAndAdvance = useCallback(async () => {
+    const item = queueRef.current[0];
+    if (!item) return;
+    if (!confirm(`Delete "${item.title || 'Untitled'}"? This cannot be undone.`)) return;
+
+    setDeleting(true);
+    setQueue((prev) => prev.slice(1));
+    setRemaining((n) => Math.max(0, n - 1));
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/assets/${item.id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+    } catch {
+      setRemaining((n) => n + 1);
+      setQueue((prev) => [item, ...prev]);
+      setError(`Failed to delete "${item.title || 'Untitled'}" — retry?`);
+    } finally {
+      setDeleting(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -216,6 +241,7 @@ export default function ReviewWorkflowClient({
                   className="btn-primary"
                   style={{ justifyContent: 'center', gap: 4 }}
                   onClick={() => rateAndAdvance(n)}
+                  disabled={deleting}
                 >
                   {n} ★
                 </button>
@@ -223,8 +249,11 @@ export default function ReviewWorkflowClient({
             </div>
           </div>
 
-          <button className="btn-secondary" type="button" onClick={skip} style={{ width: '100%', justifyContent: 'center', marginTop: 4 }}>
+          <button className="btn-secondary" type="button" onClick={skip} disabled={deleting} style={{ width: '100%', justifyContent: 'center', marginTop: 4 }}>
             Skip
+          </button>
+          <button className="btn-danger" type="button" onClick={deleteAndAdvance} disabled={deleting} style={{ width: '100%', justifyContent: 'center', marginTop: 8 }}>
+            {deleting ? <><span className="spinner" /> Deleting…</> : 'Delete asset'}
           </button>
           <p style={{ fontSize: 11.5, color: '#8890b4', marginTop: 10, textAlign: 'center' }}>
             Press 1-4 to rate &amp; advance · S to skip

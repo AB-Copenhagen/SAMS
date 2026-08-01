@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { getCurrentUser } from '../../lib/auth';
 import { prisma } from '../../lib/db';
 import AppShell from '../../components/AppShell';
+import DeleteAssetRowButton from '../../components/DeleteAssetRowButton';
 
 function typeBadge(fileType: string) {
   if (fileType.startsWith('image/')) return <span className="type-badge badge-image">Image</span>;
@@ -68,6 +69,7 @@ export default async function AdminPage() {
                   <th>Uploaded</th>
                   <th>Tags</th>
                   <th>File</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -98,6 +100,9 @@ export default async function AdminPage() {
                         >
                           Open ↗
                         </a>
+                      </td>
+                      <td>
+                        <DeleteAssetRowButton id={asset.id} title={asset.title || asset.eventName || 'this asset'} />
                       </td>
                     </tr>
                   );
