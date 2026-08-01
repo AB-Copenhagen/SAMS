@@ -15,7 +15,7 @@ export async function GET(request: Request) {
       where: REVIEWABLE_ASSET_WHERE,
       orderBy: { uploadedAt: 'asc' },
       take: limit,
-      select: { id: true, title: true, uploadedAt: true, manualTagsJson: true, fileType: true },
+      select: { id: true, title: true, uploadedAt: true, manualTagsJson: true, fileType: true, thumbnailKey: true, thumbnailStatus: true },
     }),
     prisma.asset.count({ where: REVIEWABLE_ASSET_WHERE }),
   ]);
@@ -46,6 +46,8 @@ export async function GET(request: Request) {
       uploadedAt: a.uploadedAt,
       manualTagsJson: a.manualTagsJson,
       fileType: a.fileType,
+      thumbnailKey: a.thumbnailKey,
+      thumbnailStatus: a.thumbnailStatus,
       playerIds: playerIdsByAsset.get(a.id) ?? [],
       sponsorIds: sponsorIdsByAsset.get(a.id) ?? [],
     })),
