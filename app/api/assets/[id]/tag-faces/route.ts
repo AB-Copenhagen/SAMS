@@ -28,9 +28,10 @@ export async function POST(_request: Request, props: { params: Promise<{ id: str
     const playerIds = new Set<string>();
     const sponsorIds = new Set<string>();
 
-    // All automated detections are applied immediately as confirmed tags — no review step —
-    // so newly uploaded assets show their players/sponsors right away. Wrong tags get corrected
-    // afterward via the existing manual multi-select / reject actions.
+    // Face matches and grounded jersey-number/name reads (clearly on a person) are applied
+    // immediately as confirmed tags — no review step — so the user sees a result right away.
+    // Ungrounded jersey reads (number/name detected somewhere in the image but not clearly on a
+    // person's torso — e.g. background signage) land as 'suggested' for human review instead.
     for (const match of faceMatches) {
       await upsertPlayerTag(params.id, match.playerId, 'face', match.similarityPct / 100, 'confirmed');
       const player = await prisma.player.findUnique({ where: { id: match.playerId }, select: { name: true } });
@@ -42,12 +43,15 @@ export async function POST(_request: Request, props: { params: Promise<{ id: str
     }
 
     for (const match of jerseyMatches) {
-      await upsertPlayerTag(params.id, match.playerId, 'jersey-ocr', null, 'confirmed');
-      const player = await prisma.player.findUnique({ where: { id: match.playerId }, select: { name: true } });
-      if (player) {
-        playerNames.add(player.name);
-        playerIds.add(match.playerId);
-        await addConfirmedStringTag(params.id, `player:${player.name.toLowerCase().replace(/\s+/g, '-')}`);
+      const status = match.grounded ? 'confirmed' : 'suggested';
+      await upsertPlayerTag(params.id, match.playerId, 'jersey-ocr', null, status);
+      if (status === 'confirmed') {
+        const player = await prisma.player.findUnique({ where: { id: match.playerId }, select: { name: true } });
+        if (player) {
+          playerNames.add(player.name);
+          playerIds.add(match.playerId);
+          await addConfirmedStringTag(params.id, `player:${player.name.toLowerCase().replace(/\s+/g, '-')}`);
+        }
       }
     }
 

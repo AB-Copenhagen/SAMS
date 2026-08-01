@@ -44,10 +44,12 @@ function getCollectionId(): string {
 
 const DETECT_FACE_MIN_CONFIDENCE = 90;
 const DETECT_TEXT_MIN_CONFIDENCE = 80;
-// A jersey number sits on the torso, below the face — "near" is defined loosely as horizontally
-// overlapping the face and within a handful of face-heights below it, to tolerate the wide range
-// of framing (tight headshot-style crop vs. full-body action shot) real match photos come in.
-const JERSEY_VERTICAL_REACH_FACE_HEIGHTS = 8;
+// A jersey number sits on the torso, just below the face — "near" is defined as horizontally
+// overlapping the face and within a few face-heights below it, to tolerate the range of framing
+// (tight headshot-style crop vs. full-body action shot) real match photos come in. This must stay
+// torso-sized, not "anywhere in frame": too generous a reach and background signage/scoreboards
+// sharing the frame with any detected person starts reading as "on someone's jersey".
+const JERSEY_VERTICAL_REACH_FACE_HEIGHTS = 3;
 const MAX_FACES_PER_IMAGE        = Number(process.env.REKOGNITION_MAX_FACES_PER_IMAGE ?? 15);
 export const SUGGEST_THRESHOLD    = Number(process.env.REKOGNITION_SUGGEST_THRESHOLD ?? 80);
 
@@ -245,8 +247,22 @@ async function detectJerseyIdentifiers(bytes: Buffer, faces: DetectedFace[], db:
 
   if (detections.length === 0) return { matches: [], lines };
 
+  // A jersey number stands alone on a shirt — 1 or 2 digits, nothing else on that line. A banner/
+  // scoreboard/date ("EST. 1889", "23-45") reads as one LINE containing 3+ digit characters, even
+  // when Rekognition splits that line into several single-digit WORDs (wide letter-spacing on
+  // signage does this often). Reject any WORD whose parent line contains a longer digit run so
+  // those individual digits never get treated as a standalone jersey number.
+  const lineDigitCountById = new Map<number, number>();
+  for (const t of detections) {
+    if (t.Type === 'LINE' && t.Id != null) {
+      lineDigitCountById.set(t.Id, (t.DetectedText!.match(/[0-9]/g) ?? []).length);
+    }
+  }
+  const isPartOfLongerDigitRun = (t: (typeof detections)[number]): boolean =>
+    t.ParentId != null && (lineDigitCountById.get(t.ParentId) ?? 0) >= 3;
+
   const numberCandidates = detections
-    .filter((t) => t.Type === 'WORD')
+    .filter((t) => t.Type === 'WORD' && !isPartOfLongerDigitRun(t))
     .map((t) => ({ number: parseInt(t.DetectedText!.trim(), 10), box: t.Geometry!.BoundingBox! }))
     .filter((c) => !isNaN(c.number) && c.number >= 1 && c.number <= 99);
 
