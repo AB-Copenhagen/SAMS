@@ -3,7 +3,7 @@ import { getCurrentUser, isAdmin } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { deletePlayerFace } from '../../../../lib/rekognition';
 import { addConfirmedStringTag, removeConfirmedStringTag } from '../../../../lib/asset-tags';
-import { normalizePlayerName } from '../../../../lib/player-name';
+import { normalizePlayerName, decodeHtmlEntities } from '../../../../lib/player-name';
 
 function slugify(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '-');
@@ -25,6 +25,18 @@ export async function POST() {
     include: { _count: { select: { assetTags: true } } },
   });
 
+  // Some rows predate the scraper's HTML-entity decoding (or were entered by hand with raw
+  // markup pasted in) and still have literal "&#039;"-style text baked into `name`. Clean those up
+  // unconditionally, not just when a duplicate is found, since a singleton with no sibling to
+  // merge against would otherwise keep displaying the raw entity forever.
+  for (const p of players) {
+    const decoded = decodeHtmlEntities(p.name);
+    if (decoded !== p.name) {
+      await prisma.player.update({ where: { id: p.id }, data: { name: decoded } });
+      p.name = decoded;
+    }
+  }
+
   const groups = new Map<string, typeof players>();
   for (const p of players) {
     const key = normalizePlayerName(p.name);
@@ -42,9 +54,11 @@ export async function POST() {
   for (const group of groups.values()) {
     if (group.length < 2) continue;
 
-    // Prefer keeping the record with an enrolled face, then the one with the most existing tags,
-    // then the oldest (first-created) record — in that order.
+    // Prefer keeping the record with a confirmed SI ID (it's the one a recent scrape actually
+    // matched, so its data is current), then the one with an enrolled face, then the one with the
+    // most existing tags, then the oldest (first-created) record — in that order.
     const [keeper, ...candidates] = [...group].sort((a, b) => {
+      if (!!b.siPlayerId !== !!a.siPlayerId) return (b.siPlayerId ? 1 : 0) - (a.siPlayerId ? 1 : 0);
       if (!!b.rekognitionFaceId !== !!a.rekognitionFaceId) return (b.rekognitionFaceId ? 1 : 0) - (a.rekognitionFaceId ? 1 : 0);
       if (b._count.assetTags !== a._count.assetTags) return b._count.assetTags - a._count.assetTags;
       return a.createdAt.getTime() - b.createdAt.getTime();
