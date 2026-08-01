@@ -101,7 +101,15 @@ export default function ReviewWorkflowClient({
   const fetchMore = useCallback(async () => {
     setFetchingMore(true);
     try {
-      const res = await fetch(`/api/assets/review-queue?limit=${BATCH_LIMIT}`);
+      // excludeIds (every asset already loaded this session) is what keeps this correct even when
+      // a just-submitted PATCH hasn't committed reviewedAt on the server yet — see the route's
+      // comment. Reading itemsRef here (not the `items` state closed over at callback-creation
+      // time) matters since fetchMore is only recreated on mount.
+      const res = await fetch('/api/assets/review-queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: BATCH_LIMIT, excludeIds: itemsRef.current.map((i) => i.id) }),
+      });
       if (!res.ok) return;
       const data = await res.json() as { assets: RawQueueAsset[]; total: number };
       setItems((prev) => {

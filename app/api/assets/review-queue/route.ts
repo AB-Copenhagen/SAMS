@@ -3,16 +3,30 @@ import { getCurrentUser } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { REVIEWABLE_ASSET_WHERE } from '../../../../lib/asset-review';
 
-export async function GET(request: Request) {
+// POST (not GET) because excludeIds — every asset id the client has already loaded this session —
+// can grow into the hundreds and needs a body, not a query string.
+export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
-  const { searchParams } = new URL(request.url);
-  const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') ?? '20')));
+  const body = await request.json().catch(() => ({}));
+  const limit = Math.min(50, Math.max(1, parseInt(body?.limit) || 20));
+  const excludeIds: string[] = Array.isArray(body?.excludeIds) ? body.excludeIds : [];
+
+  // The review workflow keeps every fetched asset locally (even after rating it) so a reviewer
+  // can go Back and revisit it, and rating is fire-and-forget for a snappy UI — so this endpoint
+  // can get called again before an earlier PATCH's reviewedAt write has actually committed.
+  // Relying on REVIEWABLE_ASSET_WHERE alone would then re-return the same still-technically-
+  // unreviewed assets, which the client (correctly) treats as already-seen and drops, starving
+  // the queue. Explicitly excluding every id the client has already loaded makes each page
+  // advance regardless of that race.
+  const where = excludeIds.length > 0
+    ? { ...REVIEWABLE_ASSET_WHERE, id: { notIn: excludeIds } }
+    : REVIEWABLE_ASSET_WHERE;
 
   const [assets, total] = await Promise.all([
     prisma.asset.findMany({
-      where: REVIEWABLE_ASSET_WHERE,
+      where,
       orderBy: { uploadedAt: 'asc' },
       take: limit,
       select: { id: true, title: true, uploadedAt: true, manualTagsJson: true, fileType: true, thumbnailKey: true, thumbnailStatus: true },
