@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { applyShareFilters, getPublicCollectionByToken, resolveCollectionAssets } from '../../../../../../../lib/collections';
-import { isShareUnlocked } from '../../../../../../../lib/share-auth';
+import { resolveShareTarget } from '../../../../../../../lib/collections';
 import { renderExport, EXPORT_PRESETS } from '../../../../../../../lib/export-presets';
 
 export const maxDuration = 60;
@@ -17,15 +16,11 @@ export async function GET(request: Request, props: { params: Promise<{ token: st
     return NextResponse.json({ message: `Unknown preset. Valid: ${Object.keys(EXPORT_PRESETS).join(', ')}` }, { status: 400 });
   }
 
-  const collection = await getPublicCollectionByToken(token);
-  if (!collection || !collection.isPublic) return NextResponse.json({ message: 'Not found' }, { status: 404 });
-  if (collection.sharePasswordHash && !(await isShareUnlocked(token))) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
+  const target = await resolveShareTarget(token, assetId);
+  if (!target) return NextResponse.json({ message: 'Not found' }, { status: 404 });
+  if (target.kind === 'password-required') return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
-  const assets = applyShareFilters(await resolveCollectionAssets(collection), collection);
-  const asset = assets.find((a) => a.id === assetId);
-  if (!asset) return NextResponse.json({ message: 'Not found' }, { status: 404 });
+  const asset = target.asset;
   if (!asset.fileType.startsWith('image/')) {
     return NextResponse.json({ message: 'Resized exports are only available for images' }, { status: 400 });
   }

@@ -3,6 +3,7 @@ import { getCurrentUser } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { deleteFileFromWasabi } from '../../../../lib/wasabi';
 import { syncPlayerTags, syncSponsorTags } from '../../../../lib/asset-tags';
+import { generateShareToken } from '../../../../lib/collections';
 
 export async function GET(_: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -80,5 +81,35 @@ export async function PUT(request: Request, props: { params: Promise<{ id: strin
     await syncSponsorTags(params.id, body.sponsorIds, user.email);
   }
 
+  return NextResponse.json(asset);
+}
+
+type SharePatchBody = {
+  isPublic?: boolean;
+  regenerateToken?: boolean;
+};
+
+// Standalone per-asset public link — independent of PUT above, which handles the full metadata
+// edit form. Mirrors the Collection sharing PATCH in app/api/collections/[id]/route.ts, minus
+// password support (an individual asset link is a plain magic URL by design).
+export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  const body = await request.json() as SharePatchBody;
+
+  const existing = await prisma.asset.findUnique({ where: { id: params.id }, select: { shareToken: true } });
+  if (!existing) return NextResponse.json({ message: 'Not found' }, { status: 404 });
+
+  const needsToken = (body.isPublic === true || body.regenerateToken) && (body.regenerateToken || !existing.shareToken);
+
+  const asset = await prisma.asset.update({
+    where: { id: params.id },
+    data: {
+      ...(body.isPublic !== undefined && { isPublic: body.isPublic }),
+      ...(needsToken && { shareToken: generateShareToken() }),
+      ...((body.isPublic !== undefined || needsToken) && { shareUpdatedAt: new Date() }),
+    },
+  });
   return NextResponse.json(asset);
 }

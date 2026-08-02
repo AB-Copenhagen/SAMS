@@ -7,6 +7,7 @@ import Combobox from './Combobox';
 import IdentifyPlayersButton from './IdentifyPlayersButton';
 import EntityMultiSelect, { type EntityOption } from './EntityMultiSelect';
 import PhotoEditor, { type EditParamsState } from './PhotoEditor';
+import AssetSharePanel from './AssetSharePanel';
 
 type Season     = { id: string; name: string };
 type Collection = { id: string; name: string; type: string; date: string | Date | null };
@@ -42,6 +43,8 @@ type AssetProps = {
   reviewedBy: string | null;
   editedKey: string | null;
   editParamsJson: string | null;
+  isPublic: boolean;
+  shareToken: string | null;
 };
 
 function formatBytes(b: number) {
@@ -117,6 +120,7 @@ function ExifPanel({ exifJson }: { exifJson: string | null }) {
 
 export default function AssetDetailClient({
   asset,
+  appBaseUrl,
   signedUrl,
   seasons,
   collections,
@@ -127,6 +131,7 @@ export default function AssetDetailClient({
   initialSponsorIds = [],
 }: {
   asset: AssetProps;
+  appBaseUrl: string;
   signedUrl: string;
   seasons: Season[];
   collections: Collection[];
@@ -391,6 +396,8 @@ export default function AssetDetailClient({
             {deleting ? <><span className="spinner" /> Deleting…</> : 'Delete asset'}
           </button>
         </div>
+
+        <AssetSharePanel id={asset.id} isPublic={asset.isPublic} shareToken={asset.shareToken} appBaseUrl={appBaseUrl} />
 
         <div className="card">
           <div className="card-header" style={{ marginBottom: 12 }}>Detected tags</div>

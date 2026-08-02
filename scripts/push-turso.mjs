@@ -282,6 +282,11 @@ ALTER TABLE "Asset" ADD COLUMN "shareText" TEXT;
 
 ALTER TABLE "Player" ADD COLUMN "siPlayerId" TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS "Player_siPlayerId_key" ON "Player"("siPlayerId");
+
+ALTER TABLE "Asset" ADD COLUMN "isPublic" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Asset" ADD COLUMN "shareToken" TEXT;
+ALTER TABLE "Asset" ADD COLUMN "shareUpdatedAt" DATETIME;
+CREATE UNIQUE INDEX IF NOT EXISTS "Asset_shareToken_key" ON "Asset"("shareToken");
 `;
 
 const statements = sql

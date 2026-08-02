@@ -1,21 +1,14 @@
 import { NextResponse } from 'next/server';
-import { applyShareFilters, getPublicCollectionByToken, resolveCollectionAssets } from '../../../../../../../lib/collections';
-import { isShareUnlocked } from '../../../../../../../lib/share-auth';
+import { resolveShareTarget } from '../../../../../../../lib/collections';
 import { getPresignedUrl } from '../../../../../../../lib/wasabi';
 
 export async function GET(_: Request, props: { params: Promise<{ token: string; assetId: string }> }) {
   const { token, assetId } = await props.params;
 
-  const collection = await getPublicCollectionByToken(token);
-  if (!collection || !collection.isPublic) return NextResponse.json({ message: 'Not found' }, { status: 404 });
-  if (collection.sharePasswordHash && !(await isShareUnlocked(token))) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
+  const target = await resolveShareTarget(token, assetId);
+  if (!target) return NextResponse.json({ message: 'Not found' }, { status: 404 });
+  if (target.kind === 'password-required') return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
-  const assets = applyShareFilters(await resolveCollectionAssets(collection), collection);
-  const asset = assets.find((a) => a.id === assetId);
-  if (!asset) return NextResponse.json({ message: 'Not found' }, { status: 404 });
-
-  const url = await getPresignedUrl(asset.editedKey ?? asset.objectKey);
+  const url = await getPresignedUrl(target.asset.editedKey ?? target.asset.objectKey);
   return NextResponse.redirect(url, { status: 307 });
 }

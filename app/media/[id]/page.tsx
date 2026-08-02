@@ -17,6 +17,8 @@ export default async function AssetDetailPage(props: { params: Promise<{ id: str
   });
   if (!asset) notFound();
 
+  const appBaseUrl = (process.env.PUBLIC_SHARE_BASE_URL ?? process.env.APP_BASE_URL ?? '').replace(/\/$/, '');
+
   const [seasons, collections, stadiums, players, sponsors, playerTags, sponsorTags, signedUrl] = await Promise.all([
     prisma.season.findMany({ orderBy: { startDate: 'desc' }, select: { id: true, name: true } }),
     prisma.collection.findMany({ orderBy: { date: 'desc' }, select: { id: true, name: true, type: true, date: true } }),
@@ -64,7 +66,10 @@ export default async function AssetDetailPage(props: { params: Promise<{ id: str
           reviewedBy:       asset.reviewedBy        ?? null,
           editedKey:        asset.editedKey         ?? null,
           editParamsJson:   asset.editParamsJson    ?? null,
+          isPublic:         asset.isPublic,
+          shareToken:       asset.shareToken        ?? null,
         }}
+        appBaseUrl={appBaseUrl}
         signedUrl={signedUrl}
         seasons={seasons}
         collections={collections}

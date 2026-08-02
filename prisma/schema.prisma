@@ -48,6 +48,9 @@ model Asset {
   reviewedBy         String?
   editedKey          String?
   editParamsJson     String?
+  isPublic           Boolean     @default(false)
+  shareToken         String?     @unique
+  shareUpdatedAt     DateTime?
   playerTags         AssetPlayerTag[]
   sponsorTags        AssetSponsorTag[]
   collectionMemberships CollectionAsset[]

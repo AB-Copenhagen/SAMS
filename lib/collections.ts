@@ -1,6 +1,7 @@
 import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import { Prisma, type Collection } from '@prisma/client';
 import { prisma } from './db';
+import { isShareUnlocked } from './share-auth';
 
 const SHARE_TOKEN_BYTES = 18; // ~24 base62 chars
 
@@ -163,4 +164,39 @@ export async function getPublicCollectionByToken(token: string) {
     where: { shareToken: token },
     include: { playerRules: true, sponsorRules: true },
   });
+}
+
+/** Standalone per-asset share link, independent of any collection's public status — admin-generated. */
+export async function getAssetByShareToken(token: string): Promise<AssetWithTags | null> {
+  return prisma.asset.findFirst({
+    where: { shareToken: token, isPublic: true },
+    include: CONFIRMED_TAGS_INCLUDE,
+  });
+}
+
+export type ShareTarget =
+  | { kind: 'password-required'; name: string }
+  | { kind: 'found'; asset: AssetWithTags }
+  | null;
+
+/**
+ * Single entry point for resolving a public `/s/[token]/[assetId]` URL (and the matching
+ * download/export/thumbnail API routes): the token is tried first as a Collection's share token
+ * (existing gallery flow — public + optional password + share filters), then as an Asset's own
+ * standalone share token (admin per-asset link, no password gate, independent of the asset's
+ * collection being public at all).
+ */
+export async function resolveShareTarget(token: string, assetId: string): Promise<ShareTarget> {
+  const collection = await getPublicCollectionByToken(token);
+  if (collection && collection.isPublic) {
+    if (collection.sharePasswordHash && !(await isShareUnlocked(token))) {
+      return { kind: 'password-required', name: collection.name };
+    }
+    const assets = applyShareFilters(await resolveCollectionAssets(collection), collection);
+    const asset = assets.find((a) => a.id === assetId);
+    return asset ? { kind: 'found', asset } : null;
+  }
+
+  const asset = await getAssetByShareToken(token);
+  return asset && asset.id === assetId ? { kind: 'found', asset } : null;
 }
