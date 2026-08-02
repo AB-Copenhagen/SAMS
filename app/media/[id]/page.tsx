@@ -3,11 +3,13 @@ import Link from 'next/link';
 import { getCurrentUser } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
 import { getPresignedUrl } from '../../../lib/wasabi';
+import { getCollectionNavContext } from '../../../lib/collections';
 import AppShell from '../../../components/AppShell';
 import AssetDetailClient from '../../../components/AssetDetailClient';
 
-export default async function AssetDetailPage(props: { params: Promise<{ id: string }> }) {
+export default async function AssetDetailPage(props: { params: Promise<{ id: string }>; searchParams: Promise<{ collectionId?: string }> }) {
   const params = await props.params;
+  const searchParams = await props.searchParams;
   const user = await getCurrentUser();
   if (!user) redirect('/login');
 
@@ -18,6 +20,21 @@ export default async function AssetDetailPage(props: { params: Promise<{ id: str
   if (!asset) notFound();
 
   const appBaseUrl = (process.env.PUBLIC_SHARE_BASE_URL ?? process.env.APP_BASE_URL ?? '').replace(/\/$/, '');
+
+  // Present only when reached from a collection's asset gallery (?collectionId=) — drives the
+  // prev/next arrows and breadcrumb below. Falls back to no nav if the id is stale/deleted or the
+  // asset no longer belongs to that collection's resolved membership.
+  const collectionId = searchParams.collectionId || '';
+  const navContext = collectionId ? await getCollectionNavContext(collectionId) : null;
+  const navIndex = navContext ? navContext.assetIds.indexOf(asset.id) : -1;
+  const nav = navContext && navIndex !== -1 ? {
+    collectionId,
+    collectionName: navContext.name,
+    position: navIndex + 1,
+    total: navContext.assetIds.length,
+    prevHref: navIndex > 0 ? `/media/${navContext.assetIds[navIndex - 1]}?collectionId=${collectionId}` : null,
+    nextHref: navIndex < navContext.assetIds.length - 1 ? `/media/${navContext.assetIds[navIndex + 1]}?collectionId=${collectionId}` : null,
+  } : null;
 
   const [seasons, collections, stadiums, players, sponsors, playerTags, sponsorTags, signedUrl] = await Promise.all([
     prisma.season.findMany({ orderBy: { startDate: 'desc' }, select: { id: true, name: true } }),
@@ -35,12 +52,17 @@ export default async function AssetDetailPage(props: { params: Promise<{ id: str
   return (
     <AppShell user={user}>
       <div className="breadcrumb">
-        <Link href="/media">Media Library</Link>
+        {nav ? (
+          <Link href={`/collections/${nav.collectionId}`}>{nav.collectionName}</Link>
+        ) : (
+          <Link href="/media">Media Library</Link>
+        )}
         <span className="breadcrumb-sep">›</span>
         <span>{asset.title || asset.eventName || asset.objectKey.split('/').pop()}</span>
       </div>
 
       <AssetDetailClient
+        nav={nav}
         stadiums={stadiums.map((s) => s.name)}
         asset={{
           id:              asset.id,

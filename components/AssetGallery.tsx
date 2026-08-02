@@ -19,13 +19,15 @@ interface AssetGalleryProps {
   metaMode?: 'date' | 'filesize';
   /** Optional extra content rendered inside each card (e.g. a "needs review" badge). */
   renderExtra?: (asset: GalleryAsset) => ReactNode;
+  /** When set, links carry ?collectionId= so the asset detail page can offer prev/next through this same list. */
+  collectionId?: string;
 }
 
-export default function AssetGallery({ assets, metaMode = 'date', renderExtra }: AssetGalleryProps) {
+export default function AssetGallery({ assets, metaMode = 'date', renderExtra, collectionId }: AssetGalleryProps) {
   return (
     <div className="gallery">
       {assets.map((a) => (
-        <a key={a.id} href={`/media/${a.id}`} className="asset-card">
+        <a key={a.id} href={collectionId ? `/media/${a.id}?collectionId=${collectionId}` : `/media/${a.id}`} className="asset-card">
           <div className="asset-thumb">
             <AssetThumbnail id={a.id} title={a.title} fileType={a.fileType} thumbnailKey={a.thumbnailKey} thumbnailStatus={a.thumbnailStatus} />
           </div>

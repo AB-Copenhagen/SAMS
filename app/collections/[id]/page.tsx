@@ -114,7 +114,7 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
           )}
         </div>
       ) : (
-        <AssetGallery assets={assets} metaMode="filesize" />
+        <AssetGallery assets={assets} metaMode="filesize" collectionId={collection.id} />
       )}
     </AppShell>
   );

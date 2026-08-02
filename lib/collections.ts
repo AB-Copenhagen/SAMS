@@ -67,6 +67,29 @@ export async function resolveCollectionAssets(collection: CollectionWithRules): 
   });
 }
 
+/**
+ * Same membership/ordering rules as the collection admin page (legacy FK relation for plain
+ * collections, resolveCollectionAssets for custom ones) but id-only — used to drive prev/next
+ * navigation on the asset detail page without pulling every asset's full tag data.
+ */
+export async function getCollectionNavContext(collectionId: string): Promise<{ name: string; assetIds: string[] } | null> {
+  const collection = await prisma.collection.findUnique({
+    where: { id: collectionId },
+    include: {
+      assets: { orderBy: { uploadedAt: 'desc' }, select: { id: true } },
+      playerRules: true,
+      sponsorRules: true,
+    },
+  });
+  if (!collection) return null;
+
+  const assetIds = collection.type === 'custom'
+    ? (await resolveCollectionAssets(collection)).map((a) => a.id)
+    : collection.assets.map((a) => a.id);
+
+  return { name: collection.name, assetIds };
+}
+
 /** Pulls only the capture timestamp out of the raw EXIF blob — never expose GPS/camera/lens details publicly. */
 function extractDateTaken(exifJson: string | null): string | null {
   if (!exifJson) return null;

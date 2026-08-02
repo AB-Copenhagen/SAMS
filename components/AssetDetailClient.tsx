@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import TagInput from './TagInput';
 import Combobox from './Combobox';
 import IdentifyPlayersButton from './IdentifyPlayersButton';
@@ -11,6 +12,29 @@ import AssetSharePanel from './AssetSharePanel';
 
 type Season     = { id: string; name: string };
 type Collection = { id: string; name: string; type: string; date: string | Date | null };
+export type AssetNav = {
+  collectionId: string;
+  collectionName: string;
+  position: number;
+  total: number;
+  prevHref: string | null;
+  nextHref: string | null;
+};
+
+const overlayButtonStyle: CSSProperties = {
+  width: 40,
+  height: 40,
+  borderRadius: '50%',
+  background: 'rgba(13,15,28,0.65)',
+  color: 'white',
+  border: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 18,
+  textDecoration: 'none',
+  flexShrink: 0,
+};
 
 function collectionLabel(c: Collection): string {
   if (!c.date) return c.name;
@@ -120,6 +144,7 @@ function ExifPanel({ exifJson }: { exifJson: string | null }) {
 
 export default function AssetDetailClient({
   asset,
+  nav,
   appBaseUrl,
   signedUrl,
   seasons,
@@ -131,6 +156,7 @@ export default function AssetDetailClient({
   initialSponsorIds = [],
 }: {
   asset: AssetProps;
+  nav?: AssetNav | null;
   appBaseUrl: string;
   signedUrl: string;
   seasons: Season[];
@@ -142,6 +168,22 @@ export default function AssetDetailClient({
   initialSponsorIds?: string[];
 }) {
   const router = useRouter();
+
+  // ← → step through the collection this asset was opened from; guarded against text inputs,
+  // selects, and comboboxes so typing/browsing a dropdown isn't hijacked (mirrors the review
+  // gallery's keyboard nav in ReviewWorkflowClient).
+  useEffect(() => {
+    if (!nav) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.repeat) return;
+      const target = e.target as HTMLElement;
+      if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (e.key === 'ArrowRight' && nav!.nextHref) { e.preventDefault(); router.push(nav!.nextHref); }
+      if (e.key === 'ArrowLeft' && nav!.prevHref) { e.preventDefault(); router.push(nav!.prevHref); }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [nav, router]);
   const [detectedTags, setDetectedTags] = useState<string[]>(() => {
     try { return JSON.parse(asset.detectedTagsJson ?? '[]') as string[]; } catch { return []; }
   });
@@ -222,20 +264,57 @@ export default function AssetDetailClient({
       {/* Left column: preview + EXIF */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          {isVideo ? (
-            <video
-              src={signedUrl}
-              controls
-              style={{ width: '100%', display: 'block', background: '#0d0f1c', maxHeight: 520 }}
-            />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={signedUrl}
-              alt={asset.title || asset.objectKey}
-              style={{ width: '100%', display: 'block', maxHeight: 580, objectFit: 'contain', background: '#0d0f1c' }}
-            />
-          )}
+          <div style={{ position: 'relative' }}>
+            {isVideo ? (
+              <video
+                src={signedUrl}
+                controls
+                style={{ width: '100%', display: 'block', background: '#0d0f1c', maxHeight: 520 }}
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={signedUrl}
+                alt={asset.title || asset.objectKey}
+                style={{ width: '100%', display: 'block', maxHeight: 580, objectFit: 'contain', background: '#0d0f1c' }}
+              />
+            )}
+            {nav && (
+              <>
+                <Link
+                  href={nav.prevHref ?? '#'}
+                  aria-label="Previous asset in collection"
+                  onClick={(e) => { if (!nav.prevHref) e.preventDefault(); }}
+                  style={{
+                    ...overlayButtonStyle, position: 'absolute', top: '50%', left: 10, transform: 'translateY(-50%)',
+                    opacity: nav.prevHref ? 1 : 0.35, cursor: nav.prevHref ? 'pointer' : 'default', pointerEvents: nav.prevHref ? 'auto' : 'none',
+                  }}
+                >
+                  ‹
+                </Link>
+                <Link
+                  href={nav.nextHref ?? '#'}
+                  aria-label="Next asset in collection"
+                  onClick={(e) => { if (!nav.nextHref) e.preventDefault(); }}
+                  style={{
+                    ...overlayButtonStyle, position: 'absolute', top: '50%', right: 10, transform: 'translateY(-50%)',
+                    opacity: nav.nextHref ? 1 : 0.35, cursor: nav.nextHref ? 'pointer' : 'default', pointerEvents: nav.nextHref ? 'auto' : 'none',
+                  }}
+                >
+                  ›
+                </Link>
+                <span
+                  style={{
+                    position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)',
+                    background: 'rgba(13,15,28,0.65)', color: 'white', fontSize: 12, fontWeight: 600,
+                    padding: '3px 10px', borderRadius: 12,
+                  }}
+                >
+                  {nav.position} / {nav.total}
+                </span>
+              </>
+            )}
+          </div>
           <div style={{ padding: '12px 16px', borderTop: '1px solid #f0f2f7', display: 'flex', gap: 16, fontSize: 12, color: '#8890b4', alignItems: 'center' }}>
             <span>{asset.fileType.split('/')[1]?.toUpperCase()}</span>
             <span>{formatBytes(asset.fileSize)}</span>
