@@ -90,6 +90,32 @@ export async function getCollectionNavContext(collectionId: string): Promise<{ n
   return { name: collection.name, assetIds };
 }
 
+/**
+ * Fills eventName/eventDate/seasonId from the assigned Collection wherever the asset's own value
+ * is blank — a Collection (the "match") is the source of truth for those fields, but they're
+ * denormalized onto Asset for display/filtering, so assigning a collection doesn't retroactively
+ * populate them by itself. Never overwrites a value the asset (or an admin) already has, so a
+ * deliberately-customized eventName/eventDate survives later saves.
+ */
+export async function resolveEventFieldDefaults(
+  collectionId: string | null,
+  current: { eventName: string | null; eventDate: Date | null; seasonId: string | null },
+): Promise<{ eventName: string | null; eventDate: Date | null; seasonId: string | null }> {
+  if (!collectionId || (current.eventName && current.eventDate && current.seasonId)) return current;
+
+  const collection = await prisma.collection.findUnique({
+    where: { id: collectionId },
+    select: { name: true, date: true, seasonId: true },
+  });
+  if (!collection) return current;
+
+  return {
+    eventName: current.eventName || collection.name,
+    eventDate: current.eventDate || collection.date,
+    seasonId: current.seasonId || collection.seasonId,
+  };
+}
+
 /** Pulls only the capture timestamp out of the raw EXIF blob — never expose GPS/camera/lens details publicly. */
 function extractDateTaken(exifJson: string | null): string | null {
   if (!exifJson) return null;

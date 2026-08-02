@@ -11,7 +11,7 @@ import PhotoEditor, { type EditParamsState } from './PhotoEditor';
 import AssetSharePanel from './AssetSharePanel';
 
 type Season     = { id: string; name: string };
-type Collection = { id: string; name: string; type: string; date: string | Date | null };
+type Collection = { id: string; name: string; type: string; date: string | Date | null; seasonId: string | null };
 export type AssetNav = {
   collectionId: string;
   collectionName: string;
@@ -390,7 +390,23 @@ export default function AssetDetailClient({
           </div>
           <div className="field">
             <label>Collection</label>
-            <select value={form.collectionId} onChange={(e) => set('collectionId', e.target.value)}>
+            <select
+              value={form.collectionId}
+              onChange={(e) => {
+                const newCollectionId = e.target.value;
+                const collection = collections.find((c) => c.id === newCollectionId);
+                setForm((f) => ({
+                  ...f,
+                  collectionId: newCollectionId,
+                  // Inherit the match's own event name/date/season onto this asset, but only to
+                  // fill gaps — never clobber a value already sitting in the form.
+                  eventName: f.eventName || (collection ? collection.name : f.eventName),
+                  eventDate: f.eventDate || (collection?.date ? new Date(collection.date).toISOString().split('T')[0] : f.eventDate),
+                  seasonId: f.seasonId || (collection?.seasonId ?? f.seasonId),
+                }));
+                setSaved(false);
+              }}
+            >
               <option value="">No collection</option>
               {collections.map((c) => (
                 <option key={c.id} value={c.id}>{collectionLabel(c)}</option>

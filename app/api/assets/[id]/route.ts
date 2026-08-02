@@ -3,7 +3,7 @@ import { getCurrentUser } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { deleteFileFromWasabi } from '../../../../lib/wasabi';
 import { syncPlayerTags, syncSponsorTags } from '../../../../lib/asset-tags';
-import { generateShareToken } from '../../../../lib/collections';
+import { generateShareToken, resolveEventFieldDefaults } from '../../../../lib/collections';
 
 export async function GET(_: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -56,18 +56,25 @@ export async function PUT(request: Request, props: { params: Promise<{ id: strin
     }
   }
 
+  const collectionId = body.collectionId || null;
+  const { eventName, eventDate, seasonId } = await resolveEventFieldDefaults(collectionId, {
+    eventName: body.eventName || null,
+    eventDate: body.eventDate ? new Date(body.eventDate) : null,
+    seasonId: body.seasonId || null,
+  });
+
   const asset = await prisma.asset.update({
     where: { id: params.id },
     data: {
       title:       body.title       ?? undefined,
       description: body.description ?? undefined,
       shareText:   body.shareText   ?? undefined,
-      eventName:   body.eventName   ?? undefined,
-      eventDate:   body.eventDate   ? new Date(body.eventDate) : null,
+      eventName,
+      eventDate,
       location:    body.location    ?? undefined,
       category:    body.category    ?? undefined,
-      seasonId:    body.seasonId    || null,
-      collectionId: body.collectionId || null,
+      seasonId,
+      collectionId,
       manualTagsJson: body.manualTagsJson ?? undefined,
       ...ratingUpdate,
     },

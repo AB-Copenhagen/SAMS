@@ -38,7 +38,7 @@ export default async function AssetDetailPage(props: { params: Promise<{ id: str
 
   const [seasons, collections, stadiums, players, sponsors, playerTags, sponsorTags, signedUrl] = await Promise.all([
     prisma.season.findMany({ orderBy: { startDate: 'desc' }, select: { id: true, name: true } }),
-    prisma.collection.findMany({ orderBy: { date: 'desc' }, select: { id: true, name: true, type: true, date: true } }),
+    prisma.collection.findMany({ orderBy: { date: 'desc' }, select: { id: true, name: true, type: true, date: true, seasonId: true } }),
     prisma.stadium.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
     prisma.player.findMany({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, name: true, number: true } }),
     prisma.sponsor.findMany({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),

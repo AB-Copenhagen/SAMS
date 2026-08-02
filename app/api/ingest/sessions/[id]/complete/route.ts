@@ -4,6 +4,7 @@ import { prisma } from '../../../../../../lib/db';
 import { completeMultipartUpload, getPublicUrl, type UploadedPart } from '../../../../../../lib/wasabi';
 import { canAccessJob, type IngestMetadata } from '../../../../../../lib/ingest';
 import { publishJob } from '../../../../../../lib/qstash';
+import { resolveEventFieldDefaults } from '../../../../../../lib/collections';
 
 export const maxDuration = 60;
 
@@ -47,14 +48,21 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
   const tags = Array.isArray(metadata.manualTags) ? metadata.manualTags : [];
   const title = metadata.title || job.fileName.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
 
+  const collectionId = metadata.collectionId || null;
+  const { eventName, eventDate, seasonId } = await resolveEventFieldDefaults(collectionId, {
+    eventName: metadata.eventName || null,
+    eventDate: metadata.eventDate ? new Date(metadata.eventDate) : null,
+    seasonId: metadata.seasonId || null,
+  });
+
   let asset;
   try {
     asset = await prisma.asset.create({
       data: {
         title,
         description: tags.join(', '),
-        eventName: metadata.eventName || null,
-        eventDate: metadata.eventDate ? new Date(metadata.eventDate) : null,
+        eventName,
+        eventDate,
         location: metadata.location || null,
         objectKey: job.objectKey,
         contentHash: job.contentHash || null,
@@ -64,8 +72,8 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         uploaderEmail: job.uploaderEmail,
         uploaderRole: job.uploaderRole,
         manualTagsJson: JSON.stringify(tags),
-        collectionId: metadata.collectionId || null,
-        seasonId: metadata.seasonId || null,
+        collectionId,
+        seasonId,
         exifJson: exifJson ?? null,
         faceTagStatus: job.fileType.startsWith('image/') ? 'pending' : 'skipped',
         thumbnailStatus: (job.fileType.startsWith('image/') || job.fileType.startsWith('video/')) ? 'pending' : 'skipped',
