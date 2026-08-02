@@ -3,39 +3,9 @@
 import { useState, type CSSProperties } from 'react';
 import type { PublicAsset } from '../lib/collections';
 import { buildShareCaption } from '../lib/social';
+import { DOWNLOAD_PRESETS, displayDate, exportUrl, isImage, originalUrl } from '../lib/public-asset-share';
 
-// Kept in sync with lib/export-presets.ts's EXPORT_PRESETS keys/labels — duplicated here (rather
-// than imported) because that module pulls in `sharp`, which can't be bundled into client code.
-export const DOWNLOAD_PRESETS: { key: string; label: string }[] = [
-  { key: 'web', label: 'Web' },
-  { key: 'instagram-square', label: 'Instagram (square)' },
-  { key: 'instagram-story', label: 'Instagram (story)' },
-  { key: 'facebook', label: 'Facebook' },
-  { key: 'linkedin', label: 'LinkedIn' },
-];
-
-export function isImage(asset: PublicAsset) {
-  return asset.fileType.startsWith('image/');
-}
-
-export function originalUrl(token: string, assetId: string) {
-  return `/api/share/${token}/assets/${assetId}/download`;
-}
-
-export function exportUrl(token: string, assetId: string, preset: string) {
-  return `/api/share/${token}/assets/${assetId}/export?preset=${preset}`;
-}
-
-/** Fast default for quick-tap downloads — web-optimized for photos, original for video (no resize pipeline). */
-export function quickDownloadUrl(token: string, asset: PublicAsset) {
-  return isImage(asset) ? exportUrl(token, asset.id, 'web') : originalUrl(token, asset.id);
-}
-
-export function displayDate(asset: PublicAsset): { label: string; value: string } {
-  if (asset.dateTaken) return { label: 'Taken', value: new Date(asset.dateTaken).toLocaleString('en-GB') };
-  if (asset.eventDate) return { label: 'Event date', value: new Date(asset.eventDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) };
-  return { label: 'Uploaded', value: new Date(asset.uploadedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) };
-}
+export { DOWNLOAD_PRESETS, isImage, originalUrl, exportUrl, quickDownloadUrl, displayDate } from '../lib/public-asset-share';
 
 export function AssetDetails({ asset }: { asset: PublicAsset }) {
   const date = displayDate(asset);

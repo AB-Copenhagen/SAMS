@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation';
 import { resolveShareTarget, sanitizePublicAsset } from '../../../../lib/collections';
+import { exportUrl, isImage, originalUrl } from '../../../../lib/public-asset-share';
 import SharePasswordForm from '../../../../components/SharePasswordForm';
-import { AssetDetails, DownloadOptions, ShareAction, exportUrl, isImage, originalUrl } from '../../../../components/PublicAssetView';
+import { AssetDetails, DownloadOptions, ShareAction } from '../../../../components/PublicAssetView';
 
 export default async function SharedAssetPage(props: { params: Promise<{ token: string; assetId: string }> }) {
   const { token, assetId } = await props.params;
