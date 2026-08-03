@@ -193,6 +193,19 @@ export default function PublicAssetGallery({ token, assets }: Props) {
               <div style={{ flex: '1 1 440px', minWidth: 260 }}>
                 {isImage(lightboxAsset) ? (
                   <div style={{ position: 'relative' }}>
+                    {/* Instant blur-up placeholder: the same 400px thumbnail the grid card just
+                        showed, almost certainly already sitting in the browser's cache, sets the
+                        box's layout immediately while the sharp 1920px preview loads on top. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/api/share/${token}/assets/${lightboxAsset.id}/thumbnail`}
+                      alt=""
+                      aria-hidden="true"
+                      style={{
+                        width: '100%', height: 'auto', borderRadius: 8, maxHeight: '65vh', objectFit: 'contain',
+                        background: '#0d0f1c', filter: 'blur(8px)', transform: 'scale(1.03)',
+                      }}
+                    />
                     {/* Web-optimized preview, not the full original — much faster on mobile. Full
                         size is one tap away via the download options in the side column. */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -202,15 +215,10 @@ export default function PublicAssetGallery({ token, assets }: Props) {
                       alt={lightboxAsset.title ?? ''}
                       onLoad={() => setLightboxImgLoaded(true)}
                       style={{
-                        width: '100%', height: 'auto', borderRadius: 8, maxHeight: '65vh', objectFit: 'contain',
-                        background: '#0d0f1c', opacity: lightboxImgLoaded ? 1 : 0.35, transition: 'opacity 0.15s ease-in',
+                        position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain',
+                        opacity: lightboxImgLoaded ? 1 : 0, transition: 'opacity 0.2s ease-in',
                       }}
                     />
-                    {!lightboxImgLoaded && (
-                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span className="spinner" />
-                      </div>
-                    )}
                   </div>
                 ) : (
                   <video
