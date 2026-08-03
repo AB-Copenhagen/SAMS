@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import type { PublicAsset } from '../lib/collections';
 import { buildShareCaption } from '../lib/social';
 import { DOWNLOAD_PRESETS, displayDate, exportUrl, isImage, originalUrl } from '../lib/public-asset-share';
@@ -34,25 +34,88 @@ export function AssetDetails({ asset }: { asset: PublicAsset }) {
   );
 }
 
+function useShareFilesCapable(): boolean {
+  const [capable, setCapable] = useState(false);
+  useEffect(() => {
+    setCapable(typeof navigator !== 'undefined' && typeof navigator.share === 'function' && typeof navigator.canShare === 'function');
+  }, []);
+  return capable;
+}
+
+/**
+ * A plain downloaded file lands in Files (iOS) / Downloads (Android) — there's no web API to
+ * write directly into the system Photos library. The Web Share API's file support is the closest
+ * equivalent: handing the browser a File opens the native share sheet, which offers "Save
+ * Image"/"Save Video" as a direct action there. Returns false (never throws) on anything short of
+ * success so the caller can fall back to a normal download.
+ */
+async function saveToPhotos(url: string, filename: string, mimeType: string): Promise<boolean> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return false;
+    const blob = await res.blob();
+    const file = new File([blob], filename, { type: blob.type || mimeType });
+    if (!navigator.canShare({ files: [file] })) return false;
+    await navigator.share({ files: [file] });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Only renders where the browser can plausibly hand a file to the OS share sheet — plain `<a>` downloads elsewhere are unaffected. */
+function SaveToPhotosButton({ url, filename, mimeType }: { url: string; filename: string; mimeType: string }) {
+  const capable = useShareFilesCapable();
+  const [saving, setSaving] = useState(false);
+  if (!capable) return null;
+
+  async function handleClick() {
+    setSaving(true);
+    const ok = await saveToPhotos(url, filename, mimeType);
+    setSaving(false);
+    if (!ok) window.location.href = url;
+  }
+
+  return (
+    <button
+      type="button"
+      className="btn-primary"
+      onClick={handleClick}
+      disabled={saving}
+      style={{ fontSize: 12, padding: '5px 10px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+    >
+      {saving ? <><span className="spinner" /> Preparing…</> : '📲 Save to Photos'}
+    </button>
+  );
+}
+
 export function DownloadOptions({ token, asset }: { token: string; asset: PublicAsset }) {
   if (!isImage(asset)) {
+    const url = originalUrl(token, asset.id);
+    const filename = `${(asset.title || asset.eventName || 'video').replace(/[^a-z0-9-_]/gi, '-')}.${asset.fileType.split('/')[1] || 'mp4'}`;
     return (
-      <a className="btn-primary" style={{ textDecoration: 'none', display: 'inline-block' }} href={originalUrl(token, asset.id)}>
-        Download
-      </a>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <SaveToPhotosButton url={url} filename={filename} mimeType={asset.fileType} />
+        <a className="btn-secondary" style={{ textDecoration: 'none', display: 'inline-block' }} href={url}>
+          Download
+        </a>
+      </div>
     );
   }
+
+  const jpegFilename = `${(asset.title || asset.eventName || 'photo').replace(/[^a-z0-9-_]/gi, '-')}.jpg`;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <span style={{ fontSize: 11, color: '#8890b4' }}>Download as</span>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <SaveToPhotosButton url={exportUrl(token, asset.id, 'web')} filename={jpegFilename} mimeType="image/jpeg" />
         {DOWNLOAD_PRESETS.map((p) => (
           <a key={p.key} className="btn-secondary" style={{ textDecoration: 'none', fontSize: 12, padding: '5px 10px' }} href={exportUrl(token, asset.id, p.key)}>
             {p.label}
           </a>
         ))}
-        <a className="btn-primary" style={{ textDecoration: 'none', fontSize: 12, padding: '5px 10px' }} href={originalUrl(token, asset.id)}>
+        <a className="btn-secondary" style={{ textDecoration: 'none', fontSize: 12, padding: '5px 10px' }} href={originalUrl(token, asset.id)}>
           Original (full size)
         </a>
       </div>
