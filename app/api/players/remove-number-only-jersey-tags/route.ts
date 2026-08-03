@@ -29,6 +29,13 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const cursor: string | undefined = typeof body?.cursor === 'string' ? body.cursor : undefined;
 
+  // Only counted on the very first call of a run (no cursor yet) — a stable denominator for the
+  // client's progress display, not recomputed every batch since it'd just add an extra query for
+  // a number that barely moves (only assets whose LAST jersey-ocr tag gets deleted drop out of it).
+  const totalAssets = cursor === undefined
+    ? (await prisma.assetPlayerTag.groupBy({ by: ['assetId'], where: { source: 'jersey-ocr' } })).length
+    : undefined;
+
   const assetIdRows = await prisma.assetPlayerTag.findMany({
     where: { source: 'jersey-ocr', ...(cursor ? { assetId: { gt: cursor } } : {}) },
     distinct: ['assetId'],
@@ -39,7 +46,7 @@ export async function POST(request: Request) {
   const assetIds = assetIdRows.map((r) => r.assetId);
 
   if (assetIds.length === 0) {
-    return NextResponse.json({ done: true, nextCursor: null, deleted: 0, kept: 0, failedAssetIds: [] });
+    return NextResponse.json({ done: true, nextCursor: null, deleted: 0, kept: 0, failedAssetIds: [], totalAssets });
   }
 
   const tags = await prisma.assetPlayerTag.findMany({
@@ -93,5 +100,6 @@ export async function POST(request: Request) {
     deleted,
     kept,
     failedAssetIds,
+    totalAssets,
   });
 }

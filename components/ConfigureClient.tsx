@@ -53,7 +53,7 @@ function PlayersTab() {
   const [mergeResult, setMergeResult] = useState<{ playersDeleted: number; mergedNames: string[]; skippedConflicts: string[] } | null>(null);
   const [mergeError, setMergeError] = useState('');
   const [removingNumberTags, setRemovingNumberTags] = useState(false);
-  const [removeNumberTagsResult, setRemoveNumberTagsResult] = useState<{ checked: number; deleted: number; kept: number; failedAssetIds: string[]; done: boolean } | null>(null);
+  const [removeNumberTagsResult, setRemoveNumberTagsResult] = useState<{ checked: number; total: number | null; deleted: number; kept: number; failedAssetIds: string[]; done: boolean } | null>(null);
   const [removeNumberTagsError, setRemoveNumberTagsError] = useState('');
 
   function openPlayer(p: Player) {
@@ -161,6 +161,7 @@ function PlayersTab() {
     // running total after every batch so a large backlog doesn't look stalled.
     let cursor: string | null = null;
     let checked = 0, deleted = 0, kept = 0;
+    let total: number | null = null; // only sent back on the first call — a stable denominator for the whole run
     const failedAssetIds: string[] = [];
 
     while (true) {
@@ -170,11 +171,12 @@ function PlayersTab() {
         setRemoveNumberTagsError(body?.message ?? 'Cleanup failed');
         break;
       }
+      if (total === null && typeof body.totalAssets === 'number') total = body.totalAssets;
       checked += body.assetsChecked ?? 0;
       deleted += body.deleted ?? 0;
       kept += body.kept ?? 0;
       failedAssetIds.push(...(body.failedAssetIds ?? []));
-      setRemoveNumberTagsResult({ checked, deleted, kept, failedAssetIds: [...failedAssetIds], done: body.done });
+      setRemoveNumberTagsResult({ checked, total, deleted, kept, failedAssetIds: [...failedAssetIds], done: body.done });
       if (body.done) break;
       cursor = body.nextCursor;
     }
@@ -213,7 +215,8 @@ function PlayersTab() {
           {mergeError && <span style={{ fontSize: 13, color: '#dc2626' }}>{mergeError}</span>}
           {removeNumberTagsResult && (
             <span style={{ fontSize: 13, color: '#16a34a' }}>
-              {removingNumberTags ? `Checking… ${removeNumberTagsResult.checked} asset(s) so far — ` : `Checked ${removeNumberTagsResult.checked} asset(s) — `}
+              {removingNumberTags ? 'Checking… ' : 'Checked '}
+              {removeNumberTagsResult.checked}{removeNumberTagsResult.total != null ? ` of ${removeNumberTagsResult.total}` : ''} asset(s) —{' '}
               removed {removeNumberTagsResult.deleted} number-only tag{removeNumberTagsResult.deleted === 1 ? '' : 's'}, kept {removeNumberTagsResult.kept}
               {removeNumberTagsResult.failedAssetIds.length > 0 && ` — ${removeNumberTagsResult.failedAssetIds.length} asset(s) failed to recheck`}
             </span>
