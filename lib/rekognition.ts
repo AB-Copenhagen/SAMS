@@ -304,15 +304,3 @@ export async function identifyPlayersInImage(objectKey: string, db: PrismaClient
 
   return { faceMatches, jerseyMatches: jerseyResult.matches, detectedLines: jerseyResult.lines };
 }
-
-// Re-runs just the name-OCR half of player identification, skipping face detection entirely —
-// grounding (which needs face boxes) only affects a match's confirmed/suggested status, not
-// whether a player is matched by name at all, and matched-at-all is all the caller needs. Used by
-// the admin cleanup that hard-deletes jersey-ocr tags that were originally matched by jersey
-// number, a matching method identifyPlayersInImage no longer uses.
-export async function detectPlayerNamesOnly(objectKey: string, db: PrismaClient = prisma): Promise<Set<string>> {
-  const raw = await fetchImageBytes(objectKey);
-  const bytes = Buffer.from(await sharp(raw).rotate().toBuffer());
-  const { matches } = await detectJerseyIdentifiers(bytes, [], db);
-  return new Set(matches.map((m) => m.playerId));
-}

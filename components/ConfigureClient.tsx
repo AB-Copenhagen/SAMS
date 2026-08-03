@@ -52,9 +52,6 @@ function PlayersTab() {
   const [merging, setMerging] = useState(false);
   const [mergeResult, setMergeResult] = useState<{ playersDeleted: number; mergedNames: string[]; skippedConflicts: string[] } | null>(null);
   const [mergeError, setMergeError] = useState('');
-  const [removingNumberTags, setRemovingNumberTags] = useState(false);
-  const [removeNumberTagsResult, setRemoveNumberTagsResult] = useState<{ checked: number; total: number | null; deleted: number; kept: number; failedAssetIds: string[]; done: boolean } | null>(null);
-  const [removeNumberTagsError, setRemoveNumberTagsError] = useState('');
 
   function openPlayer(p: Player) {
     setSelected(p);
@@ -149,42 +146,6 @@ function PlayersTab() {
     setMerging(false);
   }
 
-  async function removeNumberOnlyJerseyTags() {
-    if (!confirm('Remove player tags that were only matched by jersey number? This re-checks each one against name OCR and permanently deletes any that no longer match. This cannot be undone.')) return;
-    setRemovingNumberTags(true);
-    setRemoveNumberTagsResult(null);
-    setRemoveNumberTagsError('');
-
-    // The backend processes one bounded batch of assets per call (each asset needs a Wasabi
-    // download + a Rekognition call, so the full backlog can run well past a serverless function's
-    // timeout) — this loops calling it with the returned cursor until it reports done, showing a
-    // running total after every batch so a large backlog doesn't look stalled.
-    let cursor: string | null = null;
-    let checked = 0, deleted = 0, kept = 0;
-    let total: number | null = null; // only sent back on the first call — a stable denominator for the whole run
-    const failedAssetIds: string[] = [];
-
-    while (true) {
-      const res = await apiFetch('/api/players/remove-number-only-jersey-tags', 'POST', cursor ? { cursor } : {});
-      const body = await res.json().catch(() => null);
-      if (!res.ok || !body) {
-        setRemoveNumberTagsError(body?.message ?? 'Cleanup failed');
-        break;
-      }
-      if (total === null && typeof body.totalAssets === 'number') total = body.totalAssets;
-      checked += body.assetsChecked ?? 0;
-      deleted += body.deleted ?? 0;
-      kept += body.kept ?? 0;
-      failedAssetIds.push(...(body.failedAssetIds ?? []));
-      setRemoveNumberTagsResult({ checked, total, deleted, kept, failedAssetIds: [...failedAssetIds], done: body.done });
-      if (body.done) break;
-      cursor = body.nextCursor;
-    }
-
-    setV((n) => n + 1);
-    setRemovingNumberTags(false);
-  }
-
   function ef(key: string, val: string) {
     setEditing((f) => ({ ...f, [key]: val }));
   }
@@ -213,18 +174,6 @@ function PlayersTab() {
             </span>
           )}
           {mergeError && <span style={{ fontSize: 13, color: '#dc2626' }}>{mergeError}</span>}
-          {removeNumberTagsResult && (
-            <span style={{ fontSize: 13, color: '#16a34a' }}>
-              {removingNumberTags ? 'Checking… ' : 'Checked '}
-              {removeNumberTagsResult.checked}{removeNumberTagsResult.total != null ? ` of ${removeNumberTagsResult.total}` : ''} asset(s) —{' '}
-              removed {removeNumberTagsResult.deleted} number-only tag{removeNumberTagsResult.deleted === 1 ? '' : 's'}, kept {removeNumberTagsResult.kept}
-              {removeNumberTagsResult.failedAssetIds.length > 0 && ` — ${removeNumberTagsResult.failedAssetIds.length} asset(s) failed to recheck`}
-            </span>
-          )}
-          {removeNumberTagsError && <span style={{ fontSize: 13, color: '#dc2626' }}>{removeNumberTagsError}</span>}
-          <button className="btn-secondary" type="button" onClick={removeNumberOnlyJerseyTags} disabled={removingNumberTags}>
-            {removingNumberTags ? <><span className="spinner" /> Checking…</> : 'Remove number-only jersey tags'}
-          </button>
           <button className="btn-secondary" type="button" onClick={mergeDuplicates} disabled={merging}>
             {merging ? <><span className="spinner" /> Merging…</> : 'Merge duplicate players'}
           </button>
