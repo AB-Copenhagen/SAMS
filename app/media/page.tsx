@@ -5,7 +5,7 @@ import { prisma } from '../../lib/db';
 import AppShell from '../../components/AppShell';
 import MediaFilterBar from '../../components/MediaFilterBar';
 import PerPageSelector from '../../components/PerPageSelector';
-import AssetGallery from '../../components/AssetGallery';
+import MediaLibraryGallery from '../../components/MediaLibraryGallery';
 
 const PER_PAGE_OPTIONS = [25, 50, 100];
 
@@ -94,7 +94,7 @@ export default async function MediaPage(props: { searchParams: Promise<SearchPar
           <p>Try adjusting your filters or upload new files.</p>
         </div>
       ) : (
-        <AssetGallery assets={assets} metaMode="date" />
+        <MediaLibraryGallery assets={assets} />
       )}
 
       {assets.length > 0 && (

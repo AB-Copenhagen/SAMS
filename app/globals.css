@@ -522,6 +522,36 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 .asset-card:hover { box-shadow: 0 4px 16px rgba(20,22,40,0.1); transform: translateY(-1px); }
 
+.asset-card-selected { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+
+.asset-select-checkbox {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.85);
+  background: rgba(13,15,28,0.35);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.12s, background 0.12s, border-color 0.12s;
+}
+.asset-card:hover .asset-select-checkbox,
+.asset-card-selected .asset-select-checkbox {
+  opacity: 1;
+}
+.asset-card-selected .asset-select-checkbox {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
 .asset-thumb {
   aspect-ratio: 16/9;
   background: #0d0f1c;
@@ -688,6 +718,25 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   margin-top: 28px;
 }
 .page-info { font-size: 13px; color: #8890b4; }
+
+/* ─── Bulk action bar ────────────────────────────────────── */
+.bulk-action-bar {
+  position: sticky;
+  bottom: 20px;
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--color-sidebar-bg);
+  color: white;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(20,22,40,0.25);
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+.bulk-action-bar span { font-size: 13px; font-weight: 600; margin-right: 4px; white-space: nowrap; }
 
 /* ─── Empty state ────────────────────────────────────────── */
 .empty-state {
