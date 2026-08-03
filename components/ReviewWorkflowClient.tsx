@@ -25,6 +25,7 @@ type QueueItem = {
   tags: string[];
   seasonId: string | null;
   collectionId: string | null;
+  dateTaken: string | null;
 };
 
 type RawQueueAsset = {
@@ -38,6 +39,7 @@ type RawQueueAsset = {
   sponsorIds: string[];
   seasonId: string | null;
   collectionId: string | null;
+  dateTaken: string | null;
 };
 
 type ReviewDraft = {
@@ -63,6 +65,7 @@ function toQueueItem(a: RawQueueAsset): QueueItem {
     tags,
     seasonId: a.seasonId,
     collectionId: a.collectionId,
+    dateTaken: a.dateTaken,
   };
 }
 
@@ -445,6 +448,12 @@ export default function ReviewWorkflowClient({
               {reviewedThisSession} reviewed · {remaining} remaining
             </span>
           </div>
+
+          {current.dateTaken && (
+            <p style={{ fontSize: 12, color: '#8890b4', margin: '0 0 12px' }}>
+              📷 Taken {new Date(current.dateTaken).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
 
           <div style={{ display: 'flex', gap: 10 }}>
             <div className="field" style={{ flex: 1 }}>

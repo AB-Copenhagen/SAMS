@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { REVIEWABLE_ASSET_WHERE } from '../../../../lib/asset-review';
+import { extractDateTaken } from '../../../../lib/collections';
 
 // POST (not GET) because excludeIds — every asset id the client has already loaded this session —
 // can grow into the hundreds and needs a body, not a query string.
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
       where,
       orderBy: { uploadedAt: 'asc' },
       take: limit,
-      select: { id: true, title: true, uploadedAt: true, manualTagsJson: true, fileType: true, thumbnailKey: true, thumbnailStatus: true, seasonId: true, collectionId: true },
+      select: { id: true, title: true, uploadedAt: true, manualTagsJson: true, fileType: true, thumbnailKey: true, thumbnailStatus: true, seasonId: true, collectionId: true, eventDate: true, exifJson: true },
     }),
     prisma.asset.count({ where: REVIEWABLE_ASSET_WHERE }),
   ]);
@@ -62,6 +63,9 @@ export async function POST(request: Request) {
       fileType: a.fileType,
       thumbnailKey: a.thumbnailKey,
       thumbnailStatus: a.thumbnailStatus,
+      seasonId: a.seasonId,
+      collectionId: a.collectionId,
+      dateTaken: extractDateTaken(a.exifJson) ?? (a.eventDate ? a.eventDate.toISOString() : null),
       playerIds: playerIdsByAsset.get(a.id) ?? [],
       sponsorIds: sponsorIdsByAsset.get(a.id) ?? [],
     })),
