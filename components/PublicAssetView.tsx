@@ -5,7 +5,7 @@ import type { PublicAsset } from '../lib/collections';
 import { buildShareCaption } from '../lib/social';
 import { DOWNLOAD_PRESETS, displayDate, exportUrl, isImage, originalUrl } from '../lib/public-asset-share';
 
-export { DOWNLOAD_PRESETS, isImage, originalUrl, exportUrl, quickDownloadUrl, displayDate } from '../lib/public-asset-share';
+export { DOWNLOAD_PRESETS, isImage, originalUrl, exportUrl, quickDownloadUrl, displayDate, previewUrl } from '../lib/public-asset-share';
 
 export function AssetDetails({ asset }: { asset: PublicAsset }) {
   const date = displayDate(asset);

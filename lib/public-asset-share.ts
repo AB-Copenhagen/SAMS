@@ -22,6 +22,15 @@ export function exportUrl(token: string, assetId: string, preset: string) {
   return `/api/share/${token}/assets/${assetId}/export?preset=${preset}`;
 }
 
+/**
+ * Cached, redirect-based 1920px preview for inline display (the lightbox) — distinct from
+ * exportUrl, which always live-renders and forces a download for the explicit "Download as…"
+ * links. Never use this for anything the visitor is meant to save to disk.
+ */
+export function previewUrl(token: string, assetId: string) {
+  return `/api/share/${token}/assets/${assetId}/preview`;
+}
+
 /** Fast default for quick-tap downloads — web-optimized for photos, original for video (no resize pipeline). */
 export function quickDownloadUrl(token: string, asset: PublicAsset) {
   return isImage(asset) ? exportUrl(token, asset.id, 'web') : originalUrl(token, asset.id);

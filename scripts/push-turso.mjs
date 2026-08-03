@@ -287,6 +287,8 @@ ALTER TABLE "Asset" ADD COLUMN "isPublic" BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE "Asset" ADD COLUMN "shareToken" TEXT;
 ALTER TABLE "Asset" ADD COLUMN "shareUpdatedAt" DATETIME;
 CREATE UNIQUE INDEX IF NOT EXISTS "Asset_shareToken_key" ON "Asset"("shareToken");
+
+ALTER TABLE "Asset" ADD COLUMN "webPreviewKey" TEXT;
 `;
 
 const statements = sql

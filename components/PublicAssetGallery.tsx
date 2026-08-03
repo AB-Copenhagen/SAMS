@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PublicAsset } from '../lib/collections';
-import { AssetDetails, DownloadOptions, ShareAction, exportUrl, isImage, originalUrl, quickDownloadUrl } from './PublicAssetView';
+import { AssetDetails, DownloadOptions, ShareAction, isImage, originalUrl, previewUrl, quickDownloadUrl } from './PublicAssetView';
 
 interface Props {
   token: string;
@@ -48,16 +48,16 @@ export default function PublicAssetGallery({ token, assets }: Props) {
   // instead of silently sitting on stale content.
   useEffect(() => { setLightboxImgLoaded(false); }, [lightboxAsset?.id]);
 
-  // Warm the browser cache for the next/prev preview while the current one is being viewed, so
-  // the (uncached, live-resized) /export request has already had time to complete by the time the
-  // visitor actually taps Next/Prev — the biggest single factor in the lightbox feeling slow.
+  // Warm the browser cache for the next/prev preview while the current one is being viewed — on
+  // an asset that's never been previewed before, /preview still self-heals a fresh render on
+  // first request, so this gives that resize a head start before the visitor taps Next/Prev.
   useEffect(() => {
     if (lightboxIndex == null) return;
     for (const i of [lightboxIndex - 1, lightboxIndex + 1]) {
       const neighbor = visibleAssets[i];
       if (!neighbor || !isImage(neighbor)) continue;
       const img = new window.Image();
-      img.src = exportUrl(token, neighbor.id, 'web');
+      img.src = previewUrl(token, neighbor.id);
     }
   }, [lightboxIndex, visibleAssets, token]);
 
@@ -198,7 +198,7 @@ export default function PublicAssetGallery({ token, assets }: Props) {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       key={lightboxAsset.id}
-                      src={exportUrl(token, lightboxAsset.id, 'web')}
+                      src={previewUrl(token, lightboxAsset.id)}
                       alt={lightboxAsset.title ?? ''}
                       onLoad={() => setLightboxImgLoaded(true)}
                       style={{

@@ -4,6 +4,7 @@ import { prisma } from '../../../../../lib/db';
 import { uploadFileToWasabi } from '../../../../../lib/wasabi';
 import { applyEdit, type EditParams } from '../../../../../lib/photo-edit';
 import { generateThumbnail } from '../../../../../lib/thumbnail';
+import { generateWebPreview } from '../../../../../lib/export-presets';
 
 export const maxDuration = 60;
 
@@ -28,6 +29,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     await uploadFileToWasabi(editedKey, edited, 'image/jpeg');
 
     const thumbnailKey = await generateThumbnail(editedKey);
+    const webPreviewKey = await generateWebPreview(editedKey);
 
     const updated = await prisma.asset.update({
       where: { id: params.id },
@@ -36,6 +38,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         editParamsJson: JSON.stringify(body),
         thumbnailKey,
         thumbnailStatus: 'done',
+        webPreviewKey,
       },
     });
 
@@ -56,10 +59,11 @@ export async function DELETE(_request: Request, props: { params: Promise<{ id: s
   if (!asset) return NextResponse.json({ message: 'Not found' }, { status: 404 });
 
   const thumbnailKey = await generateThumbnail(asset.objectKey);
+  const webPreviewKey = await generateWebPreview(asset.objectKey);
 
   await prisma.asset.update({
     where: { id: params.id },
-    data: { editedKey: null, editParamsJson: null, thumbnailKey, thumbnailStatus: 'done' },
+    data: { editedKey: null, editParamsJson: null, thumbnailKey, thumbnailStatus: 'done', webPreviewKey },
   });
 
   return NextResponse.json({ success: true });

@@ -48,6 +48,7 @@ model Asset {
   reviewedBy         String?
   editedKey          String?
   editParamsJson     String?
+  webPreviewKey      String?
   isPublic           Boolean     @default(false)
   shareToken         String?     @unique
   shareUpdatedAt     DateTime?
