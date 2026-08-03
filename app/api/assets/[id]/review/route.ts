@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../../../lib/auth';
 import { prisma } from '../../../../../lib/db';
 import { syncPlayerTags, syncSponsorTags } from '../../../../../lib/asset-tags';
+import { resolveEventFieldDefaults } from '../../../../../lib/collections';
 
 // Single fast-path action for the /review workflow: rate + sync tags + stamp the review log
 // in one round trip, so rating an asset (click or 1-4 key) is a single network call.
@@ -19,13 +20,28 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
   const sponsorIds: string[] = Array.isArray(body?.sponsorIds) ? body.sponsorIds : [];
   const tags: string[] = Array.isArray(body?.tags) ? body.tags : [];
 
-  const asset = await prisma.asset.findUnique({ where: { id: params.id }, select: { id: true } });
+  const asset = await prisma.asset.findUnique({
+    where: { id: params.id },
+    select: { id: true, eventName: true, eventDate: true, seasonId: true },
+  });
   if (!asset) return NextResponse.json({ message: 'Not found' }, { status: 404 });
 
   await Promise.all([
     syncPlayerTags(params.id, playerIds, user.email),
     syncSponsorTags(params.id, sponsorIds, user.email),
   ]);
+
+  // Same season/collectionId fields the asset detail page edits — setting a match here should
+  // inherit its event name/date/season the same way, not leave them blank (resolveEventFieldDefaults).
+  const collectionId: string | null | undefined = 'collectionId' in body ? (body.collectionId || null) : undefined;
+  const seasonIdBody: string | null | undefined = 'seasonId' in body ? (body.seasonId || null) : undefined;
+  const eventDefaults = collectionId !== undefined
+    ? await resolveEventFieldDefaults(collectionId, {
+        eventName: asset.eventName,
+        eventDate: asset.eventDate,
+        seasonId: seasonIdBody !== undefined ? seasonIdBody : asset.seasonId,
+      })
+    : null;
 
   const updated = await prisma.asset.update({
     where: { id: params.id },
@@ -34,6 +50,10 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       rating,
       reviewedAt: new Date(),
       reviewedBy: user.email,
+      ...(collectionId !== undefined && { collectionId }),
+      ...(eventDefaults
+        ? { eventName: eventDefaults.eventName, eventDate: eventDefaults.eventDate, seasonId: eventDefaults.seasonId }
+        : seasonIdBody !== undefined ? { seasonId: seasonIdBody } : {}),
     },
   });
 

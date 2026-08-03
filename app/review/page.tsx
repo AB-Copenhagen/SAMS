@@ -8,9 +8,11 @@ export default async function ReviewPage() {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
 
-  const [players, sponsors] = await Promise.all([
+  const [players, sponsors, seasons, collections] = await Promise.all([
     prisma.player.findMany({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, name: true, number: true } }),
     prisma.sponsor.findMany({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
+    prisma.season.findMany({ orderBy: { startDate: 'desc' }, select: { id: true, name: true } }),
+    prisma.collection.findMany({ orderBy: { date: 'desc' }, select: { id: true, name: true, type: true, date: true, seasonId: true } }),
   ]);
 
   return (
@@ -18,13 +20,15 @@ export default async function ReviewPage() {
       <div className="page-header">
         <div>
           <h1>Review</h1>
-          <p>Confirm player/sponsor tags and rate photo quality.</p>
+          <p>Confirm player/sponsor tags, season/match, and rate photo quality.</p>
         </div>
       </div>
 
       <ReviewWorkflowClient
         playerOptions={players.map((p) => ({ id: p.id, label: p.name + (p.number != null ? ` #${p.number}` : '') }))}
         sponsorOptions={sponsors.map((s) => ({ id: s.id, label: s.name }))}
+        seasons={seasons}
+        collections={collections}
       />
     </AppShell>
   );

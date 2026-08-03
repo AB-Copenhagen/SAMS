@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       where,
       orderBy: { uploadedAt: 'asc' },
       take: limit,
-      select: { id: true, title: true, uploadedAt: true, manualTagsJson: true, fileType: true, thumbnailKey: true, thumbnailStatus: true },
+      select: { id: true, title: true, uploadedAt: true, manualTagsJson: true, fileType: true, thumbnailKey: true, thumbnailStatus: true, seasonId: true, collectionId: true },
     }),
     prisma.asset.count({ where: REVIEWABLE_ASSET_WHERE }),
   ]);

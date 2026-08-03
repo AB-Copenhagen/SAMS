@@ -4,6 +4,16 @@ import { useState, useEffect, useCallback, useRef, type CSSProperties } from 're
 import EntityMultiSelect, { type EntityOption } from './EntityMultiSelect';
 import TagInput from './TagInput';
 
+type Season     = { id: string; name: string };
+type Collection = { id: string; name: string; type: string; date: string | Date | null; seasonId: string | null };
+
+function collectionLabel(c: Collection): string {
+  if (!c.date) return c.name;
+  const d = new Date(typeof c.date === 'string' ? c.date.includes('T') ? c.date : c.date + 'T12:00:00' : c.date);
+  const prefix = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  return `${prefix} · ${c.name}`;
+}
+
 type QueueItem = {
   id: string;
   title: string | null;
@@ -13,6 +23,8 @@ type QueueItem = {
   playerIds: string[];
   sponsorIds: string[];
   tags: string[];
+  seasonId: string | null;
+  collectionId: string | null;
 };
 
 type RawQueueAsset = {
@@ -24,9 +36,18 @@ type RawQueueAsset = {
   manualTagsJson: string | null;
   playerIds: string[];
   sponsorIds: string[];
+  seasonId: string | null;
+  collectionId: string | null;
 };
 
-type ReviewDraft = { rating: number; playerIds: string[]; sponsorIds: string[]; tags: string[] };
+type ReviewDraft = {
+  rating: number;
+  playerIds: string[];
+  sponsorIds: string[];
+  tags: string[];
+  seasonId: string | null;
+  collectionId: string | null;
+};
 
 function toQueueItem(a: RawQueueAsset): QueueItem {
   let tags: string[] = [];
@@ -40,6 +61,8 @@ function toQueueItem(a: RawQueueAsset): QueueItem {
     playerIds: a.playerIds,
     sponsorIds: a.sponsorIds,
     tags,
+    seasonId: a.seasonId,
+    collectionId: a.collectionId,
   };
 }
 
@@ -64,9 +87,13 @@ const overlayButtonStyle: CSSProperties = {
 export default function ReviewWorkflowClient({
   playerOptions,
   sponsorOptions,
+  seasons,
+  collections,
 }: {
   playerOptions: EntityOption[];
   sponsorOptions: EntityOption[];
+  seasons: Season[];
+  collections: Collection[];
 }) {
   // `items` accumulates every asset fetched this session, in review order, and is never trimmed
   // when one is rated — that's what lets Back revisit and re-rate something already submitted.
@@ -85,6 +112,8 @@ export default function ReviewWorkflowClient({
   const [playerIds, setPlayerIds] = useState<string[]>([]);
   const [sponsorIds, setSponsorIds] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
+  const [seasonId, setSeasonId] = useState('');
+  const [collectionId, setCollectionId] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [zoomed, setZoomed] = useState(false);
   const [playingVideo, setPlayingVideo] = useState(false);
@@ -143,10 +172,14 @@ export default function ReviewWorkflowClient({
       setPlayerIds(draft.playerIds);
       setSponsorIds(draft.sponsorIds);
       setTags(draft.tags);
+      setSeasonId(draft.seasonId ?? '');
+      setCollectionId(draft.collectionId ?? '');
     } else {
       setPlayerIds(current.playerIds);
       setSponsorIds(current.sponsorIds);
       setTags(current.tags);
+      setSeasonId(current.seasonId ?? '');
+      setCollectionId(current.collectionId ?? '');
     }
     setZoomed(false);
     setPlayingVideo(false);
@@ -176,10 +209,12 @@ export default function ReviewWorkflowClient({
     if (!item) return;
 
     const wasFirstReview = !draftsRef.current.has(item.id);
-    const payload = { rating, playerIds, sponsorIds, tags };
+    const seasonIdValue = seasonId || null;
+    const collectionIdValue = collectionId || null;
+    const payload = { rating, playerIds, sponsorIds, tags, seasonId: seasonIdValue, collectionId: collectionIdValue };
 
     // Optimistic advance — don't block the UI on the network round trip.
-    setDrafts((prev) => new Map(prev).set(item.id, { rating, playerIds, sponsorIds, tags }));
+    setDrafts((prev) => new Map(prev).set(item.id, { rating, playerIds, sponsorIds, tags, seasonId: seasonIdValue, collectionId: collectionIdValue }));
     if (wasFirstReview) {
       setRemaining((n) => Math.max(0, n - 1));
       setReviewedThisSession((n) => n + 1);
@@ -206,7 +241,7 @@ export default function ReviewWorkflowClient({
       }
       setError(`Failed to save rating for "${item.title || 'Untitled'}" — retry?`);
     }
-  }, [playerIds, sponsorIds, tags, advance]);
+  }, [playerIds, sponsorIds, tags, seasonId, collectionId, advance]);
 
   const skip = useCallback(() => {
     setItems((prev) => {
@@ -257,7 +292,7 @@ export default function ReviewWorkflowClient({
     function onKeyDown(e: KeyboardEvent) {
       if (e.repeat) return;
       const target = e.target as HTMLElement;
-      if (target.closest('input, textarea, [contenteditable="true"]')) return;
+      if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
       if (e.key >= '1' && e.key <= '4') { e.preventDefault(); rateAndAdvance(Number(e.key)); }
       if (e.key.toLowerCase() === 's' && !drafts.has(current?.id ?? '')) { e.preventDefault(); skip(); }
       if (e.key === 'ArrowRight') { e.preventDefault(); advance(); }
@@ -409,6 +444,38 @@ export default function ReviewWorkflowClient({
             <span style={{ fontSize: 12, color: '#8890b4', fontWeight: 400 }}>
               {reviewedThisSession} reviewed · {remaining} remaining
             </span>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <div className="field" style={{ flex: 1 }}>
+              <label>Season</label>
+              <select value={seasonId} onChange={(e) => setSeasonId(e.target.value)}>
+                <option value="">No season</option>
+                {seasons.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field" style={{ flex: 1 }}>
+              <label>Match</label>
+              <select
+                value={collectionId}
+                onChange={(e) => {
+                  const newCollectionId = e.target.value;
+                  setCollectionId(newCollectionId);
+                  const collection = collections.find((c) => c.id === newCollectionId);
+                  // Selecting a match fills in a still-blank season the same way the asset detail
+                  // page does — event name/date are backfilled server-side on save (see the
+                  // /review route's resolveEventFieldDefaults call).
+                  if (collection && !seasonId && collection.seasonId) setSeasonId(collection.seasonId);
+                }}
+              >
+                <option value="">No match</option>
+                {collections.map((c) => (
+                  <option key={c.id} value={c.id}>{collectionLabel(c)}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="field">
