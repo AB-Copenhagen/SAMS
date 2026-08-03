@@ -53,7 +53,7 @@ function PlayersTab() {
   const [mergeResult, setMergeResult] = useState<{ playersDeleted: number; mergedNames: string[]; skippedConflicts: string[] } | null>(null);
   const [mergeError, setMergeError] = useState('');
   const [removingNumberTags, setRemovingNumberTags] = useState(false);
-  const [removeNumberTagsResult, setRemoveNumberTagsResult] = useState<{ deleted: number; kept: number; failedAssetIds: string[] } | null>(null);
+  const [removeNumberTagsResult, setRemoveNumberTagsResult] = useState<{ checked: number; deleted: number; kept: number; failedAssetIds: string[]; done: boolean } | null>(null);
   const [removeNumberTagsError, setRemoveNumberTagsError] = useState('');
 
   function openPlayer(p: Player) {
@@ -154,14 +154,32 @@ function PlayersTab() {
     setRemovingNumberTags(true);
     setRemoveNumberTagsResult(null);
     setRemoveNumberTagsError('');
-    const res = await apiFetch('/api/players/remove-number-only-jersey-tags', 'POST');
-    const body = await res.json().catch(() => ({}));
-    if (res.ok) {
-      setRemoveNumberTagsResult(body);
-      setV((n) => n + 1);
-    } else {
-      setRemoveNumberTagsError(body.message ?? 'Cleanup failed');
+
+    // The backend processes one bounded batch of assets per call (each asset needs a Wasabi
+    // download + a Rekognition call, so the full backlog can run well past a serverless function's
+    // timeout) — this loops calling it with the returned cursor until it reports done, showing a
+    // running total after every batch so a large backlog doesn't look stalled.
+    let cursor: string | null = null;
+    let checked = 0, deleted = 0, kept = 0;
+    const failedAssetIds: string[] = [];
+
+    while (true) {
+      const res = await apiFetch('/api/players/remove-number-only-jersey-tags', 'POST', cursor ? { cursor } : {});
+      const body = await res.json().catch(() => null);
+      if (!res.ok || !body) {
+        setRemoveNumberTagsError(body?.message ?? 'Cleanup failed');
+        break;
+      }
+      checked += body.assetsChecked ?? 0;
+      deleted += body.deleted ?? 0;
+      kept += body.kept ?? 0;
+      failedAssetIds.push(...(body.failedAssetIds ?? []));
+      setRemoveNumberTagsResult({ checked, deleted, kept, failedAssetIds: [...failedAssetIds], done: body.done });
+      if (body.done) break;
+      cursor = body.nextCursor;
     }
+
+    setV((n) => n + 1);
     setRemovingNumberTags(false);
   }
 
@@ -195,7 +213,8 @@ function PlayersTab() {
           {mergeError && <span style={{ fontSize: 13, color: '#dc2626' }}>{mergeError}</span>}
           {removeNumberTagsResult && (
             <span style={{ fontSize: 13, color: '#16a34a' }}>
-              Removed {removeNumberTagsResult.deleted} number-only tag{removeNumberTagsResult.deleted === 1 ? '' : 's'}, kept {removeNumberTagsResult.kept}
+              {removingNumberTags ? `Checking… ${removeNumberTagsResult.checked} asset(s) so far — ` : `Checked ${removeNumberTagsResult.checked} asset(s) — `}
+              removed {removeNumberTagsResult.deleted} number-only tag{removeNumberTagsResult.deleted === 1 ? '' : 's'}, kept {removeNumberTagsResult.kept}
               {removeNumberTagsResult.failedAssetIds.length > 0 && ` — ${removeNumberTagsResult.failedAssetIds.length} asset(s) failed to recheck`}
             </span>
           )}
