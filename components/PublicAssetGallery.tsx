@@ -29,6 +29,7 @@ function Thumb({ token, asset }: { token: string; asset: PublicAsset }) {
 export default function PublicAssetGallery({ token, assets }: Props) {
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [lightboxImgLoaded, setLightboxImgLoaded] = useState(false);
 
   const visibleAssets = useMemo(() => {
     return [...assets].sort((a, b) =>
@@ -40,6 +41,25 @@ export default function PublicAssetGallery({ token, assets }: Props) {
   useEffect(() => { setLightboxIndex(null); }, [sortOrder]);
 
   const lightboxAsset = lightboxIndex != null ? visibleAssets[lightboxIndex] : null;
+
+  // Advancing swaps `src` on the same <img> element — the browser keeps showing the previous
+  // frame until the new one finishes loading, which reads as "nothing happened" on a slow
+  // connection. Tracking load state per-asset lets the image dim out immediately on advance
+  // instead of silently sitting on stale content.
+  useEffect(() => { setLightboxImgLoaded(false); }, [lightboxAsset?.id]);
+
+  // Warm the browser cache for the next/prev preview while the current one is being viewed, so
+  // the (uncached, live-resized) /export request has already had time to complete by the time the
+  // visitor actually taps Next/Prev — the biggest single factor in the lightbox feeling slow.
+  useEffect(() => {
+    if (lightboxIndex == null) return;
+    for (const i of [lightboxIndex - 1, lightboxIndex + 1]) {
+      const neighbor = visibleAssets[i];
+      if (!neighbor || !isImage(neighbor)) continue;
+      const img = new window.Image();
+      img.src = exportUrl(token, neighbor.id, 'web');
+    }
+  }, [lightboxIndex, visibleAssets, token]);
 
   // Deep-link support: opening a photo (or navigating prev/next) updates ?asset=<id> so the
   // "Share this photo" link reopens straight to it, and a matching id in the URL on first load
@@ -172,16 +192,29 @@ export default function PublicAssetGallery({ token, assets }: Props) {
             <div className="modal-body" style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
               <div style={{ flex: '1 1 440px', minWidth: 260 }}>
                 {isImage(lightboxAsset) ? (
-                  // Web-optimized preview, not the full original — much faster on mobile. Full
-                  // size is one tap away via the download options in the side column.
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={exportUrl(token, lightboxAsset.id, 'web')}
-                    alt={lightboxAsset.title ?? ''}
-                    style={{ width: '100%', height: 'auto', borderRadius: 8, maxHeight: '65vh', objectFit: 'contain', background: '#0d0f1c' }}
-                  />
+                  <div style={{ position: 'relative' }}>
+                    {/* Web-optimized preview, not the full original — much faster on mobile. Full
+                        size is one tap away via the download options in the side column. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      key={lightboxAsset.id}
+                      src={exportUrl(token, lightboxAsset.id, 'web')}
+                      alt={lightboxAsset.title ?? ''}
+                      onLoad={() => setLightboxImgLoaded(true)}
+                      style={{
+                        width: '100%', height: 'auto', borderRadius: 8, maxHeight: '65vh', objectFit: 'contain',
+                        background: '#0d0f1c', opacity: lightboxImgLoaded ? 1 : 0.35, transition: 'opacity 0.15s ease-in',
+                      }}
+                    />
+                    {!lightboxImgLoaded && (
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span className="spinner" />
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <video
+                    key={lightboxAsset.id}
                     src={originalUrl(token, lightboxAsset.id)}
                     controls
                     style={{ width: '100%', borderRadius: 8, maxHeight: '65vh' }}

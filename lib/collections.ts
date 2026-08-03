@@ -260,11 +260,38 @@ export type ShareTarget =
   | null;
 
 /**
+ * Same membership rules as resolveCollectionAssets (legacy FK, manual CollectionAsset, or a
+ * confirmed player/sponsor tag matching one of the collection's auto-include rules), but checked
+ * against a single already-loaded asset instead of resolving the whole collection's list —
+ * O(1) instead of O(collection size).
+ */
+async function assetBelongsToCollection(asset: AssetWithTags, collection: CollectionWithRules): Promise<boolean> {
+  if (asset.collectionId === collection.id) return true;
+
+  const playerIds = new Set(collection.playerRules.map((r) => r.playerId));
+  if (asset.playerTags.some((t) => playerIds.has(t.playerId))) return true;
+
+  const sponsorIds = new Set(collection.sponsorRules.map((r) => r.sponsorId));
+  if (asset.sponsorTags.some((t) => sponsorIds.has(t.sponsorId))) return true;
+
+  const manual = await prisma.collectionAsset.findUnique({
+    where: { collectionId_assetId: { collectionId: collection.id, assetId: asset.id } },
+  });
+  return manual != null;
+}
+
+/**
  * Single entry point for resolving a public `/s/[token]/[assetId]` URL (and the matching
  * download/export/thumbnail API routes): the token is tried first as a Collection's share token
  * (existing gallery flow — public + optional password + share filters), then as an Asset's own
  * standalone share token (admin per-asset link, no password gate, independent of the asset's
  * collection being public at all).
+ *
+ * Deliberately does NOT call resolveCollectionAssets — that resolves every asset in the
+ * collection (with tag joins) just to pick one out of the list, which is fine for the gallery's
+ * single summary fetch but means O(collection size) work on *every* thumbnail/download/export
+ * request. A gallery of a few hundred assets turns into a few hundred times that in DB work
+ * across the page's image requests. This looks up the one requested asset directly instead.
  */
 export async function resolveShareTarget(token: string, assetId: string): Promise<ShareTarget> {
   const collection = await getPublicCollectionByToken(token);
@@ -272,9 +299,13 @@ export async function resolveShareTarget(token: string, assetId: string): Promis
     if (collection.sharePasswordHash && !(await isShareUnlocked(token))) {
       return { kind: 'password-required', name: collection.name };
     }
-    const assets = applyShareFilters(await resolveCollectionAssets(collection), collection);
-    const asset = assets.find((a) => a.id === assetId);
-    return asset ? { kind: 'found', asset } : null;
+
+    const asset = await prisma.asset.findUnique({ where: { id: assetId }, include: CONFIRMED_TAGS_INCLUDE });
+    if (!asset) return null;
+    if (!(await assetBelongsToCollection(asset, collection))) return null;
+    if (applyShareFilters([asset], collection).length === 0) return null;
+
+    return { kind: 'found', asset };
   }
 
   const asset = await getAssetByShareToken(token);
