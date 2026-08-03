@@ -4,7 +4,7 @@ import { prisma } from '../../../../../../lib/db';
 import { completeMultipartUpload, getPublicUrl, type UploadedPart } from '../../../../../../lib/wasabi';
 import { canAccessJob, type IngestMetadata } from '../../../../../../lib/ingest';
 import { publishJob } from '../../../../../../lib/qstash';
-import { resolveEventFieldDefaults } from '../../../../../../lib/collections';
+import { matchCollectionByCaptureDate, resolveEventFieldDefaults } from '../../../../../../lib/collections';
 
 export const maxDuration = 60;
 
@@ -48,7 +48,14 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
   const tags = Array.isArray(metadata.manualTags) ? metadata.manualTags : [];
   const title = metadata.title || job.fileName.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
 
-  const collectionId = metadata.collectionId || null;
+  // Mobile ingest has no collection/season picker at all, and bulk upload leaves it to whoever's
+  // uploading — falls back to matching the shot's own EXIF capture time against a Collection's
+  // date whenever nothing was picked manually.
+  let collectionId = metadata.collectionId || null;
+  if (!collectionId) {
+    const matched = await matchCollectionByCaptureDate(exifJson ?? null);
+    if (matched) collectionId = matched.collectionId;
+  }
   const { eventName, eventDate, seasonId } = await resolveEventFieldDefaults(collectionId, {
     eventName: metadata.eventName || null,
     eventDate: metadata.eventDate ? new Date(metadata.eventDate) : null,

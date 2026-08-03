@@ -117,7 +117,7 @@ export async function resolveEventFieldDefaults(
 }
 
 /** Pulls only the capture timestamp out of the raw EXIF blob — never expose GPS/camera/lens details publicly. */
-function extractDateTaken(exifJson: string | null): string | null {
+export function extractDateTaken(exifJson: string | null): string | null {
   if (!exifJson) return null;
   try {
     const exif = JSON.parse(exifJson) as { DateTimeOriginal?: string };
@@ -127,6 +127,37 @@ function extractDateTaken(exifJson: string | null): string | null {
   } catch {
     return null;
   }
+}
+
+// ±36h around an asset's EXIF capture time — wide enough to catch a late-kickoff/away-travel
+// photo landing just past local midnight, without reaching into an unrelated week.
+const EXIF_MATCH_WINDOW_MS = 36 * 60 * 60 * 1000;
+
+/**
+ * Fallback for when an asset has no manually-assigned collection (e.g. mobile ingest has no
+ * collection picker, or nobody bothered on bulk upload): matches its EXIF capture time against
+ * Collection.date. Ties — more than one Collection within the window, e.g. a doubleheader —
+ * resolve to whichever is closest by full timestamp rather than left unmatched. Returns null if
+ * there's no EXIF capture time or nothing within the window at all.
+ */
+export async function matchCollectionByCaptureDate(exifJson: string | null): Promise<{ collectionId: string; seasonId: string | null } | null> {
+  const takenIso = extractDateTaken(exifJson);
+  if (!takenIso) return null;
+  const takenMs = new Date(takenIso).getTime();
+
+  const candidates = await prisma.collection.findMany({
+    where: { date: { gte: new Date(takenMs - EXIF_MATCH_WINDOW_MS), lte: new Date(takenMs + EXIF_MATCH_WINDOW_MS) } },
+    select: { id: true, date: true, seasonId: true },
+  });
+  if (candidates.length === 0) return null;
+
+  let best = candidates[0];
+  let bestDiff = Math.abs(best.date!.getTime() - takenMs);
+  for (const c of candidates.slice(1)) {
+    const diff = Math.abs(c.date!.getTime() - takenMs);
+    if (diff < bestDiff) { best = c; bestDiff = diff; }
+  }
+  return { collectionId: best.id, seasonId: best.seasonId };
 }
 
 /** Same fallback chain as the public gallery's client-side sort: EXIF capture time, then event date, then upload date. */
