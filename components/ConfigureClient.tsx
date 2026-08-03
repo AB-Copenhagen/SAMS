@@ -52,6 +52,9 @@ function PlayersTab() {
   const [merging, setMerging] = useState(false);
   const [mergeResult, setMergeResult] = useState<{ playersDeleted: number; mergedNames: string[]; skippedConflicts: string[] } | null>(null);
   const [mergeError, setMergeError] = useState('');
+  const [removingNumberTags, setRemovingNumberTags] = useState(false);
+  const [removeNumberTagsResult, setRemoveNumberTagsResult] = useState<{ deleted: number; kept: number; failedAssetIds: string[] } | null>(null);
+  const [removeNumberTagsError, setRemoveNumberTagsError] = useState('');
 
   function openPlayer(p: Player) {
     setSelected(p);
@@ -146,6 +149,22 @@ function PlayersTab() {
     setMerging(false);
   }
 
+  async function removeNumberOnlyJerseyTags() {
+    if (!confirm('Remove player tags that were only matched by jersey number? This re-checks each one against name OCR and permanently deletes any that no longer match. This cannot be undone.')) return;
+    setRemovingNumberTags(true);
+    setRemoveNumberTagsResult(null);
+    setRemoveNumberTagsError('');
+    const res = await apiFetch('/api/players/remove-number-only-jersey-tags', 'POST');
+    const body = await res.json().catch(() => ({}));
+    if (res.ok) {
+      setRemoveNumberTagsResult(body);
+      setV((n) => n + 1);
+    } else {
+      setRemoveNumberTagsError(body.message ?? 'Cleanup failed');
+    }
+    setRemovingNumberTags(false);
+  }
+
   function ef(key: string, val: string) {
     setEditing((f) => ({ ...f, [key]: val }));
   }
@@ -174,6 +193,16 @@ function PlayersTab() {
             </span>
           )}
           {mergeError && <span style={{ fontSize: 13, color: '#dc2626' }}>{mergeError}</span>}
+          {removeNumberTagsResult && (
+            <span style={{ fontSize: 13, color: '#16a34a' }}>
+              Removed {removeNumberTagsResult.deleted} number-only tag{removeNumberTagsResult.deleted === 1 ? '' : 's'}, kept {removeNumberTagsResult.kept}
+              {removeNumberTagsResult.failedAssetIds.length > 0 && ` — ${removeNumberTagsResult.failedAssetIds.length} asset(s) failed to recheck`}
+            </span>
+          )}
+          {removeNumberTagsError && <span style={{ fontSize: 13, color: '#dc2626' }}>{removeNumberTagsError}</span>}
+          <button className="btn-secondary" type="button" onClick={removeNumberOnlyJerseyTags} disabled={removingNumberTags}>
+            {removingNumberTags ? <><span className="spinner" /> Checking…</> : 'Remove number-only jersey tags'}
+          </button>
           <button className="btn-secondary" type="button" onClick={mergeDuplicates} disabled={merging}>
             {merging ? <><span className="spinner" /> Merging…</> : 'Merge duplicate players'}
           </button>

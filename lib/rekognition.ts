@@ -44,7 +44,7 @@ function getCollectionId(): string {
 
 const DETECT_FACE_MIN_CONFIDENCE = 90;
 const DETECT_TEXT_MIN_CONFIDENCE = 80;
-// A jersey number sits on the torso, just below the face — "near" is defined as horizontally
+// A printed name sits on the torso, just below the face — "near" is defined as horizontally
 // overlapping the face and within a few face-heights below it, to tolerate the range of framing
 // (tight headshot-style crop vs. full-body action shot) real match photos come in. This must stay
 // torso-sized, not "anywhere in frame": too generous a reach and background signage/scoreboards
@@ -201,8 +201,8 @@ async function searchFaces(bytes: Buffer, faces: DetectedFace[]): Promise<FaceMa
 
 export interface JerseyMatch {
   playerId: string;
-  /** true = the number sits near a detected person, so it's trustworthy enough to auto-confirm;
-   *  false = no nearby person (likely a scoreboard/stadium digit) — surface as 'suggested' only. */
+  /** true = the name sits near a detected person, so it's trustworthy enough to auto-confirm;
+   *  false = no nearby person (likely a distant banner/roster board) — surface as 'suggested' only. */
   grounded: boolean;
 }
 
@@ -234,10 +234,12 @@ export interface JerseyDetectionResult {
   lines: string[];
 }
 
-// Reads BOTH the jersey number and the printed surname off the back of a shirt from one
-// DetectText call — same detections, two independent ways to land on the same player, each
-// spatially grounded against a detected person the same way. Also surfaces every detected text
-// line so callers can run sponsor OCR matching against it without a second Rekognition call.
+// Reads the printed surname off the back of a shirt from one DetectText call, spatially grounded
+// against a detected person the same way face matches are. Jersey NUMBERS are deliberately not
+// used to identify players: numbers are too easy to misread (OCR digit confusion) or to collide
+// with another player's number, scoreboards, or stadium signage, so player identification relies
+// only on face recognition and this name OCR. Also surfaces every detected text line so callers
+// can run sponsor OCR matching against it without a second Rekognition call.
 async function detectJerseyIdentifiers(bytes: Buffer, faces: DetectedFace[], db: PrismaClient): Promise<JerseyDetectionResult> {
   const res = await getClient().send(new DetectTextCommand({ Image: { Bytes: bytes } }));
   const detections = (res.TextDetections ?? [])
@@ -247,70 +249,29 @@ async function detectJerseyIdentifiers(bytes: Buffer, faces: DetectedFace[], db:
 
   if (detections.length === 0) return { matches: [], lines };
 
-  // A jersey number stands alone on a shirt — 1 or 2 digits, nothing else on that line. A banner/
-  // scoreboard/date ("EST. 1889", "23-45") reads as one LINE containing 3+ digit characters, even
-  // when Rekognition splits that line into several single-digit WORDs (wide letter-spacing on
-  // signage does this often). Reject any WORD whose parent line contains a longer digit run so
-  // those individual digits never get treated as a standalone jersey number.
-  const lineDigitCountById = new Map<number, number>();
-  for (const t of detections) {
-    if (t.Type === 'LINE' && t.Id != null) {
-      lineDigitCountById.set(t.Id, (t.DetectedText!.match(/[0-9]/g) ?? []).length);
-    }
-  }
-  const isPartOfLongerDigitRun = (t: (typeof detections)[number]): boolean =>
-    t.ParentId != null && (lineDigitCountById.get(t.ParentId) ?? 0) >= 3;
-
-  const numberCandidates = detections
-    .filter((t) => t.Type === 'WORD' && !isPartOfLongerDigitRun(t))
-    .map((t) => ({ number: parseInt(t.DetectedText!.trim(), 10), box: t.Geometry!.BoundingBox! }))
-    .filter((c) => !isNaN(c.number) && c.number >= 1 && c.number <= 99);
-
   const nameCandidates = detections
     // Surnames are usually one word, but Rekognition sometimes splits/joins differently, so
     // check both WORD and LINE detections against the same normalized last name.
     .map((t) => ({ text: normalizeJerseyText(t.DetectedText!), box: t.Geometry!.BoundingBox! }))
     .filter((c) => c.text.length >= MIN_LAST_NAME_LENGTH);
 
-  if (numberCandidates.length === 0 && nameCandidates.length === 0) return { matches: [], lines };
+  if (nameCandidates.length === 0) return { matches: [], lines };
 
-  const players = await db.player.findMany({ where: { active: true }, select: { id: true, name: true, number: true } });
+  const players = await db.player.findMany({ where: { active: true }, select: { id: true, name: true } });
   if (players.length === 0) return { matches: [], lines };
 
   const byPlayer = new Map<string, JerseyMatch>();
-  const matchedViaNumber = new Set<string>();
-  const matchedViaName = new Set<string>();
   const consider = (playerId: string, grounded: boolean) => {
     const existing = byPlayer.get(playerId);
     // A grounded sighting anywhere in the image is enough to trust the player is really present,
-    // even if the same identifier also appears elsewhere (e.g. an ungrounded scoreboard digit).
+    // even if the same name also appears elsewhere ungrounded (e.g. on a roster board).
     if (!existing || (grounded && !existing.grounded)) byPlayer.set(playerId, { playerId, grounded });
   };
-
-  for (const candidate of numberCandidates) {
-    const player = players.find((p) => p.number === candidate.number);
-    if (player) {
-      matchedViaNumber.add(player.id);
-      consider(player.id, isNearAFace(candidate.box, faces));
-    }
-  }
 
   const playersByLastName = new Map(players.map((p) => [normalizeJerseyText(lastName(p.name)), p] as const));
   for (const candidate of nameCandidates) {
     const player = playersByLastName.get(candidate.text);
-    if (player) {
-      matchedViaName.add(player.id);
-      consider(player.id, isNearAFace(candidate.box, faces));
-    }
-  }
-
-  // Two independent OCR reads (the jersey number AND the printed surname) agreeing on the same
-  // player is trustworthy on its own — no scoreboard/signage would coincidentally show both a
-  // specific player's exact number and exact surname together — so this auto-confirms even
-  // without a detected face nearby (real photos often catch a clear number/name on someone whose
-  // face isn't reliably detected: turned away, distant, motion-blurred, etc).
-  for (const playerId of matchedViaNumber) {
-    if (matchedViaName.has(playerId)) byPlayer.set(playerId, { playerId, grounded: true });
+    if (player) consider(player.id, isNearAFace(candidate.box, faces));
   }
 
   return { matches: [...byPlayer.values()], lines };
@@ -342,4 +303,16 @@ export async function identifyPlayersInImage(objectKey: string, db: PrismaClient
   ]);
 
   return { faceMatches, jerseyMatches: jerseyResult.matches, detectedLines: jerseyResult.lines };
+}
+
+// Re-runs just the name-OCR half of player identification, skipping face detection entirely —
+// grounding (which needs face boxes) only affects a match's confirmed/suggested status, not
+// whether a player is matched by name at all, and matched-at-all is all the caller needs. Used by
+// the admin cleanup that hard-deletes jersey-ocr tags that were originally matched by jersey
+// number, a matching method identifyPlayersInImage no longer uses.
+export async function detectPlayerNamesOnly(objectKey: string, db: PrismaClient = prisma): Promise<Set<string>> {
+  const raw = await fetchImageBytes(objectKey);
+  const bytes = Buffer.from(await sharp(raw).rotate().toBuffer());
+  const { matches } = await detectJerseyIdentifiers(bytes, [], db);
+  return new Set(matches.map((m) => m.playerId));
 }
