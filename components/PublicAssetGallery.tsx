@@ -219,6 +219,17 @@ export default function PublicAssetGallery({ token, assets }: Props) {
                         opacity: lightboxImgLoaded ? 1 : 0, transition: 'opacity 0.2s ease-in',
                       }}
                     />
+                    {!lightboxImgLoaded && (
+                      <span
+                        style={{
+                          position: 'absolute', bottom: 10, right: 10, display: 'flex', alignItems: 'center', gap: 6,
+                          fontSize: 11, fontWeight: 600, color: 'white', background: 'rgba(13,15,28,0.65)',
+                          padding: '4px 9px', borderRadius: 20, pointerEvents: 'none',
+                        }}
+                      >
+                        <span className="spinner" style={{ width: 11, height: 11 }} /> Loading full quality…
+                      </span>
+                    )}
                   </div>
                 ) : (
                   <video
