@@ -1,14 +1,16 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import type { PublicAsset } from '../lib/collections';
-import { useSwipe } from '../lib/useSwipe';
-import { AssetDetails, DownloadOptions, ShareAction, isImage, originalUrl, previewUrl, quickDownloadUrl } from './PublicAssetView';
+import { SaveShareMenu, isImage, originalUrl, previewUrl, quickDownloadUrl } from './PublicAssetView';
 
 interface Props {
   token: string;
   assets: PublicAsset[];
 }
+
+const SWIPE_THRESHOLD_PX = 120;
+const EXIT_DURATION_MS = 260;
 
 function sortTimestamp(asset: PublicAsset): number {
   const raw = asset.dateTaken ?? asset.eventDate ?? asset.uploadedAt;
@@ -32,6 +34,12 @@ export default function PublicAssetGallery({ token, assets }: Props) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [lightboxImgLoaded, setLightboxImgLoaded] = useState(false);
 
+  // Drag-and-fling state for the lightbox's swipe-to-browse gesture.
+  const [dragX, setDragX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const [exiting, setExiting] = useState<'left' | 'right' | null>(null);
+  const dragStartX = useRef<number | null>(null);
+
   const visibleAssets = useMemo(() => {
     return [...assets].sort((a, b) =>
       sortOrder === 'newest' ? sortTimestamp(b) - sortTimestamp(a) : sortTimestamp(a) - sortTimestamp(b));
@@ -46,12 +54,18 @@ export default function PublicAssetGallery({ token, assets }: Props) {
   // Advancing swaps `src` on the same <img> element — the browser keeps showing the previous
   // frame until the new one finishes loading, which reads as "nothing happened" on a slow
   // connection. Tracking load state per-asset lets the image dim out immediately on advance
-  // instead of silently sitting on stale content.
-  useEffect(() => { setLightboxImgLoaded(false); }, [lightboxAsset?.id]);
+  // instead of silently sitting on stale content. Also resets drag state so a new photo always
+  // starts centered, regardless of how the previous one was left.
+  useEffect(() => {
+    setLightboxImgLoaded(false);
+    setDragX(0);
+    setDragging(false);
+    setExiting(null);
+  }, [lightboxAsset?.id]);
 
   // Warm the browser cache for the next/prev preview while the current one is being viewed — on
   // an asset that's never been previewed before, /preview still self-heals a fresh render on
-  // first request, so this gives that resize a head start before the visitor taps Next/Prev.
+  // first request, so this gives that resize a head start before the visitor swipes.
   useEffect(() => {
     if (lightboxIndex == null) return;
     for (const i of [lightboxIndex - 1, lightboxIndex + 1]) {
@@ -83,11 +97,6 @@ export default function PublicAssetGallery({ token, assets }: Props) {
     window.history.replaceState(null, '', url.toString());
   }, [lightboxAsset]);
 
-  const swipeHandlers = useSwipe({
-    onSwipeLeft: () => setLightboxIndex((i) => (i == null ? null : Math.min(i + 1, visibleAssets.length - 1))),
-    onSwipeRight: () => setLightboxIndex((i) => (i == null ? null : Math.max(i - 1, 0))),
-  });
-
   useEffect(() => {
     if (lightboxIndex == null) return;
     function onKey(e: KeyboardEvent) {
@@ -98,6 +107,58 @@ export default function PublicAssetGallery({ token, assets }: Props) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [lightboxIndex, visibleAssets.length]);
+
+  // Once a swipe clears the threshold, animate the photo the rest of the way off-screen, then
+  // swap to the next/prev asset — the new photo mounts already centered (dragX resets in the
+  // asset-id effect above), so there's no visible snap-back of the old transform.
+  useEffect(() => {
+    if (!exiting) return;
+    const distance = (typeof window !== 'undefined' ? window.innerWidth : 800) * 1.1;
+    setDragX(exiting === 'left' ? -distance : distance);
+    const t = setTimeout(() => {
+      setLightboxIndex((i) => {
+        if (i == null) return null;
+        return exiting === 'left' ? Math.min(i + 1, visibleAssets.length - 1) : Math.max(i - 1, 0);
+      });
+    }, EXIT_DURATION_MS);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exiting]);
+
+  function onDragPointerDown(e: ReactPointerEvent) {
+    if (exiting) return;
+    dragStartX.current = e.clientX;
+    setDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function onDragPointerMove(e: ReactPointerEvent) {
+    if (dragStartX.current == null) return;
+    setDragX(e.clientX - dragStartX.current);
+  }
+
+  function onDragPointerUp() {
+    if (dragStartX.current == null) return;
+    dragStartX.current = null;
+    setDragging(false);
+
+    const canGoNext = lightboxIndex != null && lightboxIndex < visibleAssets.length - 1;
+    const canGoPrev = lightboxIndex != null && lightboxIndex > 0;
+
+    if (dragX <= -SWIPE_THRESHOLD_PX && canGoNext) setExiting('left');
+    else if (dragX >= SWIPE_THRESHOLD_PX && canGoPrev) setExiting('right');
+    else setDragX(0);
+  }
+
+  const dragStyle: CSSProperties = {
+    position: 'relative',
+    width: '100%',
+    height: '100%',
+    transform: `translateX(${dragX}px) rotate(${dragX / 20}deg)`,
+    opacity: exiting ? 0 : 1,
+    transition: dragging ? 'none' : 'transform 0.25s ease, opacity 0.25s ease',
+    touchAction: 'none',
+  };
 
   return (
     <>
@@ -189,92 +250,75 @@ export default function PublicAssetGallery({ token, assets }: Props) {
       )}
 
       {lightboxAsset && lightboxIndex != null && (
-        <div className="modal-backdrop" onClick={() => setLightboxIndex(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 1100 }}>
-            <div className="modal-header">
-              <h3>{lightboxAsset.title || lightboxAsset.eventName || 'Untitled'}</h3>
-              <button className="modal-close" type="button" onClick={() => setLightboxIndex(null)}>×</button>
-            </div>
-            <div className="modal-body" style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-              <div style={{ flex: '1 1 440px', minWidth: 260 }} {...swipeHandlers}>
-                {isImage(lightboxAsset) ? (
-                  <div style={{ position: 'relative' }}>
-                    {/* Instant blur-up placeholder: the same 400px thumbnail the grid card just
-                        showed, almost certainly already sitting in the browser's cache, sets the
-                        box's layout immediately while the sharp 1920px preview loads on top. */}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={`/api/share/${token}/assets/${lightboxAsset.id}/thumbnail`}
-                      alt=""
-                      aria-hidden="true"
-                      style={{
-                        width: '100%', height: 'auto', borderRadius: 8, maxHeight: '65vh', objectFit: 'contain',
-                        background: '#0d0f1c', filter: 'blur(8px)', transform: 'scale(1.03)',
-                      }}
-                    />
-                    {/* Web-optimized preview, not the full original — much faster on mobile. Full
-                        size is one tap away via the download options in the side column. */}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      key={lightboxAsset.id}
-                      src={previewUrl(token, lightboxAsset.id)}
-                      alt={lightboxAsset.title ?? ''}
-                      onLoad={() => setLightboxImgLoaded(true)}
-                      style={{
-                        position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain',
-                        opacity: lightboxImgLoaded ? 1 : 0, transition: 'opacity 0.2s ease-in',
-                      }}
-                    />
-                    {!lightboxImgLoaded && (
-                      <span
-                        style={{
-                          position: 'absolute', bottom: 10, right: 10, display: 'flex', alignItems: 'center', gap: 6,
-                          fontSize: 11, fontWeight: 600, color: 'white', background: 'rgba(13,15,28,0.65)',
-                          padding: '4px 9px', borderRadius: 20, pointerEvents: 'none',
-                        }}
-                      >
-                        <span className="spinner" style={{ width: 11, height: 11 }} /> Loading full quality…
-                      </span>
-                    )}
-                  </div>
-                ) : (
-                  <video
-                    key={lightboxAsset.id}
-                    src={originalUrl(token, lightboxAsset.id)}
-                    controls
-                    style={{ width: '100%', borderRadius: 8, maxHeight: '65vh' }}
+        <div className="lightbox-backdrop" onClick={() => setLightboxIndex(null)}>
+          <div className="lightbox-stage" onClick={(e) => e.stopPropagation()}>
+            <button className="lightbox-close" type="button" onClick={() => setLightboxIndex(null)} aria-label="Close">×</button>
+            <SaveShareMenu token={token} asset={lightboxAsset} />
+
+            <div
+              style={dragStyle}
+              onPointerDown={onDragPointerDown}
+              onPointerMove={onDragPointerMove}
+              onPointerUp={onDragPointerUp}
+              onPointerCancel={onDragPointerUp}
+            >
+              {isImage(lightboxAsset) ? (
+                <>
+                  {/* Instant blur-up placeholder: the same thumbnail the grid card just showed,
+                      almost certainly already sitting in the browser's cache, fills the stage
+                      immediately while the sharp 1920px preview loads on top. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/api/share/${token}/assets/${lightboxAsset.id}/thumbnail`}
+                    alt=""
+                    aria-hidden="true"
+                    draggable={false}
+                    onDragStart={(e) => e.preventDefault()}
+                    style={{
+                      position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain',
+                      filter: 'blur(8px)', transform: 'scale(1.03)',
+                    }}
                   />
-                )}
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
-                  <button
-                    className="btn-secondary"
-                    type="button"
-                    disabled={lightboxIndex <= 0}
-                    onClick={() => setLightboxIndex((i) => (i == null ? null : Math.max(i - 1, 0)))}
-                  >
-                    ← Prev
-                  </button>
-                  <button
-                    className="btn-secondary"
-                    type="button"
-                    disabled={lightboxIndex >= visibleAssets.length - 1}
-                    onClick={() => setLightboxIndex((i) => (i == null ? null : Math.min(i + 1, visibleAssets.length - 1)))}
-                  >
-                    Next →
-                  </button>
-                  <span style={{ fontSize: 12, color: '#8890b4' }}>
-                    {lightboxIndex + 1} / {visibleAssets.length}
-                  </span>
-                </div>
-              </div>
-
-              <div style={{ flex: '0 1 260px', minWidth: 220, display: 'flex', flexDirection: 'column', gap: 18 }}>
-                <AssetDetails asset={lightboxAsset} />
-                <DownloadOptions token={token} asset={lightboxAsset} />
-                <ShareAction token={token} asset={lightboxAsset} />
-              </div>
+                  {/* Web-optimized preview, not the full original — much faster on mobile. Full
+                      size is one tap away via the Save & Share menu. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    key={lightboxAsset.id}
+                    src={previewUrl(token, lightboxAsset.id)}
+                    alt={lightboxAsset.title ?? ''}
+                    draggable={false}
+                    onDragStart={(e) => e.preventDefault()}
+                    onLoad={() => setLightboxImgLoaded(true)}
+                    style={{
+                      position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain',
+                      opacity: lightboxImgLoaded ? 1 : 0, transition: 'opacity 0.2s ease-in',
+                    }}
+                  />
+                  {!lightboxImgLoaded && (
+                    <span
+                      style={{
+                        position: 'absolute', bottom: 10, right: 10, display: 'flex', alignItems: 'center', gap: 6,
+                        fontSize: 11, fontWeight: 600, color: 'white', background: 'rgba(255,255,255,0.12)',
+                        padding: '4px 9px', borderRadius: 20, pointerEvents: 'none',
+                      }}
+                    >
+                      <span className="spinner" style={{ width: 11, height: 11 }} /> Loading full quality…
+                    </span>
+                  )}
+                </>
+              ) : (
+                <video
+                  key={lightboxAsset.id}
+                  src={originalUrl(token, lightboxAsset.id)}
+                  controls
+                  draggable={false}
+                  onDragStart={(e) => e.preventDefault()}
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
+                />
+              )}
             </div>
+
+            <span className="lightbox-counter">{lightboxIndex + 1} / {visibleAssets.length}</span>
           </div>
         </div>
       )}
