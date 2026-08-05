@@ -1,9 +1,7 @@
-import Link from 'next/link';
 import type { User } from '../lib/auth';
 import { prisma } from '../lib/db';
 import { REVIEWABLE_ASSET_WHERE } from '../lib/asset-review';
-import NavLinks from './NavLinks';
-import LogoutButton from './LogoutButton';
+import SidebarShell from './SidebarShell';
 
 export default async function AppShell({
   user,
@@ -16,28 +14,7 @@ export default async function AppShell({
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
-        <div className="sidebar-logo">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/WhiteCrest-AB1889.png" alt="AB Copenhagen" className="sidebar-logo-mark" />
-          <div>
-            <div className="sidebar-logo-text">AB Media</div>
-            <div className="sidebar-logo-sub">Asset Manager</div>
-          </div>
-        </div>
-
-        <nav className="sidebar-nav">
-          <NavLinks role={user.role} unreviewedCount={unreviewedCount} />
-        </nav>
-
-        <div className="sidebar-footer">
-          <Link href="/profile" className="user-info">
-            <div className="user-name">{user.name ?? user.email}</div>
-            <div className="user-role">{user.role}</div>
-          </Link>
-          <LogoutButton />
-        </div>
-      </aside>
+      <SidebarShell user={user} unreviewedCount={unreviewedCount} />
 
       <div className="main-content">
         <div className="page-body">{children}</div>

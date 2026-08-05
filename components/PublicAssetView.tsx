@@ -82,7 +82,7 @@ function SaveToPhotosButton({ url, filename, mimeType }: { url: string; filename
       className="btn-primary"
       onClick={handleClick}
       disabled={saving}
-      style={{ fontSize: 12, padding: '5px 10px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+      style={{ fontSize: 12, padding: '10px 12px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
     >
       {saving ? <><span className="spinner" /> Preparing…</> : '📲 Save to Photos'}
     </button>
@@ -111,11 +111,11 @@ export function DownloadOptions({ token, asset }: { token: string; asset: Public
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         <SaveToPhotosButton url={exportUrl(token, asset.id, 'web')} filename={jpegFilename} mimeType="image/jpeg" />
         {DOWNLOAD_PRESETS.map((p) => (
-          <a key={p.key} className="btn-secondary" style={{ textDecoration: 'none', fontSize: 12, padding: '5px 10px' }} href={exportUrl(token, asset.id, p.key)}>
+          <a key={p.key} className="btn-secondary" style={{ textDecoration: 'none', fontSize: 12, padding: '10px 12px' }} href={exportUrl(token, asset.id, p.key)}>
             {p.label}
           </a>
         ))}
-        <a className="btn-secondary" style={{ textDecoration: 'none', fontSize: 12, padding: '5px 10px' }} href={originalUrl(token, asset.id)}>
+        <a className="btn-secondary" style={{ textDecoration: 'none', fontSize: 12, padding: '10px 12px' }} href={originalUrl(token, asset.id)}>
           Original (full size)
         </a>
       </div>
@@ -134,15 +134,15 @@ function emailShareHref(url: string, text: string) {
 
 function ShareIconButton({ label, glyph, color, onClick, href }: { label: string; glyph: string; color: string; onClick?: () => void; href?: string }) {
   const style: CSSProperties = {
-    width: 32,
-    height: 32,
+    width: 40,
+    height: 40,
     borderRadius: '50%',
     background: color,
     color: 'white',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: 700,
     textDecoration: 'none',
     border: 'none',
@@ -180,7 +180,7 @@ export function ShareAction({ token, asset }: { token: string; asset: PublicAsse
           &ldquo;{asset.shareText}&rdquo;
         </p>
       )}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
         <ShareIconButton
           label="Copy caption for Instagram"
           glyph={igCaptionCopied ? '✓' : '📷'}

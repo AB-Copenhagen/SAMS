@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PublicAsset } from '../lib/collections';
+import { useSwipe } from '../lib/useSwipe';
 import { AssetDetails, DownloadOptions, ShareAction, isImage, originalUrl, previewUrl, quickDownloadUrl } from './PublicAssetView';
 
 interface Props {
@@ -82,6 +83,11 @@ export default function PublicAssetGallery({ token, assets }: Props) {
     window.history.replaceState(null, '', url.toString());
   }, [lightboxAsset]);
 
+  const swipeHandlers = useSwipe({
+    onSwipeLeft: () => setLightboxIndex((i) => (i == null ? null : Math.min(i + 1, visibleAssets.length - 1))),
+    onSwipeRight: () => setLightboxIndex((i) => (i == null ? null : Math.max(i - 1, 0))),
+  });
+
   useEffect(() => {
     if (lightboxIndex == null) return;
     function onKey(e: KeyboardEvent) {
@@ -123,10 +129,10 @@ export default function PublicAssetGallery({ token, assets }: Props) {
                   aria-label={`Download ${a.title || a.eventName || 'asset'}`}
                   style={{
                     position: 'absolute',
-                    top: 8,
-                    right: 8,
-                    width: 30,
-                    height: 30,
+                    top: 6,
+                    right: 6,
+                    width: 40,
+                    height: 40,
                     borderRadius: '50%',
                     background: 'rgba(13,15,28,0.7)',
                     color: 'white',
@@ -134,7 +140,7 @@ export default function PublicAssetGallery({ token, assets }: Props) {
                     alignItems: 'center',
                     justifyContent: 'center',
                     textDecoration: 'none',
-                    fontSize: 15,
+                    fontSize: 17,
                   }}
                 >
                   ⬇
@@ -190,7 +196,7 @@ export default function PublicAssetGallery({ token, assets }: Props) {
               <button className="modal-close" type="button" onClick={() => setLightboxIndex(null)}>×</button>
             </div>
             <div className="modal-body" style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-              <div style={{ flex: '1 1 440px', minWidth: 260 }}>
+              <div style={{ flex: '1 1 440px', minWidth: 260 }} {...swipeHandlers}>
                 {isImage(lightboxAsset) ? (
                   <div style={{ position: 'relative' }}>
                     {/* Instant blur-up placeholder: the same 400px thumbnail the grid card just
