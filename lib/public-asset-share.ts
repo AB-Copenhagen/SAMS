@@ -35,9 +35,3 @@ export function previewUrl(token: string, assetId: string) {
 export function quickDownloadUrl(token: string, asset: PublicAsset) {
   return isImage(asset) ? exportUrl(token, asset.id, 'web') : originalUrl(token, asset.id);
 }
-
-export function displayDate(asset: PublicAsset): { label: string; value: string } {
-  if (asset.dateTaken) return { label: 'Taken', value: new Date(asset.dateTaken).toLocaleString('en-GB') };
-  if (asset.eventDate) return { label: 'Event date', value: new Date(asset.eventDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) };
-  return { label: 'Uploaded', value: new Date(asset.uploadedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) };
-}
