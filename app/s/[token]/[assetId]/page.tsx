@@ -16,7 +16,7 @@ export default async function SharedAssetPage(props: { params: Promise<{ token: 
   const asset = sanitizePublicAsset(target.asset);
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
+    <div className="share-page" style={{ maxWidth: 900 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/AB1889.png" alt="AB Copenhagen" style={{ width: 40, height: 40 }} />

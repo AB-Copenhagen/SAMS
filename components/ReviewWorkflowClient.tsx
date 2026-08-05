@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, type CSSProperties } from 'react';
 import EntityMultiSelect, { type EntityOption } from './EntityMultiSelect';
 import TagInput from './TagInput';
+import { useSwipe } from '../lib/useSwipe';
 
 type Season     = { id: string; name: string };
 type Collection = { id: string; name: string; type: string; date: string | Date | null; seasonId: string | null };
@@ -73,8 +74,8 @@ const REFILL_THRESHOLD = 5;
 const BATCH_LIMIT = 20;
 
 const overlayButtonStyle: CSSProperties = {
-  width: 40,
-  height: 40,
+  width: 44,
+  height: 44,
   borderRadius: '50%',
   background: 'rgba(13,15,28,0.65)',
   color: 'white',
@@ -206,6 +207,8 @@ export default function ReviewWorkflowClient({
   const retreat = useCallback(() => {
     setCursor((c) => Math.max(c - 1, 0));
   }, []);
+
+  const swipeHandlers = useSwipe({ onSwipeLeft: advance, onSwipeRight: retreat });
 
   const rateAndAdvance = useCallback(async (rating: number) => {
     const item = itemsRef.current[cursorRef.current];
@@ -342,8 +345,8 @@ export default function ReviewWorkflowClient({
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 20, alignItems: 'start' }}>
-        <div className="card" style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
+      <div className="review-layout">
+        <div className="card" style={{ padding: 0, overflow: 'hidden', position: 'relative' }} {...swipeHandlers}>
           {showVideoElement ? (
             <video
               key={current.id}
@@ -507,7 +510,7 @@ export default function ReviewWorkflowClient({
                 <button
                   key={n}
                   type="button"
-                  className={currentDraft?.rating === n ? 'btn-primary' : 'btn-secondary'}
+                  className={`review-rate-btn ${currentDraft?.rating === n ? 'btn-primary' : 'btn-secondary'}`}
                   style={{ justifyContent: 'center', gap: 4 }}
                   onClick={() => rateAndAdvance(n)}
                   disabled={deleting}
