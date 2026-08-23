@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { enrollPlayerFace, deletePlayerFace } from '../../../../lib/rekognition';
+import { invalidatePlayers } from '../../../../lib/lookup-cache';
 
 export async function PUT(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -43,6 +44,7 @@ export async function PUT(request: Request, props: { params: Promise<{ id: strin
     }
   }
 
+  invalidatePlayers();
   return NextResponse.json({ ...player, faceEnrollmentError });
 }
 
@@ -56,5 +58,6 @@ export async function DELETE(_: Request, props: { params: Promise<{ id: string }
     await deletePlayerFace(player.rekognitionFaceId).catch(() => {});
   }
   await prisma.player.delete({ where: { id: params.id } });
+  invalidatePlayers();
   return NextResponse.json({ success: true });
 }

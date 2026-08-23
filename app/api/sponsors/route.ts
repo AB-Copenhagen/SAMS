@@ -1,14 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
+import { getCachedSponsors, invalidateSponsors } from '../../../lib/lookup-cache';
 
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  const sponsors = await prisma.sponsor.findMany({
-    orderBy: { name: 'asc' },
-    include: { _count: { select: { assetTags: true } } },
-  });
+  const sponsors = await getCachedSponsors();
   return NextResponse.json(sponsors);
 }
 
@@ -24,5 +22,6 @@ export async function POST(request: Request) {
       aliasesJson: Array.isArray(body.aliases) ? JSON.stringify(body.aliases) : null,
     },
   });
+  invalidateSponsors();
   return NextResponse.json(sponsor);
 }

@@ -2,14 +2,12 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
 import { enrollPlayerFace } from '../../../lib/rekognition';
+import { getCachedPlayers, invalidatePlayers } from '../../../lib/lookup-cache';
 
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  const players = await prisma.player.findMany({
-    orderBy: { name: 'asc' },
-    include: { season: { select: { id: true, name: true } }, _count: { select: { assetTags: true } } },
-  });
+  const players = await getCachedPlayers();
   return NextResponse.json(players);
 }
 
@@ -31,5 +29,6 @@ export async function POST(request: Request) {
     }
   }
 
+  invalidatePlayers();
   return NextResponse.json({ ...player, faceEnrollmentError });
 }

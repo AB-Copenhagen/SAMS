@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
+import { invalidateSponsors } from '../../../../lib/lookup-cache';
 
 export async function PUT(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -17,6 +18,7 @@ export async function PUT(request: Request, props: { params: Promise<{ id: strin
       aliasesJson: Array.isArray(body.aliases) ? JSON.stringify(body.aliases) : null,
     },
   });
+  invalidateSponsors();
   return NextResponse.json(sponsor);
 }
 
@@ -25,5 +27,6 @@ export async function DELETE(_: Request, props: { params: Promise<{ id: string }
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   await prisma.sponsor.delete({ where: { id: params.id } });
+  invalidateSponsors();
   return NextResponse.json({ success: true });
 }

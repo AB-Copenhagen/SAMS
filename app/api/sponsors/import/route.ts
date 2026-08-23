@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser, isAdmin } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { uploadFileToWasabi } from '../../../../lib/wasabi';
+import { invalidateSponsors } from '../../../../lib/lookup-cache';
 
 const TIER_MAP: Record<string, string> = {
   'Our supreme partners':        'title',
@@ -134,5 +135,6 @@ export async function POST() {
     }
   }
 
+  if (created > 0 || updated > 0) invalidateSponsors();
   return NextResponse.json({ success: true, total: parsed.length, created, updated });
 }

@@ -3,6 +3,7 @@ import { getCurrentUser, isAdmin } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { uploadFileToWasabi } from '../../../../lib/wasabi';
 import { normalizePlayerName } from '../../../../lib/player-name';
+import { invalidatePlayers } from '../../../../lib/lookup-cache';
 
 const POSITION_MAP: Record<string, string> = {
   keeper:     'Goalkeeper',
@@ -171,5 +172,6 @@ export async function POST() {
     }
   }
 
+  if (created > 0 || updated > 0) invalidatePlayers();
   return NextResponse.json({ success: true, total: parsed.length, created, updated });
 }

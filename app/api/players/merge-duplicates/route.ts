@@ -4,6 +4,7 @@ import { prisma } from '../../../../lib/db';
 import { deletePlayerFace } from '../../../../lib/rekognition';
 import { addConfirmedStringTag, removeConfirmedStringTag } from '../../../../lib/asset-tags';
 import { normalizePlayerName, decodeHtmlEntities } from '../../../../lib/player-name';
+import { invalidatePlayers } from '../../../../lib/lookup-cache';
 
 function slugify(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '-');
@@ -125,11 +126,13 @@ export async function POST() {
   // markup pasted in) and still have literal "&#039;"-style text baked into `name`. Clean those up
   // unconditionally, not just when a duplicate is found, since a singleton with no sibling to
   // merge against would otherwise keep displaying the raw entity forever.
+  let namesDecoded = 0;
   for (const p of players) {
     const decoded = decodeHtmlEntities(p.name);
     if (decoded !== p.name) {
       await prisma.player.update({ where: { id: p.id }, data: { name: decoded } });
       p.name = decoded;
+      namesDecoded++;
     }
   }
 
@@ -229,6 +232,7 @@ export async function POST() {
     }
   }
 
+  if (playersDeleted > 0 || namesDecoded > 0) invalidatePlayers();
   return NextResponse.json({
     playersDeleted,
     tagsReassigned: counters.tagsReassigned,

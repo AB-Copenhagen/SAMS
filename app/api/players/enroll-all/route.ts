@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser, isAdmin } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { enrollPlayerFace } from '../../../../lib/rekognition';
+import { invalidatePlayers } from '../../../../lib/lookup-cache';
 
 export const maxDuration = 60;
 
@@ -30,5 +31,6 @@ export async function POST() {
     }
   }
 
+  if (enrolled > 0) invalidatePlayers();
   return NextResponse.json({ total: players.length, enrolled, errors });
 }
