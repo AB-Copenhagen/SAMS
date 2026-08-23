@@ -55,6 +55,13 @@ model Asset {
   playerTags         AssetPlayerTag[]
   sponsorTags        AssetSponsorTag[]
   collectionMemberships CollectionAsset[]
+
+  @@index([uploadedAt])
+  @@index([seasonId, uploadedAt])
+  @@index([collectionId])
+  @@index([category])
+  @@index([faceTagStatus, uploadedAt])
+  @@index([thumbnailStatus, uploadedAt])
 }
 
 model AssetPlayerTag {

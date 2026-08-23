@@ -19,7 +19,7 @@ const RUN_RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // 30d — bounds table growt
 
 function authorized(request: Request): boolean {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return true; // no secret configured — Vercel Cron requests are trusted by default
+  if (!secret) return false; // no secret configured — reject rather than trust every caller
   return request.headers.get('authorization') === `Bearer ${secret}`;
 }
 

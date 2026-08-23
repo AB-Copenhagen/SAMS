@@ -343,6 +343,12 @@ button {
 }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* Touch devices (fingers, not precise cursors) need a real hit target — the 13.5px/8px
+   padding above renders well under Apple/Google's 44px minimum on every button variant. */
+@media (pointer: coarse) {
+  button { min-height: 44px; }
+}
+
 .btn-primary  { background: var(--color-primary); color: white; }
 .btn-primary:hover:not(:disabled) { background: var(--color-primary-hover); }
 

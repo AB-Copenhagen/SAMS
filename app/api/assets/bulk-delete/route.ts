@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '../../../../lib/auth';
+import { getCurrentUser, isAdmin } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { deleteFileFromWasabi } from '../../../../lib/wasabi';
 
@@ -8,7 +8,7 @@ import { deleteFileFromWasabi } from '../../../../lib/wasabi';
 // the rest of a multi-select delete from the media library.
 export async function POST(request: Request) {
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  if (!isAdmin(user)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const body = await request.json();
   const ids: string[] = Array.isArray(body?.ids) ? body.ids.filter((id: unknown) => typeof id === 'string') : [];

@@ -2,13 +2,18 @@
 
 import { useEffect, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import TagInput from './TagInput';
 import Combobox from './Combobox';
 import IdentifyPlayersButton from './IdentifyPlayersButton';
 import EntityMultiSelect, { type EntityOption } from './EntityMultiSelect';
-import PhotoEditor, { type EditParamsState } from './PhotoEditor';
+import type { EditParamsState } from './PhotoEditor';
 import AssetSharePanel from './AssetSharePanel';
+
+// Pulls in react-easy-crop — code-split out of the initial bundle so every asset detail page
+// view (the most-visited admin page) doesn't pay for it unless "Edit and Download" is clicked.
+const PhotoEditor = dynamic(() => import('./PhotoEditor'), { ssr: false });
 
 type Season     = { id: string; name: string };
 type Collection = { id: string; name: string; type: string; date: string | Date | null; seasonId: string | null };
