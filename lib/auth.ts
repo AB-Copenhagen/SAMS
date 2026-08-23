@@ -79,6 +79,6 @@ export async function getCurrentUser(): Promise<User | null> {
   };
 }
 
-export function isAdmin(user: User | null): boolean {
+export function isAdmin(user: User | null): user is User {
   return Boolean(user && user.role === 'ADMIN');
 }

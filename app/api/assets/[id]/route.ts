@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '../../../../lib/auth';
+import { getCurrentUser, isAdmin } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { deleteFileFromWasabi } from '../../../../lib/wasabi';
 import { syncPlayerTags, syncSponsorTags } from '../../../../lib/asset-tags';
@@ -21,7 +21,7 @@ export async function GET(_: Request, props: { params: Promise<{ id: string }> }
 export async function DELETE(_: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  if (!isAdmin(user)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const asset = await prisma.asset.findUnique({ where: { id: params.id }, select: { objectKey: true } });
   if (!asset) return NextResponse.json({ message: 'Not found' }, { status: 404 });
@@ -40,7 +40,7 @@ export async function DELETE(_: Request, props: { params: Promise<{ id: string }
 export async function PUT(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  if (!isAdmin(user)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const body = await request.json();
 
@@ -102,7 +102,7 @@ type SharePatchBody = {
 export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  if (!isAdmin(user)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   const body = await request.json() as SharePatchBody;
 
   const existing = await prisma.asset.findUnique({ where: { id: params.id }, select: { shareToken: true } });
