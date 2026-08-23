@@ -121,6 +121,7 @@ export default function ReviewWorkflowClient({
   const [deleting, setDeleting] = useState(false);
   const [zoomed, setZoomed] = useState(false);
   const [playingVideo, setPlayingVideo] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   const itemsRef = useRef(items);
   itemsRef.current = items;
@@ -187,6 +188,7 @@ export default function ReviewWorkflowClient({
     }
     setZoomed(false);
     setPlayingVideo(false);
+    setShowDetails(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.id]);
 
@@ -458,51 +460,6 @@ export default function ReviewWorkflowClient({
             </p>
           )}
 
-          <div style={{ display: 'flex', gap: 10 }}>
-            <div className="field" style={{ flex: 1 }}>
-              <label>Season</label>
-              <select value={seasonId} onChange={(e) => setSeasonId(e.target.value)}>
-                <option value="">No season</option>
-                {seasons.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="field" style={{ flex: 1 }}>
-              <label>Match</label>
-              <select
-                value={collectionId}
-                onChange={(e) => {
-                  const newCollectionId = e.target.value;
-                  setCollectionId(newCollectionId);
-                  const collection = collections.find((c) => c.id === newCollectionId);
-                  // Selecting a match fills in a still-blank season the same way the asset detail
-                  // page does — event name/date are backfilled server-side on save (see the
-                  // /review route's resolveEventFieldDefaults call).
-                  if (collection && !seasonId && collection.seasonId) setSeasonId(collection.seasonId);
-                }}
-              >
-                <option value="">No match</option>
-                {collections.map((c) => (
-                  <option key={c.id} value={c.id}>{collectionLabel(c)}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="field">
-            <label>Tagged players</label>
-            <EntityMultiSelect key={`players-${current.id}`} options={playerOptions} selected={playerIds} onChange={setPlayerIds} placeholder="Add player…" />
-          </div>
-          <div className="field">
-            <label>Tagged sponsors</label>
-            <EntityMultiSelect key={`sponsors-${current.id}`} options={sponsorOptions} selected={sponsorIds} onChange={setSponsorIds} placeholder="Add sponsor…" />
-          </div>
-          <div className="field">
-            <label>Tags</label>
-            <TagInput key={`tags-${current.id}`} tags={tags} onChange={setTags} />
-          </div>
-
           <div className="field">
             <label>Rating</label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
@@ -526,6 +483,65 @@ export default function ReviewWorkflowClient({
               Skip
             </button>
           )}
+
+          <button
+            className="review-details-toggle"
+            type="button"
+            onClick={() => setShowDetails((v) => !v)}
+            aria-expanded={showDetails}
+          >
+            {showDetails ? 'Hide details ▴' : 'Edit season, match, players, tags ▾'}
+          </button>
+
+          {showDetails && (
+            <>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <div className="field" style={{ flex: 1 }}>
+                  <label>Season</label>
+                  <select value={seasonId} onChange={(e) => setSeasonId(e.target.value)}>
+                    <option value="">No season</option>
+                    {seasons.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label>Match</label>
+                  <select
+                    value={collectionId}
+                    onChange={(e) => {
+                      const newCollectionId = e.target.value;
+                      setCollectionId(newCollectionId);
+                      const collection = collections.find((c) => c.id === newCollectionId);
+                      // Selecting a match fills in a still-blank season the same way the asset detail
+                      // page does — event name/date are backfilled server-side on save (see the
+                      // /review route's resolveEventFieldDefaults call).
+                      if (collection && !seasonId && collection.seasonId) setSeasonId(collection.seasonId);
+                    }}
+                  >
+                    <option value="">No match</option>
+                    {collections.map((c) => (
+                      <option key={c.id} value={c.id}>{collectionLabel(c)}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="field">
+                <label>Tagged players</label>
+                <EntityMultiSelect key={`players-${current.id}`} options={playerOptions} selected={playerIds} onChange={setPlayerIds} placeholder="Add player…" />
+              </div>
+              <div className="field">
+                <label>Tagged sponsors</label>
+                <EntityMultiSelect key={`sponsors-${current.id}`} options={sponsorOptions} selected={sponsorIds} onChange={setSponsorIds} placeholder="Add sponsor…" />
+              </div>
+              <div className="field">
+                <label>Tags</label>
+                <TagInput key={`tags-${current.id}`} tags={tags} onChange={setTags} />
+              </div>
+            </>
+          )}
+
           <button className="btn-danger" type="button" onClick={deleteAndAdvance} disabled={deleting} style={{ width: '100%', justifyContent: 'center', marginTop: 8 }}>
             {deleting ? <><span className="spinner" /> Deleting…</> : 'Delete asset'}
           </button>

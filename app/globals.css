@@ -1202,3 +1202,17 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 .review-rate-btn { padding: 12px 14px; }
+
+/* Collapsed by default so rating/skip/delete — the action taken on every single photo — never
+   requires scrolling past season/match/player/sponsor/tag fields first. */
+.review-details-toggle {
+  width: 100%;
+  justify-content: center;
+  background: none;
+  color: #6b7491;
+  font-size: 12.5px;
+  padding: 10px 14px;
+  margin-top: 4px;
+  border: 1px dashed #dde2f0;
+}
+.review-details-toggle:hover { background: #f7f8fc; color: #3a3f58; }
