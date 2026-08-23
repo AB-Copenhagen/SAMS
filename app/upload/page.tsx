@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { getCurrentUser } from '../../lib/auth';
 import AppShell from '../../components/AppShell';
 import BulkUploadZone from '../../components/BulkUploadZone';
@@ -13,7 +14,10 @@ export default async function UploadPage() {
       <div className="page-header">
         <div>
           <h1>Upload Assets</h1>
-          <p>Drag &amp; drop photos or videos, or browse files and folders.</p>
+          <p>
+            Drag &amp; drop photos or videos, or browse files and folders.{' '}
+            <Link href="/ingest/mobile">On your phone? Use quick capture instead →</Link>
+          </p>
         </div>
       </div>
       <BulkUploadZone />
