@@ -3,22 +3,40 @@ import { getCurrentUser } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { generateShareToken, hashSharePassword } from '../../../../lib/collections';
 
-export async function GET(_: Request, props: { params: Promise<{ id: string }> }) {
+const ASSET_PAGE_SIZE = 100;
+
+export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+
+  const { searchParams } = new URL(request.url);
+  const page = Math.max(1, parseInt(searchParams.get('page') ?? '1'));
+
   const collection = await prisma.collection.findUnique({
     where: { id: params.id },
     include: {
       season: true,
       stadium: true,
-      assets: { orderBy: { uploadedAt: 'desc' } },
+      // Trimmed to the fields a gallery view actually renders (excludes large JSON blobs like
+      // exifJson/detectedTagsJson/gcvResponseJson), and paginated rather than returning every
+      // asset in the collection in one response.
+      assets: {
+        orderBy: { uploadedAt: 'desc' },
+        take: ASSET_PAGE_SIZE,
+        skip: (page - 1) * ASSET_PAGE_SIZE,
+        select: {
+          id: true, title: true, eventName: true, eventDate: true, location: true,
+          fileType: true, fileSize: true, thumbnailKey: true, thumbnailStatus: true,
+        },
+      },
       playerRules: { include: { player: true } },
       sponsorRules: { include: { sponsor: true } },
+      _count: { select: { assets: true } },
     },
   });
   if (!collection) return NextResponse.json({ message: 'Not found' }, { status: 404 });
-  return NextResponse.json(collection);
+  return NextResponse.json({ ...collection, assetsTotal: collection._count.assets, page, pageSize: ASSET_PAGE_SIZE });
 }
 
 type PatchBody = {

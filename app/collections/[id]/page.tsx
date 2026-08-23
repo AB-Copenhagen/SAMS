@@ -20,7 +20,15 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
     include: {
       season: true,
       stadium: true,
-      assets: { orderBy: { uploadedAt: 'desc' } },
+      // Trimmed to exactly what AssetGallery renders — the untrimmed relation was pulling every
+      // column (including several large JSON blobs) for every asset in the collection on each open.
+      assets: {
+        orderBy: { uploadedAt: 'desc' },
+        select: {
+          id: true, title: true, eventName: true, eventDate: true, location: true,
+          fileType: true, fileSize: true, thumbnailKey: true, thumbnailStatus: true,
+        },
+      },
       playerRules: { include: { player: true } },
       sponsorRules: { include: { sponsor: true } },
     },
