@@ -244,6 +244,35 @@ export default function BulkUploadZone() {
 
   return (
     <>
+      {/* Drop zone — file selection comes first so it's above the fold on a phone; batch
+          metadata (all optional) follows rather than gating access to the file picker. */}
+      <div
+        className={`drop-zone${isDragging ? ' dragging' : ''}`}
+        onDragEnter={onDragEnter}
+        onDragLeave={onDragLeave}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <div className="drop-zone-icon">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M24 30V14M24 14L17 21M24 14L31 21"/>
+            <path d="M8 34c0 3.3 2.7 6 6 6h20c3.3 0 6-2.7 6-6"/>
+            <path d="M36 22c-1-6.5-6.5-11.5-13.5-11.5S10 16.5 9 22C5.5 23 3 26.2 3 30c0 4.4 3.6 8 8 8H11"/>
+          </svg>
+        </div>
+        <h3>Drop photos &amp; videos here</h3>
+        <p>Drag individual files or entire folders — images and videos only</p>
+        <div className="drop-zone-actions" onClick={(e) => e.stopPropagation()}>
+          <button className="btn-secondary" type="button" onClick={() => fileInputRef.current?.click()}>
+            Browse files
+          </button>
+          <button className="btn-secondary" type="button" onClick={() => folderInputRef.current?.click()}>
+            Browse folder
+          </button>
+        </div>
+      </div>
+
       {/* Batch metadata */}
       <div className="card">
         <div className="card-header">Batch metadata — applied to all files in this upload</div>
@@ -282,34 +311,6 @@ export default function BulkUploadZone() {
             <label>Tags</label>
             <TagInput tags={tags} onChange={setTags} />
           </div>
-        </div>
-      </div>
-
-      {/* Drop zone */}
-      <div
-        className={`drop-zone${isDragging ? ' dragging' : ''}`}
-        onDragEnter={onDragEnter}
-        onDragLeave={onDragLeave}
-        onDragOver={onDragOver}
-        onDrop={onDrop}
-        onClick={() => fileInputRef.current?.click()}
-      >
-        <div className="drop-zone-icon">
-          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M24 30V14M24 14L17 21M24 14L31 21"/>
-            <path d="M8 34c0 3.3 2.7 6 6 6h20c3.3 0 6-2.7 6-6"/>
-            <path d="M36 22c-1-6.5-6.5-11.5-13.5-11.5S10 16.5 9 22C5.5 23 3 26.2 3 30c0 4.4 3.6 8 8 8H11"/>
-          </svg>
-        </div>
-        <h3>Drop photos &amp; videos here</h3>
-        <p>Drag individual files or entire folders — images and videos only</p>
-        <div className="drop-zone-actions" onClick={(e) => e.stopPropagation()}>
-          <button className="btn-secondary" type="button" onClick={() => fileInputRef.current?.click()}>
-            Browse files
-          </button>
-          <button className="btn-secondary" type="button" onClick={() => folderInputRef.current?.click()}>
-            Browse folder
-          </button>
         </div>
       </div>
 
