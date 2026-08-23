@@ -289,6 +289,13 @@ ALTER TABLE "Asset" ADD COLUMN "shareUpdatedAt" DATETIME;
 CREATE UNIQUE INDEX IF NOT EXISTS "Asset_shareToken_key" ON "Asset"("shareToken");
 
 ALTER TABLE "Asset" ADD COLUMN "webPreviewKey" TEXT;
+
+CREATE INDEX IF NOT EXISTS "Asset_uploadedAt_idx" ON "Asset"("uploadedAt");
+CREATE INDEX IF NOT EXISTS "Asset_seasonId_uploadedAt_idx" ON "Asset"("seasonId", "uploadedAt");
+CREATE INDEX IF NOT EXISTS "Asset_collectionId_idx" ON "Asset"("collectionId");
+CREATE INDEX IF NOT EXISTS "Asset_category_idx" ON "Asset"("category");
+CREATE INDEX IF NOT EXISTS "Asset_faceTagStatus_uploadedAt_idx" ON "Asset"("faceTagStatus", "uploadedAt");
+CREATE INDEX IF NOT EXISTS "Asset_thumbnailStatus_uploadedAt_idx" ON "Asset"("thumbnailStatus", "uploadedAt");
 `;
 
 const statements = sql
