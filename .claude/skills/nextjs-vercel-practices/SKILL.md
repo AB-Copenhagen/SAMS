@@ -27,7 +27,7 @@ conventions specific to this repo's stack, so it doesn't repeat that material.
   for ingest devices (`lib/device-auth.ts`) and HMAC-signed share-unlock cookies for
   public share links (`lib/share-auth.ts`).
 - **Media processing**: `sharp` + `exifr` run in Vercel Functions (Node runtime, not
-  Edge — both are native/WASM-touching and won't work on Edge). `exifr` is listed in
+  Edge — both are native/WASM-touching and won't work on Edge). Both are listed in
   `next.config.js`'s `serverExternalPackages`; add any new native/binary dependency
   there too or the build will try to bundle it.
 - **Vercel Sandbox** (`@vercel/sandbox`) and **Vercel OIDC** (`@vercel/oidc`) are already
@@ -60,6 +60,25 @@ conventions specific to this repo's stack, so it doesn't repeat that material.
   (worked around a Prisma-engine-specific stale-read bug) and still fully parameterized
   via `args`. Don't extend raw-SQL usage elsewhere without the same rationale and the
   same parameterization discipline.
+
+## The production build uses webpack, not Turbopack — deliberately
+
+`package.json`'s `build` script is `next build --webpack`, not the Next 16 default. This
+is a workaround, not a preference:
+
+- Turbopack (default since the Next 16 upgrade) silently failed to carry `sharp`'s
+  native libvips binary into the deployed Vercel function — every thumbnail request
+  threw `ERR_DLOPEN_FAILED: libvips-cpp.so.*` in production despite `sharp` being
+  correctly listed in `serverExternalPackages` and having only one installed version.
+  webpack's externals handling for native addons doesn't have this problem.
+- **Don't remove `--webpack` from the build script** (e.g. "to speed up builds" or "the
+  default is fine now") without first deploying a real thumbnail-serving request against
+  Turbopack and confirming it doesn't throw — check Vercel runtime logs
+  (`vercel logs <url> | grep -i dlopen`) for `ERR_DLOPEN_FAILED`, not just that the build
+  succeeds. A clean build is not evidence this is fixed; the failure only shows up at
+  request time, on Vercel's Linux runtime, for a route that actually calls `sharp`.
+- If a future Next.js/Turbopack release fixes native-addon bundling, this is the thing to
+  revisit — worth a line in the changelog when it's finally safe to drop.
 
 ## Deploy config
 
