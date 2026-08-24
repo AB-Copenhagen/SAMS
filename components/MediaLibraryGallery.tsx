@@ -10,10 +10,13 @@ import AssetGallery, { type GalleryAsset } from './AssetGallery';
 // in the same tick in a row can cause a browser to silently drop some of them.
 const DOWNLOAD_STAGGER_MS = 250;
 
-export default function MediaLibraryGallery({ assets }: { assets: GalleryAsset[] }) {
+type CustomCollection = { id: string; name: string };
+
+export default function MediaLibraryGallery({ assets, customCollections = [] }: { assets: GalleryAsset[]; customCollections?: CustomCollection[] }) {
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [addedMessage, setAddedMessage] = useState('');
 
   function toggle(id: string) {
     setSelectedIds((prev) => {
@@ -47,6 +50,31 @@ export default function MediaLibraryGallery({ assets }: { assets: GalleryAsset[]
     }
   }
 
+  // Purely additive — adds the selection to a custom gallery via CollectionAsset without touching
+  // each asset's own match/event Collection assignment (Asset.collectionId), so an asset keeps
+  // showing up under its match while also appearing in the custom gallery. Selection is left
+  // intact afterward so the same batch can be added to another gallery too.
+  async function bulkAddToCollection(collectionId: string) {
+    if (!collectionId) return;
+    const collection = customCollections.find((c) => c.id === collectionId);
+    setBusy(true);
+    setAddedMessage('');
+    try {
+      const res = await fetch(`/api/collections/${collectionId}/assets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assetIds: [...selectedIds] }),
+      });
+      if (res.ok) {
+        setAddedMessage(`Added ${selectedIds.size} item${selectedIds.size !== 1 ? 's' : ''} to "${collection?.name ?? 'collection'}".`);
+      } else {
+        alert('Add to collection failed');
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function bulkDownload() {
     const ids = [...selectedIds];
     for (let i = 0; i < ids.length; i++) {
@@ -66,9 +94,23 @@ export default function MediaLibraryGallery({ assets }: { assets: GalleryAsset[]
       {selectedIds.size > 0 && (
         <div className="bulk-action-bar">
           <span>{selectedIds.size} selected</span>
+          {customCollections.length > 0 && (
+            <select
+              value=""
+              disabled={busy}
+              onChange={(e) => bulkAddToCollection(e.target.value)}
+              aria-label="Add selection to custom collection"
+            >
+              <option value="">Add to collection…</option>
+              {customCollections.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          )}
           <button type="button" className="btn-secondary" onClick={bulkDownload} disabled={busy}>Download</button>
           <button type="button" className="btn-danger" onClick={bulkDelete} disabled={busy}>{busy ? 'Deleting…' : 'Delete'}</button>
           <button type="button" className="btn-ghost" onClick={clearSelection} disabled={busy}>Cancel</button>
+          {addedMessage && <span style={{ fontSize: 12, color: '#16a34a' }}>{addedMessage}</span>}
         </div>
       )}
     </>

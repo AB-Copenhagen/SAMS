@@ -44,13 +44,14 @@ export default async function MediaPage(props: { searchParams: Promise<SearchPar
 
   const where = AND.length ? { AND } : {};
 
-  const [assets, total, seasons, collections, players, sponsors] = await Promise.all([
+  const [assets, total, seasons, collections, players, sponsors, customCollections] = await Promise.all([
     prisma.asset.findMany({ where, orderBy: { uploadedAt: 'desc' }, take: perPage, skip: (page - 1) * perPage }),
     prisma.asset.count({ where }),
     prisma.season.findMany({ orderBy: { startDate: 'desc' }, select: { id: true, name: true } }),
     prisma.collection.findMany({ orderBy: { date: 'desc' }, select: { id: true, name: true, date: true } }),
     prisma.player.findMany({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, name: true, number: true } }),
     prisma.sponsor.findMany({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
+    prisma.collection.findMany({ where: { type: 'custom' }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
   ]);
 
   const pages      = Math.ceil(total / perPage);
@@ -94,7 +95,7 @@ export default async function MediaPage(props: { searchParams: Promise<SearchPar
           <p>Try adjusting your filters or upload new files.</p>
         </div>
       ) : (
-        <MediaLibraryGallery assets={assets} />
+        <MediaLibraryGallery assets={assets} customCollections={customCollections} />
       )}
 
       {assets.length > 0 && (
