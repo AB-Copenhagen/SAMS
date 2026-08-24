@@ -94,6 +94,7 @@ export async function PUT(request: Request, props: { params: Promise<{ id: strin
 type SharePatchBody = {
   isPublic?: boolean;
   regenerateToken?: boolean;
+  expiresAt?: string | null;
 };
 
 // Standalone per-asset public link — independent of PUT above, which handles the full metadata
@@ -115,6 +116,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     data: {
       ...(body.isPublic !== undefined && { isPublic: body.isPublic }),
       ...(needsToken && { shareToken: generateShareToken() }),
+      ...(body.expiresAt !== undefined && { expiresAt: body.expiresAt ? new Date(body.expiresAt) : null }),
       ...((body.isPublic !== undefined || needsToken) && { shareUpdatedAt: new Date() }),
     },
   });

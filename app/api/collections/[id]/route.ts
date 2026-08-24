@@ -49,6 +49,7 @@ type PatchBody = {
   regenerateToken?: boolean;
   shareMinRating?: number | null;
   shareDateRangeDays?: number | null;
+  expiresAt?: string | null;
 };
 
 export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
@@ -80,6 +81,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       ...(body.isPublic  !== undefined && { isPublic: body.isPublic }),
       ...(body.shareMinRating     !== undefined && { shareMinRating: body.shareMinRating }),
       ...(body.shareDateRangeDays !== undefined && { shareDateRangeDays: body.shareDateRangeDays }),
+      ...(body.expiresAt          !== undefined && { expiresAt: body.expiresAt ? new Date(body.expiresAt) : null }),
       ...(passwordFields && { ...passwordFields, shareUpdatedAt: new Date() }),
       ...(needsToken && { shareToken: generateShareToken() }),
     },

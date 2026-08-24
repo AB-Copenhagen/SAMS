@@ -239,19 +239,26 @@ export function sanitizePublicAsset(asset: AssetWithTags): PublicAsset {
   };
 }
 
+/** A link past its optional expiresAt is treated as if it never existed — 404, not a distinct "expired" state, so a stale link doesn't confirm to a visitor that it was ever valid. */
+function isShareExpired(expiresAt: Date | null): boolean {
+  return expiresAt != null && expiresAt.getTime() <= Date.now();
+}
+
 export async function getPublicCollectionByToken(token: string) {
-  return prisma.collection.findUnique({
+  const collection = await prisma.collection.findUnique({
     where: { shareToken: token },
     include: { playerRules: true, sponsorRules: true },
   });
+  return collection && !isShareExpired(collection.expiresAt) ? collection : null;
 }
 
 /** Standalone per-asset share link, independent of any collection's public status — admin-generated. */
 export async function getAssetByShareToken(token: string): Promise<AssetWithTags | null> {
-  return prisma.asset.findFirst({
+  const asset = await prisma.asset.findFirst({
     where: { shareToken: token, isPublic: true },
     include: CONFIRMED_TAGS_INCLUDE,
   });
+  return asset && !isShareExpired(asset.expiresAt) ? asset : null;
 }
 
 export type ShareTarget =

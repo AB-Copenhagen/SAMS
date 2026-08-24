@@ -99,6 +99,7 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
             appBaseUrl={appBaseUrl}
             shareMinRating={collection.shareMinRating}
             shareDateRangeDays={collection.shareDateRangeDays}
+            expiresAt={collection.expiresAt}
           />
           <CollectionRulesEditor
             collectionId={collection.id}

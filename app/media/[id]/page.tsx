@@ -90,6 +90,7 @@ export default async function AssetDetailPage(props: { params: Promise<{ id: str
           editParamsJson:   asset.editParamsJson    ?? null,
           isPublic:         asset.isPublic,
           shareToken:       asset.shareToken        ?? null,
+          expiresAt:        asset.expiresAt ? asset.expiresAt.toISOString() : null,
         }}
         appBaseUrl={appBaseUrl}
         signedUrl={signedUrl}

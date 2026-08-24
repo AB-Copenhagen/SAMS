@@ -11,6 +11,13 @@ interface Props {
   appBaseUrl: string;
   shareMinRating: number | null;
   shareDateRangeDays: number | null;
+  expiresAt: string | Date | null;
+}
+
+/** yyyy-mm-dd for a date <input>, in local time so the picker shows the date the admin actually set. */
+function toDateInputValue(value: string | Date): string {
+  const d = new Date(value);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 const DATE_RANGE_OPTIONS = [
@@ -20,7 +27,8 @@ const DATE_RANGE_OPTIONS = [
   { value: '30', label: 'Last month' },
 ];
 
-export default function CollectionSharePanel({ id, isPublic, hasPassword, shareToken, appBaseUrl, shareMinRating, shareDateRangeDays }: Props) {
+export default function CollectionSharePanel({ id, isPublic, hasPassword, shareToken, appBaseUrl, shareMinRating, shareDateRangeDays, expiresAt }: Props) {
+  const isExpired = expiresAt != null && new Date(expiresAt).getTime() <= Date.now();
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [password, setPassword] = useState('');
@@ -82,6 +90,13 @@ export default function CollectionSharePanel({ id, isPublic, hasPassword, shareT
             </button>
           </div>
 
+          {isExpired && (
+            <div className="alert alert-warning" style={{ marginBottom: 12 }}>
+              This link expired on {new Date(expiresAt!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} —
+              visitors see a 404. Clear or extend the expiry date below to restore access.
+            </div>
+          )}
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 13, color: '#6b7491' }}>
               {hasPassword ? 'Password required to view/download' : 'No password — anyone with the link can view/download'}
@@ -141,6 +156,27 @@ export default function CollectionSharePanel({ id, isPublic, hasPassword, shareT
           </div>
           <p style={{ fontSize: 12, color: '#8890b4', marginTop: 6, marginBottom: 0 }}>
             These only limit what the public link shows — nothing is removed from the collection itself.
+          </p>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, paddingTop: 14, borderTop: '1px solid #e8eaf4', flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#3b4070' }}>
+              Link expires
+              <input
+                type="date"
+                value={expiresAt ? toDateInputValue(expiresAt) : ''}
+                disabled={saving}
+                onChange={(e) => patch({ expiresAt: e.target.value ? `${e.target.value}T23:59:59` : null })}
+              />
+            </label>
+            {expiresAt && (
+              <button className="btn-secondary" type="button" disabled={saving} onClick={() => patch({ expiresAt: null })}>
+                Clear expiry
+              </button>
+            )}
+          </div>
+          <p style={{ fontSize: 12, color: '#8890b4', marginTop: 6, marginBottom: 0 }}>
+            After this date the link 404s for visitors, like it was never created — good for time-boxing
+            press access to a single match weekend. Leave blank for a link that never expires.
           </p>
         </>
       )}

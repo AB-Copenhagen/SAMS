@@ -74,6 +74,7 @@ type AssetProps = {
   editParamsJson: string | null;
   isPublic: boolean;
   shareToken: string | null;
+  expiresAt: string | null;
 };
 
 function formatBytes(b: number) {
@@ -497,7 +498,7 @@ export default function AssetDetailClient({
           </button>
         </div>
 
-        <AssetSharePanel id={asset.id} isPublic={asset.isPublic} shareToken={asset.shareToken} appBaseUrl={appBaseUrl} />
+        <AssetSharePanel id={asset.id} isPublic={asset.isPublic} shareToken={asset.shareToken} appBaseUrl={appBaseUrl} expiresAt={asset.expiresAt} />
 
         <div className="card">
           <div className="card-header" style={{ marginBottom: 12 }}>Detected tags</div>

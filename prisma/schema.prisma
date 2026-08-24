@@ -52,6 +52,7 @@ model Asset {
   isPublic           Boolean     @default(false)
   shareToken         String?     @unique
   shareUpdatedAt     DateTime?
+  expiresAt          DateTime?
   playerTags         AssetPlayerTag[]
   sponsorTags        AssetSponsorTag[]
   collectionMemberships CollectionAsset[]
@@ -236,6 +237,7 @@ model Collection {
   shareUpdatedAt    DateTime?
   shareMinRating    Int?
   shareDateRangeDays Int?
+  expiresAt         DateTime?
   manualAssets      CollectionAsset[]
   playerRules       CollectionPlayerRule[]
   sponsorRules      CollectionSponsorRule[]

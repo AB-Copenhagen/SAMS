@@ -8,15 +8,23 @@ interface Props {
   isPublic: boolean;
   shareToken: string | null;
   appBaseUrl: string;
+  expiresAt: string | Date | null;
 }
 
-export default function AssetSharePanel({ id, isPublic, shareToken, appBaseUrl }: Props) {
+/** yyyy-mm-dd for a date <input>, in local time so the picker shows the date the admin actually set. */
+function toDateInputValue(value: string | Date): string {
+  const d = new Date(value);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export default function AssetSharePanel({ id, isPublic, shareToken, appBaseUrl, expiresAt }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
 
   const shareUrl = shareToken ? `${appBaseUrl}/s/${shareToken}/${id}` : null;
+  const isExpired = expiresAt != null && new Date(expiresAt).getTime() <= Date.now();
 
   async function patch(body: Record<string, unknown>) {
     setSaving(true);
@@ -73,6 +81,30 @@ export default function AssetSharePanel({ id, isPublic, shareToken, appBaseUrl }
           <p style={{ fontSize: 12, color: '#8890b4', marginTop: 6, marginBottom: 0 }}>
             Anyone with this link can view and download this asset only — not the rest of its collection.
           </p>
+
+          {isExpired && (
+            <div className="alert alert-warning" style={{ marginTop: 10 }}>
+              This link expired on {new Date(expiresAt!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} —
+              visitors see a 404.
+            </div>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#3b4070' }}>
+              Link expires
+              <input
+                type="date"
+                value={expiresAt ? toDateInputValue(expiresAt) : ''}
+                disabled={saving}
+                onChange={(e) => patch({ expiresAt: e.target.value ? `${e.target.value}T23:59:59` : null })}
+              />
+            </label>
+            {expiresAt && (
+              <button className="btn-secondary" type="button" disabled={saving} onClick={() => patch({ expiresAt: null })}>
+                Clear expiry
+              </button>
+            )}
+          </div>
         </>
       )}
 
