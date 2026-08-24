@@ -55,6 +55,35 @@ export const SUGGEST_THRESHOLD    = Number(process.env.REKOGNITION_SUGGEST_THRES
 
 const BOX_PADDING_RATIO = 0.35; // pad each detected face crop for better match accuracy
 
+// Rekognition rejects an inline Image.Bytes payload over 5MB outright ("Member must have length
+// less than or equal to 5242880") — full-resolution press photos (high-megapixel DSLR JPEGs)
+// routinely exceed that, which previously failed DetectFaces/DetectText for the whole image with
+// no fallback. There's no way around the cap by referencing S3 instead: Rekognition's S3Object
+// image source requires the file to live in AWS S3 itself, and assets are stored in Wasabi.
+const REKOGNITION_MAX_BYTES = 5 * 1024 * 1024 - 65536; // safety margin under the hard 5MB limit
+const REKOGNITION_DOWNSCALE_STEPS = [4096, 3200, 2400, 1800, 1200]; // longest-edge px, largest first
+
+// Only re-encodes when the image is actually too big — a typical web-sized upload passes through
+// untouched. Bounding boxes from Rekognition are fractions of the submitted image's dimensions,
+// so as long as every downstream call (detectFaces, detectJerseyIdentifiers, cropFace) uses this
+// same returned buffer, resizing here doesn't throw off coordinate math anywhere else.
+async function shrinkForRekognition(bytes: Buffer): Promise<Buffer> {
+  if (bytes.length <= REKOGNITION_MAX_BYTES) return bytes;
+
+  for (const edge of REKOGNITION_DOWNSCALE_STEPS) {
+    const resized = Buffer.from(
+      await sharp(bytes).resize({ width: edge, height: edge, fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer()
+    );
+    if (resized.length <= REKOGNITION_MAX_BYTES) return resized;
+  }
+
+  // Last resort for an unusually dense image even at the smallest dimension.
+  const smallestEdge = REKOGNITION_DOWNSCALE_STEPS[REKOGNITION_DOWNSCALE_STEPS.length - 1];
+  return Buffer.from(
+    await sharp(bytes).resize({ width: smallestEdge, height: smallestEdge, fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 60 }).toBuffer()
+  );
+}
+
 export async function ensureCollection(): Promise<void> {
   try {
     await getClient().send(new CreateCollectionCommand({ CollectionId: getCollectionId() }));
@@ -294,7 +323,8 @@ export async function identifyPlayersInImage(objectKey: string, db: PrismaClient
   // common from phones/cameras) produces a crop that doesn't actually contain the detected face.
   // See the comment in cropFace() — sharp's output buffer needs an explicit copy to shed a
   // potential SharedArrayBuffer backing before it's usable as a Rekognition Image.Bytes payload.
-  const bytes = Buffer.from(await sharp(raw).rotate().toBuffer());
+  const rotated = Buffer.from(await sharp(raw).rotate().toBuffer());
+  const bytes = await shrinkForRekognition(rotated);
   const faces = await detectFaces(bytes);
 
   const [faceMatches, jerseyResult] = await Promise.all([

@@ -56,6 +56,8 @@ export default function JobsClient() {
   const [suggested, setSuggested] = useState<SuggestedCounts | null>(null);
   const [approving, setApproving] = useState(false);
   const [approveResult, setApproveResult] = useState<ApproveResult | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [retryError, setRetryError] = useState<{ id: string; message: string } | null>(null);
 
   const loadQueue = useCallback(async () => {
     const res = await fetch('/api/system/queue-status');
@@ -82,6 +84,27 @@ export default function JobsClient() {
       }
     } finally {
       setApproving(false);
+    }
+  }
+
+  // Re-runs face/jersey/sponsor identification for one asset that previously exhausted its QStash
+  // retries and landed at faceTagStatus 'failed' (the cron reconciliation sweep only re-enqueues
+  // still-'pending' assets, never 'failed' ones — see app/api/cron/process-ingest-jobs — so a
+  // failure needs an explicit retry once whatever caused it, e.g. an oversized image, is fixed).
+  // Reuses the same synchronous endpoint as the asset detail page's "Identify players" button.
+  async function retryFailed(assetId: string) {
+    setRetryingId(assetId);
+    setRetryError(null);
+    try {
+      const res = await fetch(`/api/assets/${assetId}/tag-faces`, { method: 'POST' });
+      if (res.ok) {
+        await loadQueue();
+      } else {
+        const body = await res.json().catch(() => ({})) as { message?: string };
+        setRetryError({ id: assetId, message: body.message ?? 'Retry failed' });
+      }
+    } finally {
+      setRetryingId(null);
     }
   }
 
@@ -192,7 +215,19 @@ export default function JobsClient() {
                   <div className="config-item-sub">
                     uploaded {formatRelative(a.uploadedAt)} · gave up after {a.faceTagAttempts} attempts
                   </div>
+                  {retryError?.id === a.id && (
+                    <div style={{ fontSize: 12, color: '#dc2626', marginTop: 4 }}>{retryError.message}</div>
+                  )}
                 </div>
+                <button
+                  className="btn-secondary"
+                  type="button"
+                  disabled={retryingId === a.id}
+                  onClick={() => retryFailed(a.id)}
+                  style={{ marginRight: 8 }}
+                >
+                  {retryingId === a.id ? 'Retrying…' : 'Retry'}
+                </button>
                 <Link className="btn-secondary" href={`/media/${a.id}`}>View</Link>
               </div>
             ))}
