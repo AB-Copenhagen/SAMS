@@ -16,7 +16,22 @@ export async function GET(request: Request) {
   const pageSize     = 24;
 
   const AND: Record<string, unknown>[] = [];
-  if (q)           AND.push({ OR: [{ title: { contains: q } }, { eventName: { contains: q } }, { location: { contains: q } }, { detectedTagsJson: { contains: q } }, { manualTagsJson: { contains: q } }] });
+  if (q) {
+    AND.push({
+      OR: [
+        { title: { contains: q } },
+        { eventName: { contains: q } },
+        { location: { contains: q } },
+        // Confirmed player/sponsor name matches go through the indexed tag join tables (small
+        // Player/Sponsor tables, indexed AssetPlayerTag/AssetSponsorTag lookups) instead of the
+        // unindexed JSON-blob scans below, which now only need to cover genuinely freeform tags.
+        { playerTags: { some: { status: 'confirmed', player: { name: { contains: q } } } } },
+        { sponsorTags: { some: { status: 'confirmed', sponsor: { name: { contains: q } } } } },
+        { detectedTagsJson: { contains: q } },
+        { manualTagsJson: { contains: q } },
+      ],
+    });
+  }
   if (type === 'image') AND.push({ fileType: { startsWith: 'image/' } });
   if (type === 'video') AND.push({ fileType: { startsWith: 'video/' } });
   if (seasonId)    AND.push({ seasonId });

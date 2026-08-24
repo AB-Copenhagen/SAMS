@@ -68,6 +68,31 @@ Share-link access also requires an HMAC-signed unlock cookie
 weaken this to a plain token-equality check, and don't drop the `exp` check when
 touching this code.
 
+## Share links can expire — check it when touching share resolution
+
+`Collection.expiresAt` / `Asset.expiresAt` are optional; `getPublicCollectionByToken()`
+and `getAssetByShareToken()` in `lib/collections.ts` both return `null` for an expired
+link (treated identically to "token doesn't exist" — never leak that a link was once
+valid). Every public share code path goes through one of those two getters or
+`resolveShareTarget()`, which itself calls `getPublicCollectionByToken()` — so a new
+share-adjacent route is covered automatically as long as it fetches the collection/asset
+through one of these, not a raw `prisma.collection.findUnique({ where: { shareToken } })`.
+
+## Rate limiting: gate on failures, not on all traffic, where legitimate volume is high
+
+`lib/rate-limit.ts` has two shapes:
+
+- `checkRateLimit(key, { windowSeconds, max })` — counts every attempt. Use where
+  legitimate callers only try a handful of times (share-link passwords, session
+  exchange) — see `app/api/share/[token]/route.ts` and `app/api/auth/session/route.ts`.
+- `isRateLimited(key, max)` / `recordFailure(key, windowSeconds)` — counts only
+  *failures*. Use where legitimate traffic can be frequent and only a run of bad
+  credentials is the actual signal — see `getIngestActor()` in `lib/device-auth.ts`,
+  which must never throttle a busy ingest device just for making many valid calls.
+  Picking the wrong shape here means either leaving a brute-force path open or rate
+  limiting your own field photographers mid-upload — check which one a new
+  credential-checking route actually needs before copying either pattern.
+
 ## Object storage access
 
 Asset originals/downloads should be served via short-TTL presigned URLs
