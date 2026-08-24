@@ -17,6 +17,8 @@ type QueueStatus = {
   pendingAssets: QueuedAsset[];
   failedAssets: QueuedAsset[];
 };
+type SuggestedCounts = { playerTagsSuggested: number; sponsorTagsSuggested: number };
+type ApproveResult = { playerTagsConfirmed: number; sponsorTagsConfirmed: number; assetsClosed: number };
 
 const CRON_INTERVAL_MS = 15 * 60 * 1000;
 
@@ -51,6 +53,9 @@ export default function JobsClient() {
   const [now, setNow] = useState(() => Date.now());
   const [queue, setQueue] = useState<QueueStatus | null>(null);
   const [runs, setRuns] = useState<CronRun[] | null>(null);
+  const [suggested, setSuggested] = useState<SuggestedCounts | null>(null);
+  const [approving, setApproving] = useState(false);
+  const [approveResult, setApproveResult] = useState<ApproveResult | null>(null);
 
   const loadQueue = useCallback(async () => {
     const res = await fetch('/api/system/queue-status');
@@ -60,6 +65,25 @@ export default function JobsClient() {
     const res = await fetch('/api/system/cron-runs?limit=20');
     if (res.ok) setRuns(await res.json());
   }, []);
+  const loadSuggested = useCallback(async () => {
+    const res = await fetch('/api/system/bulk-approve-suggested-tags');
+    if (res.ok) setSuggested(await res.json());
+  }, []);
+
+  async function approveAllSuggested() {
+    if (!confirm('Confirm every currently-suggested player/sponsor tag and close out the assets they belong to?')) return;
+    setApproving(true);
+    setApproveResult(null);
+    try {
+      const res = await fetch('/api/system/bulk-approve-suggested-tags', { method: 'POST' });
+      if (res.ok) {
+        setApproveResult(await res.json());
+        await Promise.all([loadSuggested(), loadQueue()]);
+      }
+    } finally {
+      setApproving(false);
+    }
+  }
 
   useEffect(() => {
     const clock = setInterval(() => setNow(Date.now()), 1000);
@@ -69,10 +93,11 @@ export default function JobsClient() {
   useEffect(() => {
     loadQueue();
     loadRuns();
+    loadSuggested();
     const qi = setInterval(loadQueue, 10000);
     const ri = setInterval(loadRuns, 15000);
     return () => { clearInterval(qi); clearInterval(ri); };
-  }, [loadQueue, loadRuns]);
+  }, [loadQueue, loadRuns, loadSuggested]);
 
   const lastRun = runs?.[0];
   const msUntilNext = nextCronRunAt(now) - now;
@@ -123,6 +148,35 @@ export default function JobsClient() {
             </div>
           ) : <p style={{ color: '#8890b4', fontSize: 13 }}>Loading…</p>}
         </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Suggested tag backlog</div>
+        <p style={{ fontSize: 12, color: '#8890b4', marginTop: 0, marginBottom: 12 }}>
+          The tagging pipeline auto-confirms every player/sponsor match it finds, so this should
+          normally sit at zero. Use this as a manual backstop to clear any suggested tags that do
+          show up (e.g. from a manual match import) without reviewing them one at a time.
+        </p>
+        {suggested ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 13, flexWrap: 'wrap' }}>
+            <div><strong>{suggested.playerTagsSuggested}</strong> suggested player tag(s)</div>
+            <div><strong>{suggested.sponsorTagsSuggested}</strong> suggested sponsor tag(s)</div>
+            <button
+              className="btn-primary"
+              type="button"
+              disabled={approving || (suggested.playerTagsSuggested === 0 && suggested.sponsorTagsSuggested === 0)}
+              onClick={approveAllSuggested}
+            >
+              {approving ? 'Approving…' : 'Accept all suggested tags'}
+            </button>
+          </div>
+        ) : <p style={{ color: '#8890b4', fontSize: 13 }}>Loading…</p>}
+        {approveResult && (
+          <div style={{ fontSize: 12, color: '#16a34a', marginTop: 8 }}>
+            Confirmed {approveResult.playerTagsConfirmed} player and {approveResult.sponsorTagsConfirmed} sponsor
+            tag(s), closed {approveResult.assetsClosed} asset(s) out of the review queue.
+          </div>
+        )}
       </div>
 
       {queue && (queue.pendingAssets.length > 0 || queue.failedAssets.length > 0) && (

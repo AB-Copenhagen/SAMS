@@ -15,24 +15,21 @@ export async function processFaceTagging(assetId: string, db: PrismaClient): Pro
 
   const { faceMatches, jerseyMatches, detectedLines } = await identifyPlayersInImage(asset.objectKey, db);
 
-  // Face matches and grounded jersey-number/name reads (clearly on a person, per identifyPlayersInImage's
-  // spatial check) are applied immediately as confirmed tags — no review step — so newly uploaded assets
-  // show their players right away. Wrong tags get corrected afterward via the existing manual multi-select
-  // / reject actions. Ungrounded jersey reads (a number/name detected somewhere in the image but not
-  // clearly on a person's torso — e.g. background signage) land as 'suggested' instead, surfaced for
-  // human review on the player's page rather than auto-applied.
+  // Face matches and jersey-number/name reads are all applied immediately as confirmed tags — no
+  // review step — so newly uploaded assets show their players right away. Wrong tags get corrected
+  // afterward via the existing manual multi-select / reject actions. This includes ungrounded
+  // jersey reads (a number/name detected somewhere in the image but not clearly on a person's
+  // torso — e.g. background signage): auto-confirming trades a small false-positive rate for never
+  // making anyone wait in a review queue.
   for (const match of faceMatches) {
     await upsertPlayerTag(assetId, match.playerId, 'face', match.similarityPct / 100, 'confirmed', db);
     const player = await db.player.findUnique({ where: { id: match.playerId }, select: { name: true } });
     if (player) await addConfirmedStringTag(assetId, `player:${player.name.toLowerCase().replace(/\s+/g, '-')}`, db);
   }
   for (const match of jerseyMatches) {
-    const status = match.grounded ? 'confirmed' : 'suggested';
-    await upsertPlayerTag(assetId, match.playerId, 'jersey-ocr', null, status, db);
-    if (status === 'confirmed') {
-      const player = await db.player.findUnique({ where: { id: match.playerId }, select: { name: true } });
-      if (player) await addConfirmedStringTag(assetId, `player:${player.name.toLowerCase().replace(/\s+/g, '-')}`, db);
-    }
+    await upsertPlayerTag(assetId, match.playerId, 'jersey-ocr', null, 'confirmed', db);
+    const player = await db.player.findUnique({ where: { id: match.playerId }, select: { name: true } });
+    if (player) await addConfirmedStringTag(assetId, `player:${player.name.toLowerCase().replace(/\s+/g, '-')}`, db);
   }
 
   if (detectedLines.length > 0) {
