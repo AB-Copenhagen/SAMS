@@ -1,8 +1,11 @@
 import { randomBytes, createHash, timingSafeEqual } from 'crypto';
 import { prisma } from './db';
 import type { User } from './auth';
+import { isRateLimited, recordFailure, requestIp } from './rate-limit';
 
 const TOKEN_PREFIX = 'sams_dev_';
+const AUTH_FAILURE_WINDOW_SECONDS = 600;
+const AUTH_MAX_FAILURES = 20;
 
 function base62(bytes: Buffer): string {
   return bytes.toString('base64url').replace(/[^a-zA-Z0-9]/g, '').slice(0, bytes.length);
@@ -63,8 +66,16 @@ export async function verifyDeviceKey(rawKey: string): Promise<DeviceActor | nul
 export async function getIngestActor(request: Request): Promise<(User & { deviceId?: string }) | null> {
   const authHeader = request.headers.get('authorization');
   if (authHeader?.startsWith('Bearer ')) {
+    // Only *failed* device-key checks count against this limit — a busy ingest device making
+    // many legitimate calls in a row must never trip it, only a run of bad/guessed keys should.
+    const failureKey = `device_auth_failures:${requestIp(request)}`;
+    if (await isRateLimited(failureKey, AUTH_MAX_FAILURES)) return null;
+
     const device = await verifyDeviceKey(authHeader.slice('Bearer '.length).trim());
-    if (!device) return null;
+    if (!device) {
+      await recordFailure(failureKey, AUTH_FAILURE_WINDOW_SECONDS);
+      return null;
+    }
     return { id: device.id, email: device.email, role: device.role, deviceId: device.deviceId };
   }
 

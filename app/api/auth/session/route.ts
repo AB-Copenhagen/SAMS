@@ -2,8 +2,20 @@ import { NextResponse } from 'next/server';
 import { verifyDescopeSession } from '../../../../lib/descope';
 import { createSessionCookie, isAdminEmail } from '../../../../lib/auth';
 import type { UserRole } from '../../../../lib/auth';
+import { checkRateLimit, requestIp } from '../../../../lib/rate-limit';
+
+const RATE_LIMIT_WINDOW_SECONDS = 600;
+const RATE_LIMIT_MAX_ATTEMPTS = 20;
 
 export async function POST(request: Request) {
+  const allowed = await checkRateLimit(`session_attempts:${requestIp(request)}`, {
+    windowSeconds: RATE_LIMIT_WINDOW_SECONDS,
+    max: RATE_LIMIT_MAX_ATTEMPTS,
+  });
+  if (!allowed) {
+    return NextResponse.json({ message: 'Too many attempts. Try again later.' }, { status: 429 });
+  }
+
   const body = await request.json().catch(() => null);
   const sessionToken = body?.sessionToken as string | undefined;
 

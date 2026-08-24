@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { redis } from '../../../../lib/redis';
+import { checkRateLimit, requestIp } from '../../../../lib/rate-limit';
 import { applyShareFilters, getPublicCollectionByToken, resolveCollectionAssets, sanitizePublicAsset, verifySharePassword } from '../../../../lib/collections';
 import { createShareUnlockCookieValue, isShareUnlocked, shareUnlockCookieName } from '../../../../lib/share-auth';
 
@@ -35,11 +35,11 @@ export async function POST(request: Request, props: { params: Promise<{ token: s
     return NextResponse.json({ message: 'This link has no password' }, { status: 400 });
   }
 
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-  const rateLimitKey = `share_pw_attempts:${token}:${ip}`;
-  const attempts = await redis.incr(rateLimitKey);
-  if (attempts === 1) await redis.expire(rateLimitKey, RATE_LIMIT_WINDOW_SECONDS);
-  if (attempts > RATE_LIMIT_MAX_ATTEMPTS) {
+  const allowed = await checkRateLimit(`share_pw_attempts:${token}:${requestIp(request)}`, {
+    windowSeconds: RATE_LIMIT_WINDOW_SECONDS,
+    max: RATE_LIMIT_MAX_ATTEMPTS,
+  });
+  if (!allowed) {
     return NextResponse.json({ message: 'Too many attempts. Try again later.' }, { status: 429 });
   }
 
