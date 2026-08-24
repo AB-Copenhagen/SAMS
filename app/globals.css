@@ -815,8 +815,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* ─── Bulk action bar ────────────────────────────────────── */
 .bulk-action-bar {
   position: sticky;
-  bottom: 20px;
-  margin-top: 20px;
+  top: 20px;
+  z-index: 100;
+  margin-bottom: 20px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -828,8 +829,14 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   width: fit-content;
   margin-left: auto;
   margin-right: auto;
+  flex-wrap: wrap;
 }
 .bulk-action-bar span { font-size: 13px; font-weight: 600; margin-right: 4px; white-space: nowrap; }
+
+@media (max-width: 860px) {
+  /* Clears the fixed 52px mobile top bar (z-index 150, above this) so the two don't overlap. */
+  .bulk-action-bar { top: 72px; }
+}
 
 /* ─── Empty state ────────────────────────────────────────── */
 .empty-state {

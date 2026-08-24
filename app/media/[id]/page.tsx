@@ -36,7 +36,7 @@ export default async function AssetDetailPage(props: { params: Promise<{ id: str
     nextHref: navIndex < navContext.assetIds.length - 1 ? `/media/${navContext.assetIds[navIndex + 1]}?collectionId=${collectionId}` : null,
   } : null;
 
-  const [seasons, collections, stadiums, players, sponsors, playerTags, sponsorTags, signedUrl] = await Promise.all([
+  const [seasons, collections, stadiums, players, sponsors, playerTags, sponsorTags, customCollectionMemberships, signedUrl] = await Promise.all([
     prisma.season.findMany({ orderBy: { startDate: 'desc' }, select: { id: true, name: true } }),
     prisma.collection.findMany({ orderBy: { date: 'desc' }, select: { id: true, name: true, type: true, date: true, seasonId: true } }),
     prisma.stadium.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
@@ -46,6 +46,7 @@ export default async function AssetDetailPage(props: { params: Promise<{ id: str
     // logo + ocr-text) for the same asset — distinct collapses those to one row per player/sponsor.
     prisma.assetPlayerTag.findMany({ where: { assetId: params.id, status: 'confirmed' }, select: { playerId: true }, distinct: ['playerId'] }),
     prisma.assetSponsorTag.findMany({ where: { assetId: params.id, status: 'confirmed' }, select: { sponsorId: true }, distinct: ['sponsorId'] }),
+    prisma.collectionAsset.findMany({ where: { assetId: params.id }, select: { collectionId: true } }),
     getPresignedUrl(asset.editedKey ?? asset.objectKey),
   ]);
 
@@ -100,6 +101,7 @@ export default async function AssetDetailPage(props: { params: Promise<{ id: str
         sponsorOptions={sponsors.map((s) => ({ id: s.id, label: s.name }))}
         initialPlayerIds={playerTags.map((t) => t.playerId)}
         initialSponsorIds={sponsorTags.map((t) => t.sponsorId)}
+        initialCustomCollectionIds={customCollectionMemberships.map((m) => m.collectionId)}
       />
     </AppShell>
   );

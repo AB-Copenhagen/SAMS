@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AssetGallery, { type GalleryAsset } from './AssetGallery';
+import EntityMultiSelect from './EntityMultiSelect';
 
 // Bulk downloads reuse the existing single-asset download redirect (GET /api/assets/[id]/download)
 // — one browser download per selected asset, triggered via a throwaway <a download> click rather
@@ -90,22 +91,18 @@ export default function MediaLibraryGallery({ assets, customCollections = [] }: 
 
   return (
     <>
-      <AssetGallery assets={assets} metaMode="date" selectable selectedIds={selectedIds} onToggleSelect={toggle} />
       {selectedIds.size > 0 && (
         <div className="bulk-action-bar">
           <span>{selectedIds.size} selected</span>
           {customCollections.length > 0 && (
-            <select
-              value=""
-              disabled={busy}
-              onChange={(e) => bulkAddToCollection(e.target.value)}
-              aria-label="Add selection to custom collection"
-            >
-              <option value="">Add to collection…</option>
-              {customCollections.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <div style={{ width: 220 }}>
+              <EntityMultiSelect
+                options={customCollections.map((c) => ({ id: c.id, label: c.name }))}
+                selected={[]}
+                onChange={(ids) => { if (ids[0]) bulkAddToCollection(ids[0]); }}
+                placeholder="Add to collection…"
+              />
+            </div>
           )}
           <button type="button" className="btn-secondary" onClick={bulkDownload} disabled={busy}>Download</button>
           <button type="button" className="btn-danger" onClick={bulkDelete} disabled={busy}>{busy ? 'Deleting…' : 'Delete'}</button>
@@ -113,6 +110,7 @@ export default function MediaLibraryGallery({ assets, customCollections = [] }: 
           {addedMessage && <span style={{ fontSize: 12, color: '#16a34a' }}>{addedMessage}</span>}
         </div>
       )}
+      <AssetGallery assets={assets} metaMode="date" selectable selectedIds={selectedIds} onToggleSelect={toggle} />
     </>
   );
 }

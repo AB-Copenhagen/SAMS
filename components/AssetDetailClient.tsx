@@ -160,6 +160,7 @@ export default function AssetDetailClient({
   sponsorOptions = [],
   initialPlayerIds = [],
   initialSponsorIds = [],
+  initialCustomCollectionIds = [],
 }: {
   asset: AssetProps;
   nav?: AssetNav | null;
@@ -172,6 +173,7 @@ export default function AssetDetailClient({
   sponsorOptions?: EntityOption[];
   initialPlayerIds?: string[];
   initialSponsorIds?: string[];
+  initialCustomCollectionIds?: string[];
 }) {
   const router = useRouter();
 
@@ -195,6 +197,8 @@ export default function AssetDetailClient({
   });
   const [playerIds, setPlayerIds] = useState<string[]>(initialPlayerIds);
   const [sponsorIds, setSponsorIds] = useState<string[]>(initialSponsorIds);
+  const [customCollectionIds, setCustomCollectionIds] = useState<string[]>(initialCustomCollectionIds);
+  const [customCollectionsError, setCustomCollectionsError] = useState('');
   const [form, setForm] = useState({
     title:       asset.title,
     description: asset.description,
@@ -263,7 +267,35 @@ export default function AssetDetailClient({
     }
   }
 
+  // Independent from the "Collection" (match) field above and from the main Save button — this
+  // adds/removes CollectionAsset membership immediately per change, same as the Media Library's
+  // bulk "Add to collection" action, since a custom gallery is a separate, purely additive
+  // grouping on top of whichever match this asset is assigned to (never touches collectionId).
+  async function updateCustomCollections(newIds: string[]) {
+    const added = newIds.filter((id) => !customCollectionIds.includes(id));
+    const removed = customCollectionIds.filter((id) => !newIds.includes(id));
+    setCustomCollectionIds(newIds);
+    setCustomCollectionsError('');
+    try {
+      const results = await Promise.all([
+        ...added.map((id) => fetch(`/api/collections/${id}/assets`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ assetId: asset.id }),
+        })),
+        ...removed.map((id) => fetch(`/api/collections/${id}/assets/${asset.id}`, { method: 'DELETE' })),
+      ]);
+      if (results.some((r) => !r.ok)) throw new Error();
+    } catch {
+      setCustomCollectionsError('Failed to update custom collections — please try again.');
+      setCustomCollectionIds(customCollectionIds);
+    }
+  }
+
   const isVideo = asset.fileType.startsWith('video/');
+  const customCollectionOptions: EntityOption[] = collections
+    .filter((c) => c.type === 'custom')
+    .map((c) => ({ id: c.id, label: collectionLabel(c) }));
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 20, alignItems: 'start' }}>
@@ -419,6 +451,21 @@ export default function AssetDetailClient({
               ))}
             </select>
           </div>
+          {customCollectionOptions.length > 0 && (
+            <div className="field">
+              <label>Custom collections</label>
+              <EntityMultiSelect
+                options={customCollectionOptions}
+                selected={customCollectionIds}
+                onChange={updateCustomCollections}
+                placeholder="Add to a custom collection…"
+              />
+              <p style={{ fontSize: 12, color: '#8890b4', marginTop: 4 }}>
+                Adds this asset to one or more custom/shared galleries in addition to its match above — applied immediately, independent of Save changes.
+              </p>
+              {customCollectionsError && <div className="alert alert-error" style={{ marginTop: 6 }}>{customCollectionsError}</div>}
+            </div>
+          )}
           <div className="field">
             <label>Tagged players</label>
             <EntityMultiSelect
