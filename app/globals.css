@@ -556,6 +556,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   border: 1px solid #e8ebf5;
   padding: 16px 20px;
   flex: 1;
+  /* Without a cap these turn into oversized boxes with a tiny label/number lost in the corner
+     once .page-body-wide gives the row a lot more width than four KPI tiles actually need. */
+  max-width: 280px;
 }
 .stat-label { font-size: 11.5px; color: #8890b4; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
 .stat-value { font-size: 26px; font-weight: 700; color: var(--color-text); margin-top: 2px; }
