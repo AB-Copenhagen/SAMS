@@ -37,12 +37,12 @@ ingest device) hit an admin-only mutation. Check `isAdmin(user)` — not just
 DELETE/PUT/PATCH, `bulk-delete`, `merge-duplicates`, `backfill-*`, `enroll-all`,
 `players/import`, `sponsors/import`, `devices/*`.
 
-This matters more than it looks like it does today: every session is currently
-hardcoded to `role: 'ADMIN'` behind the `ADMIN_EMAILS` allowlist (`lib/auth.ts`), so a
-missing role check is latent, not exploitable, right now. It stops being latent the
-moment self-service login ships for the already-defined `PLAYER`/`MEDIA`/`SPONSOR`
-roles — add the `isAdmin()` check when you add the route, not when someone notices the
-gap after non-admin login exists.
+This is no longer latent: login now grants `ADMIN` or `STAFF` based on the Descope role
+(`Admin`/`Staff`) assigned to the user in the Descope console — see `resolveAppRole` in
+`lib/descope.ts` and `/api/auth/session`. A `STAFF` session is a real, reachable
+lower-privileged actor, not a hypothetical one — any route that's missing an
+`isAdmin(user)` check on a destructive or admin-only action is exploitable by any
+current Staff user, not just a future role. Add the check when you add the route.
 
 ## Secret comparisons must be constant-time
 
