@@ -216,6 +216,7 @@ export default function AssetDetailClient({
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   function set(key: string, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -344,6 +345,29 @@ export default function AssetDetailClient({
                 </span>
               </>
             )}
+            <div
+              style={{
+                position: 'absolute', top: 10, right: 10, display: 'flex', gap: 2,
+                background: 'rgba(13,15,28,0.65)', borderRadius: 22, padding: '2px 4px',
+              }}
+            >
+              {[1, 2, 3, 4].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  aria-label={`Rate ${n} star${n > 1 ? 's' : ''}`}
+                  aria-pressed={form.rating === n}
+                  onClick={() => { setForm((f) => ({ ...f, rating: f.rating === n ? null : n })); setSaved(false); }}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    minWidth: 40, minHeight: 40, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 18, color: form.rating != null && n <= form.rating ? 'var(--color-accent)' : 'rgba(255,255,255,0.45)',
+                  }}
+                >
+                  ★
+                </button>
+              ))}
+            </div>
           </div>
           <div style={{ padding: '12px 16px', borderTop: '1px solid #f0f2f7', display: 'flex', gap: 16, fontSize: 12, color: '#8890b4', alignItems: 'center' }}>
             <span>{asset.fileType.split('/')[1]?.toUpperCase()}</span>
@@ -357,6 +381,87 @@ export default function AssetDetailClient({
               </button>
             )}
           </div>
+
+          {/* Secondary/descriptive metadata — collapsed by default so the sidebar's tags,
+              collection, and save/delete action stay the priority on open, matching the
+              collapsed-by-default EXIF panel just below it. */}
+          <div style={{ borderTop: '1px solid #f0f2f7' }}>
+            <button
+              type="button"
+              className="btn-ghost"
+              style={{ width: '100%', justifyContent: 'space-between', color: '#3a3f58', padding: '12px 16px' }}
+              onClick={() => setDetailsOpen((o) => !o)}
+            >
+              <span style={{ fontWeight: 600, fontSize: 13 }}>Details</span>
+              <span style={{ fontSize: 18, lineHeight: 1, color: '#8890b4' }}>{detailsOpen ? '−' : '+'}</span>
+            </button>
+            {detailsOpen && (
+              <div style={{ padding: '0 16px 16px' }}>
+                <div className="field">
+                  <label>Title</label>
+                  <input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Untitled" />
+                </div>
+                <div className="field">
+                  <label>Event / match</label>
+                  <Combobox
+                    value={form.eventName}
+                    onChange={(v) => set('eventName', v)}
+                    options={collections.map((c) => c.name)}
+                    placeholder="AB vs FC Nordsjælland"
+                  />
+                </div>
+                <div className="field">
+                  <label>Date</label>
+                  <input type="date" value={form.eventDate} onChange={(e) => set('eventDate', e.target.value)} />
+                </div>
+                <div className="field">
+                  <label>Stadium</label>
+                  <Combobox
+                    value={form.location}
+                    onChange={(v) => set('location', v)}
+                    options={stadiums}
+                    placeholder="Gladsaxe Stadion"
+                  />
+                </div>
+                <div className="field">
+                  <label>Season</label>
+                  <select value={form.seasonId} onChange={(e) => set('seasonId', e.target.value)}>
+                    <option value="">No season</option>
+                    {seasons.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Description</label>
+                  <textarea
+                    value={form.description}
+                    onChange={(e) => set('description', e.target.value)}
+                    placeholder="Optional description"
+                    style={{ resize: 'vertical', minHeight: 60 }}
+                  />
+                </div>
+                <div className="field" style={{ marginBottom: asset.reviewedAt ? 12 : 0 }}>
+                  <label>Sample sharing text</label>
+                  <textarea
+                    value={form.shareText}
+                    onChange={(e) => set('shareText', e.target.value)}
+                    placeholder="Suggested caption for fans sharing this photo, e.g. &quot;Great save from Nikolaj! 🧤&quot;"
+                    style={{ resize: 'vertical', minHeight: 60 }}
+                  />
+                  <p style={{ fontSize: 12, color: '#8890b4', marginTop: 4 }}>
+                    Shown to visitors as a starting point when they share this photo — AB&apos;s Facebook and Instagram links are added automatically.
+                  </p>
+                </div>
+                {asset.reviewedAt && (
+                  <p style={{ fontSize: 12, color: '#8890b4' }}>
+                    Reviewed by {asset.reviewedBy} on {new Date(asset.reviewedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
           <ExifPanel exifJson={asset.exifJson} />
         </div>
       </div>
@@ -381,42 +486,32 @@ export default function AssetDetailClient({
       {/* Right column: metadata form */}
       <div className="asset-detail-sidebar">
         <div className="card">
-          <div className="card-header">Metadata</div>
+          <div className="card-header">Tags &amp; collection</div>
 
           <div className="field">
-            <label>Title</label>
-            <input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="Untitled" />
-          </div>
-          <div className="field">
-            <label>Event / match</label>
-            <Combobox
-              value={form.eventName}
-              onChange={(v) => set('eventName', v)}
-              options={collections.map((c) => c.name)}
-              placeholder="AB vs FC Nordsjælland"
+            <label>Tagged players</label>
+            <EntityMultiSelect
+              options={playerOptions}
+              selected={playerIds}
+              onChange={(ids) => { setPlayerIds(ids); setSaved(false); }}
+              placeholder="Add player…"
             />
           </div>
           <div className="field">
-            <label>Date</label>
-            <input type="date" value={form.eventDate} onChange={(e) => set('eventDate', e.target.value)} />
-          </div>
-          <div className="field">
-            <label>Stadium</label>
-            <Combobox
-              value={form.location}
-              onChange={(v) => set('location', v)}
-              options={stadiums}
-              placeholder="Gladsaxe Stadion"
+            <label>Tagged sponsors</label>
+            <EntityMultiSelect
+              options={sponsorOptions}
+              selected={sponsorIds}
+              onChange={(ids) => { setSponsorIds(ids); setSaved(false); }}
+              placeholder="Add sponsor…"
             />
           </div>
           <div className="field">
-            <label>Season</label>
-            <select value={form.seasonId} onChange={(e) => set('seasonId', e.target.value)}>
-              <option value="">No season</option>
-              {seasons.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
+            <label>Tags</label>
+            <TagInput
+              tags={form.tags}
+              onChange={(tags) => { setForm((f) => ({ ...f, tags })); setSaved(false); }}
+            />
           </div>
           <div className="field">
             <label>Collection</label>
@@ -458,73 +553,6 @@ export default function AssetDetailClient({
               {customCollectionsError && <div className="alert alert-error" style={{ marginTop: 6 }}>{customCollectionsError}</div>}
             </div>
           )}
-          <div className="field">
-            <label>Tagged players</label>
-            <EntityMultiSelect
-              options={playerOptions}
-              selected={playerIds}
-              onChange={(ids) => { setPlayerIds(ids); setSaved(false); }}
-              placeholder="Add player…"
-            />
-          </div>
-          <div className="field">
-            <label>Tagged sponsors</label>
-            <EntityMultiSelect
-              options={sponsorOptions}
-              selected={sponsorIds}
-              onChange={(ids) => { setSponsorIds(ids); setSaved(false); }}
-              placeholder="Add sponsor…"
-            />
-          </div>
-          <div className="field">
-            <label>Tags</label>
-            <TagInput
-              tags={form.tags}
-              onChange={(tags) => { setForm((f) => ({ ...f, tags })); setSaved(false); }}
-            />
-          </div>
-          <div className="field">
-            <label>Description</label>
-            <textarea
-              value={form.description}
-              onChange={(e) => set('description', e.target.value)}
-              placeholder="Optional description"
-              style={{ resize: 'vertical', minHeight: 60 }}
-            />
-          </div>
-          <div className="field">
-            <label>Sample sharing text</label>
-            <textarea
-              value={form.shareText}
-              onChange={(e) => set('shareText', e.target.value)}
-              placeholder="Suggested caption for fans sharing this photo, e.g. &quot;Great save from Nikolaj! 🧤&quot;"
-              style={{ resize: 'vertical', minHeight: 60 }}
-            />
-            <p style={{ fontSize: 12, color: '#8890b4', marginTop: 4 }}>
-              Shown to visitors as a starting point when they share this photo — AB&apos;s Facebook and Instagram links are added automatically.
-            </p>
-          </div>
-          <div className="field">
-            <label>Rating</label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-              {[1, 2, 3, 4].map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  className={form.rating === n ? 'btn-primary' : 'btn-secondary'}
-                  style={{ justifyContent: 'center' }}
-                  onClick={() => { setForm((f) => ({ ...f, rating: f.rating === n ? null : n })); setSaved(false); }}
-                >
-                  {n} ★
-                </button>
-              ))}
-            </div>
-            {asset.reviewedAt && (
-              <p style={{ fontSize: 12, color: '#8890b4', marginTop: 6 }}>
-                Reviewed by {asset.reviewedBy} on {new Date(asset.reviewedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-              </p>
-            )}
-          </div>
 
           {error && <div className="alert alert-error" style={{ marginBottom: 12 }}>{error}</div>}
           {saved && <div className="alert alert-success" style={{ marginBottom: 12 }}>Saved.</div>}
