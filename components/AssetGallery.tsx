@@ -23,6 +23,10 @@ interface AssetGalleryProps {
   renderExtra?: (asset: GalleryAsset) => ReactNode;
   /** When set, links carry ?collectionId= so the asset detail page can offer prev/next through this same list. */
   collectionId?: string;
+  /** When set, links carry this query string instead (e.g. the Media Library's current filters,
+   * via lib/media-query.ts) so the asset detail page can offer prev/next through that filtered/
+   * paginated set. Takes priority over collectionId when both are somehow set. */
+  navQuery?: string;
   /** Shows a selection checkbox overlay on each card, for bulk actions (e.g. the media library toolbar). */
   selectable?: boolean;
   selectedIds?: Set<string>;
@@ -34,6 +38,7 @@ export default function AssetGallery({
   metaMode = 'date',
   renderExtra,
   collectionId,
+  navQuery,
   selectable,
   selectedIds,
   onToggleSelect,
@@ -61,7 +66,7 @@ export default function AssetGallery({
         return (
           <a
             key={a.id}
-            href={collectionId ? `/media/${a.id}?collectionId=${collectionId}` : `/media/${a.id}`}
+            href={navQuery ? `/media/${a.id}?${navQuery}` : collectionId ? `/media/${a.id}?collectionId=${collectionId}` : `/media/${a.id}`}
             className={`asset-card${isSelected ? ' asset-card-selected' : ''}`}
             onClick={selectable ? (e) => handleCardClick(e, a.id) : undefined}
           >

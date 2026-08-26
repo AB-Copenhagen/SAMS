@@ -6,6 +6,7 @@ import AppShell from '../../components/AppShell';
 import MediaFilterBar from '../../components/MediaFilterBar';
 import PerPageSelector from '../../components/PerPageSelector';
 import MediaLibraryGallery from '../../components/MediaLibraryGallery';
+import { buildMediaLibraryWhere, mediaNavQueryString } from '../../lib/media-query';
 
 const PER_PAGE_OPTIONS = [25, 50, 100];
 
@@ -31,18 +32,9 @@ export default async function MediaPage(props: { searchParams: Promise<SearchPar
   const page     = Math.max(1, parseInt(searchParams.page ?? '1'));
   const perPage  = PER_PAGE_OPTIONS.includes(parseInt(searchParams.perPage ?? '')) ? parseInt(searchParams.perPage!) : 25;
 
-  const AND: Record<string, unknown>[] = [];
-  if (q)       AND.push({ OR: [{ title: { contains: q } }, { eventName: { contains: q } }, { location: { contains: q } }, { detectedTagsJson: { contains: q } }, { manualTagsJson: { contains: q } }] });
-  if (type === 'image') AND.push({ fileType: { startsWith: 'image/' } });
-  if (type === 'video') AND.push({ fileType: { startsWith: 'video/' } });
-  if (seasonId) AND.push({ seasonId });
-  if (category) AND.push({ category });
-  if (collectionId) AND.push({ collectionId });
-  if (playerIds.length)  AND.push({ playerTags:  { some: { playerId:  { in: playerIds  }, status: 'confirmed' } } });
-  if (sponsorIds.length) AND.push({ sponsorTags: { some: { sponsorId: { in: sponsorIds }, status: 'confirmed' } } });
-  if (rating) AND.push({ rating: { gte: rating } });
-
-  const where = AND.length ? { AND } : {};
+  const filters = { q, type, seasonId, category, collectionId, playerIds, sponsorIds, rating };
+  const where = buildMediaLibraryWhere(filters);
+  const navQuery = mediaNavQueryString(filters);
 
   const [assets, total, seasons, collections, players, sponsors, customCollections] = await Promise.all([
     prisma.asset.findMany({ where, orderBy: { uploadedAt: 'desc' }, take: perPage, skip: (page - 1) * perPage }),
@@ -95,7 +87,7 @@ export default async function MediaPage(props: { searchParams: Promise<SearchPar
           <p>Try adjusting your filters or upload new files.</p>
         </div>
       ) : (
-        <MediaLibraryGallery assets={assets} customCollections={customCollections} />
+        <MediaLibraryGallery assets={assets} customCollections={customCollections} navQuery={navQuery} />
       )}
 
       {assets.length > 0 && (

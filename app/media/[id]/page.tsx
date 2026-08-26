@@ -4,10 +4,18 @@ import { getCurrentUser } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
 import { getPresignedUrl } from '../../../lib/wasabi';
 import { getCollectionNavContext } from '../../../lib/collections';
+import { getMediaLibraryNavContext, mediaNavQueryString } from '../../../lib/media-query';
 import AppShell from '../../../components/AppShell';
-import AssetDetailClient from '../../../components/AssetDetailClient';
+import AssetDetailClient, { type AssetNav } from '../../../components/AssetDetailClient';
 
-export default async function AssetDetailPage(props: { params: Promise<{ id: string }>; searchParams: Promise<{ collectionId?: string }> }) {
+type SearchParams = {
+  collectionId?: string;
+  navFrom?: string;
+  q?: string; type?: string; seasonId?: string; category?: string;
+  playerIds?: string; sponsorIds?: string; rating?: string;
+};
+
+export default async function AssetDetailPage(props: { params: Promise<{ id: string }>; searchParams: Promise<SearchParams> }) {
   const params = await props.params;
   const searchParams = await props.searchParams;
   const user = await getCurrentUser();
@@ -21,20 +29,48 @@ export default async function AssetDetailPage(props: { params: Promise<{ id: str
 
   const appBaseUrl = (process.env.PUBLIC_SHARE_BASE_URL ?? process.env.APP_BASE_URL ?? '').replace(/\/$/, '');
 
-  // Present only when reached from a collection's asset gallery (?collectionId=) — drives the
-  // prev/next arrows and breadcrumb below. Falls back to no nav if the id is stale/deleted or the
-  // asset no longer belongs to that collection's resolved membership.
-  const collectionId = searchParams.collectionId || '';
-  const navContext = collectionId ? await getCollectionNavContext(collectionId) : null;
-  const navIndex = navContext ? navContext.assetIds.indexOf(asset.id) : -1;
-  const nav = navContext && navIndex !== -1 ? {
-    collectionId,
-    collectionName: navContext.name,
-    position: navIndex + 1,
-    total: navContext.assetIds.length,
-    prevHref: navIndex > 0 ? `/media/${navContext.assetIds[navIndex - 1]}?collectionId=${collectionId}` : null,
-    nextHref: navIndex < navContext.assetIds.length - 1 ? `/media/${navContext.assetIds[navIndex + 1]}?collectionId=${collectionId}` : null,
-  } : null;
+  // Drives the prev/next arrows and breadcrumb below — present only when reached from a gallery
+  // that supplies nav context: either a collection's asset gallery (?collectionId=, no navFrom) or
+  // the Media Library's filtered grid (?navFrom=media&...). navFrom is what disambiguates the two
+  // — see the comment on mediaNavQueryString in lib/media-query.ts. Falls back to no nav if the id
+  // is stale/deleted or the asset no longer matches that context's current filters/membership.
+  let nav: AssetNav | null = null;
+  if (searchParams.navFrom === 'media') {
+    const filters = {
+      q: searchParams.q, type: searchParams.type, seasonId: searchParams.seasonId,
+      category: searchParams.category, collectionId: searchParams.collectionId,
+      playerIds: searchParams.playerIds ? searchParams.playerIds.split(',').filter(Boolean) : undefined,
+      sponsorIds: searchParams.sponsorIds ? searchParams.sponsorIds.split(',').filter(Boolean) : undefined,
+      rating: [1, 2, 3, 4].includes(parseInt(searchParams.rating ?? '')) ? parseInt(searchParams.rating!) : undefined,
+    };
+    const assetIds = await getMediaLibraryNavContext(filters);
+    const navIndex = assetIds.indexOf(asset.id);
+    if (navIndex !== -1) {
+      const qs = mediaNavQueryString(filters);
+      nav = {
+        label: 'Media Library',
+        backHref: '/media',
+        position: navIndex + 1,
+        total: assetIds.length,
+        prevHref: navIndex > 0 ? `/media/${assetIds[navIndex - 1]}?${qs}` : null,
+        nextHref: navIndex < assetIds.length - 1 ? `/media/${assetIds[navIndex + 1]}?${qs}` : null,
+      };
+    }
+  } else if (searchParams.collectionId) {
+    const collectionId = searchParams.collectionId;
+    const navContext = await getCollectionNavContext(collectionId);
+    const navIndex = navContext ? navContext.assetIds.indexOf(asset.id) : -1;
+    if (navContext && navIndex !== -1) {
+      nav = {
+        label: navContext.name,
+        backHref: `/collections/${collectionId}`,
+        position: navIndex + 1,
+        total: navContext.assetIds.length,
+        prevHref: navIndex > 0 ? `/media/${navContext.assetIds[navIndex - 1]}?collectionId=${collectionId}` : null,
+        nextHref: navIndex < navContext.assetIds.length - 1 ? `/media/${navContext.assetIds[navIndex + 1]}?collectionId=${collectionId}` : null,
+      };
+    }
+  }
 
   const [seasons, collections, stadiums, players, sponsors, playerTags, sponsorTags, customCollectionMemberships, signedUrl] = await Promise.all([
     prisma.season.findMany({ orderBy: { startDate: 'desc' }, select: { id: true, name: true } }),
@@ -54,7 +90,7 @@ export default async function AssetDetailPage(props: { params: Promise<{ id: str
     <AppShell user={user} wide>
       <div className="breadcrumb">
         {nav ? (
-          <Link href={`/collections/${nav.collectionId}`}>{nav.collectionName}</Link>
+          <Link href={nav.backHref}>{nav.label}</Link>
         ) : (
           <Link href="/media">Media Library</Link>
         )}

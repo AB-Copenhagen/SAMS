@@ -13,7 +13,7 @@ const DOWNLOAD_STAGGER_MS = 250;
 
 type CustomCollection = { id: string; name: string };
 
-export default function MediaLibraryGallery({ assets, customCollections = [] }: { assets: GalleryAsset[]; customCollections?: CustomCollection[] }) {
+export default function MediaLibraryGallery({ assets, customCollections = [], navQuery }: { assets: GalleryAsset[]; customCollections?: CustomCollection[]; navQuery?: string }) {
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -110,7 +110,7 @@ export default function MediaLibraryGallery({ assets, customCollections = [] }: 
           {addedMessage && <span style={{ fontSize: 12, color: '#16a34a' }}>{addedMessage}</span>}
         </div>
       )}
-      <AssetGallery assets={assets} metaMode="date" selectable selectedIds={selectedIds} onToggleSelect={toggle} />
+      <AssetGallery assets={assets} metaMode="date" selectable selectedIds={selectedIds} onToggleSelect={toggle} navQuery={navQuery} />
     </>
   );
 }

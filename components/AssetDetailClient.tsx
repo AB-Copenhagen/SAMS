@@ -18,8 +18,10 @@ const PhotoEditor = dynamic(() => import('./PhotoEditor'), { ssr: false });
 type Season     = { id: string; name: string };
 type Collection = { id: string; name: string; type: string; date: string | Date | null; seasonId: string | null };
 export type AssetNav = {
-  collectionId: string;
-  collectionName: string;
+  /** Breadcrumb link text back to wherever this nav context came from — a collection name, or
+   * "Media Library" for a filtered gallery view. */
+  label: string;
+  backHref: string;
   position: number;
   total: number;
   prevHref: string | null;
