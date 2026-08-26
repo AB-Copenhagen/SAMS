@@ -249,7 +249,13 @@ button, input, textarea, select { font: inherit; }
 .main-content {
   flex: 1;
   min-width: 0;
-  overflow-x: hidden;
+  /* `clip`, not `hidden` — `overflow-x: hidden` paired with the implicit `overflow-y: visible`
+     gets computed by the UA as `overflow-y: auto` (CSS Overflow §3), which turns this into a
+     scroll container and breaks `position: sticky` for every descendant (the review/gallery
+     bulk-action bar, the sticky filter bar, the asset-detail sidebar) even though this element
+     never actually scrolls itself. `clip` gives the same horizontal-overflow guard without that
+     side effect. */
+  overflow-x: clip;
 }
 
 .page-body {
