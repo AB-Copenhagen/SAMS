@@ -249,13 +249,26 @@ button, input, textarea, select { font: inherit; }
 .main-content {
   flex: 1;
   min-width: 0;
-  overflow-x: hidden;
+  /* `clip`, not `hidden` — `overflow-x: hidden` paired with the implicit `overflow-y: visible`
+     gets computed by the UA as `overflow-y: auto` (CSS Overflow §3), which turns this into a
+     scroll container and breaks `position: sticky` for every descendant (the review/gallery
+     bulk-action bar, the sticky filter bar, the asset-detail sidebar) even though this element
+     never actually scrolls itself. `clip` gives the same horizontal-overflow guard without that
+     side effect. */
+  overflow-x: clip;
 }
 
 .page-body {
   padding: 28px 32px;
   max-width: 1100px;
 }
+
+/* Gallery/asset-detail views scale poorly at the 1100px cap on a large monitor — a wide desk
+   monitor just leaves the extra width as dead gray space instead of showing more thumbnails or a
+   bigger preview. Uncapped: the gallery grid and the asset-detail/filter sidebars are all built to
+   scale with available width (see .gallery's large-screen breakpoints and .sidebar-layout below),
+   so there's no ultrawide point where more width stops being useful here. */
+.page-body-wide { max-width: none; }
 
 @media (max-width: 860px) {
   .page-body { padding: 20px 16px; }
@@ -596,6 +609,15 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 @media (max-width: 640px) {
   .gallery { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
 }
+/* auto-fill already stretches existing columns to fill leftover width, but with a 200px floor
+   that mostly just adds more small columns on a large screen instead of visibly bigger thumbnails
+   — raise the floor as space grows so cards actually get larger, not just more numerous. */
+@media (min-width: 1400px) {
+  .gallery { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+}
+@media (min-width: 1900px) {
+  .gallery { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+}
 
 .asset-card {
   background: white;
@@ -675,17 +697,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .asset-card-body { padding: 10px 12px; }
 .asset-card-title { font-size: 12.5px; font-weight: 600; color: #2d3154; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .asset-card-meta  { font-size: 11px; color: #8890b4; }
-
-/* ─── Filter bar ─────────────────────────────────────────── */
-.filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 20px;
-}
-.filter-bar input, .filter-bar select { width: auto; min-width: 0; }
-.filter-search { flex: 1; min-width: 200px; }
 
 /* ─── Tabs ───────────────────────────────────────────────── */
 .tabs {
@@ -1206,6 +1217,57 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 @media (max-width: 860px) {
   .review-layout { grid-template-columns: 1fr; }
+}
+
+/* ─── Sidebar layout ─────────────────────────────────────── */
+/* Shared by any page that pairs a main content area with a 380px sidebar of controls — asset
+   detail (image + metadata) and the Media Library (gallery + filters) so far. */
+.sidebar-layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .sidebar-layout { grid-template-columns: 1fr; }
+}
+
+/* Media Library: filters should come before the gallery once stacked on mobile, so narrowing
+   results doesn't require scrolling past a full page of thumbnails first — the opposite of
+   asset-detail's default stacking (image first, metadata form after), so this needs an explicit
+   opt-in modifier rather than changing .sidebar-layout's default DOM-order stacking. */
+@media (max-width: 860px) {
+  .sidebar-layout-filters-first > *:first-child { order: 2; }
+  .sidebar-layout-filters-first > *:last-child { order: 1; }
+}
+
+/* Sticky + independently scrollable so a long sidebar (asset-detail's metadata form, the Media
+   Library's filter stack) never gets pushed out of view by scrolling the main content next to it.
+   Only above the collapse breakpoint: on a phone/narrow window the sidebar stacks under the main
+   content and should scroll with the page like everything else. */
+@media (min-width: 861px) {
+  .sticky-sidebar {
+    position: sticky;
+    top: 28px;
+    max-height: calc(100vh - 56px);
+    overflow-y: auto;
+  }
+}
+
+/* ─── Asset detail ───────────────────────────────────────── */
+.asset-detail-media img, .asset-detail-media video {
+  width: 100%;
+  display: block;
+  object-fit: contain;
+  background: #0d0f1c;
+  max-height: 580px;
+}
+/* Above the sidebar-collapse breakpoint the preview can use most of the viewport height instead
+   of a fixed cap sized for a laptop screen — the whole point of a desk-review pass is seeing the
+   image large. 220px covers the page-body's own top/bottom padding plus the info strip and
+   collapsed EXIF header that sit below the image inside the same card. */
+@media (min-width: 861px) {
+  .asset-detail-media img, .asset-detail-media video { max-height: calc(100vh - 220px); }
 }
 
 .review-rate-btn { padding: 12px 14px; }

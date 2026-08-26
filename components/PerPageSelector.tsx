@@ -18,6 +18,7 @@ export default function PerPageSelector({ options, current }: { options: number[
       value={current}
       onChange={onChange}
       style={{
+        width: 'auto',
         fontSize: 12,
         padding: '3px 6px',
         borderRadius: 5,
