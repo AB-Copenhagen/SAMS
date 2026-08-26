@@ -60,7 +60,7 @@ export default function MediaFilterBar({
   );
 
   return (
-    <div className="filter-bar" style={{ flexWrap: 'wrap' }}>
+    <div className="filter-bar filter-bar-sticky" style={{ flexWrap: 'wrap' }}>
       <input
         type="search"
         className="filter-search"

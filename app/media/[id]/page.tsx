@@ -51,7 +51,7 @@ export default async function AssetDetailPage(props: { params: Promise<{ id: str
   ]);
 
   return (
-    <AppShell user={user}>
+    <AppShell user={user} wide>
       <div className="breadcrumb">
         {nav ? (
           <Link href={`/collections/${nav.collectionId}`}>{nav.collectionName}</Link>

@@ -257,6 +257,12 @@ button, input, textarea, select { font: inherit; }
   max-width: 1100px;
 }
 
+/* Gallery/asset-detail views scale poorly at the 1100px cap on a large monitor — a wide desk
+   monitor just leaves the extra width as dead gray space instead of showing more thumbnails or a
+   bigger preview. Still capped, not full-bleed, so grid rows and the asset-detail layout don't
+   stretch absurdly wide on an ultrawide/large display. */
+.page-body-wide { max-width: 2000px; }
+
 @media (max-width: 860px) {
   .page-body { padding: 20px 16px; }
 }
@@ -686,6 +692,21 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 .filter-bar input, .filter-bar select { width: auto; min-width: 0; }
 .filter-search { flex: 1; min-width: 200px; }
+
+/* Keeps filters reachable while scanning a long, dense gallery on a large screen instead of
+   scrolling back to the top to change them. Desktop-only: on a phone the filter bar already sits
+   above a much shorter, single/double-column grid, so pinning it just eats scarce vertical space. */
+@media (min-width: 861px) {
+  .filter-bar-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 90;
+    margin: 0 -32px 20px;
+    padding: 12px 32px;
+    background: rgba(240, 242, 247, 0.92);
+    backdrop-filter: blur(6px);
+  }
+}
 
 /* ─── Tabs ───────────────────────────────────────────────── */
 .tabs {
@@ -1206,6 +1227,45 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 @media (max-width: 860px) {
   .review-layout { grid-template-columns: 1fr; }
+}
+
+/* ─── Asset detail ───────────────────────────────────────── */
+.asset-detail-layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .asset-detail-layout { grid-template-columns: 1fr; }
+}
+
+.asset-detail-media img, .asset-detail-media video {
+  width: 100%;
+  display: block;
+  object-fit: contain;
+  background: #0d0f1c;
+  max-height: 580px;
+}
+/* Above the sidebar-collapse breakpoint the preview can use most of the viewport height instead
+   of a fixed cap sized for a laptop screen — the whole point of a desk-review pass is seeing the
+   image large. 220px covers the page-body's own top/bottom padding plus the info strip and
+   collapsed EXIF header that sit below the image inside the same card. */
+@media (min-width: 861px) {
+  .asset-detail-media img, .asset-detail-media video { max-height: calc(100vh - 220px); }
+}
+
+/* Sticky + independently scrollable so the metadata form (a dozen-plus fields) never pushes the
+   preview off-screen while filling it in — matches the review workflow's own sticky rate button,
+   just for the whole panel. Only above the collapse breakpoint: on a phone/narrow window the
+   sidebar stacks under the image and should scroll with the page like everything else. */
+@media (min-width: 861px) {
+  .asset-detail-sidebar {
+    position: sticky;
+    top: 28px;
+    max-height: calc(100vh - 56px);
+    overflow-y: auto;
+  }
 }
 
 .review-rate-btn { padding: 12px 14px; }

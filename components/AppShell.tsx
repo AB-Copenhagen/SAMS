@@ -5,9 +5,13 @@ import SidebarShell from './SidebarShell';
 
 export default async function AppShell({
   user,
+  wide,
   children,
 }: {
   user: User;
+  /** Lifts the default 1100px page-body cap for screens that benefit from the extra width on a
+   * large monitor — the media gallery and asset detail views, not every page. */
+  wide?: boolean;
   children: React.ReactNode;
 }) {
   const unreviewedCount = await prisma.asset.count({ where: REVIEWABLE_ASSET_WHERE });
@@ -17,7 +21,7 @@ export default async function AppShell({
       <SidebarShell user={user} unreviewedCount={unreviewedCount} />
 
       <div className="main-content">
-        <div className="page-body">{children}</div>
+        <div className={`page-body${wide ? ' page-body-wide' : ''}`}>{children}</div>
       </div>
     </div>
   );

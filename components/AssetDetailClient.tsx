@@ -298,24 +298,16 @@ export default function AssetDetailClient({
     .map((c) => ({ id: c.id, label: collectionLabel(c) }));
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 20, alignItems: 'start' }}>
+    <div className="asset-detail-layout">
       {/* Left column: preview + EXIF */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ position: 'relative' }}>
+          <div className="asset-detail-media" style={{ position: 'relative' }}>
             {isVideo ? (
-              <video
-                src={signedUrl}
-                controls
-                style={{ width: '100%', display: 'block', background: '#0d0f1c', maxHeight: 520 }}
-              />
+              <video src={signedUrl} controls />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={signedUrl}
-                alt={asset.title || asset.objectKey}
-                style={{ width: '100%', display: 'block', maxHeight: 580, objectFit: 'contain', background: '#0d0f1c' }}
-              />
+              <img src={signedUrl} alt={asset.title || asset.objectKey} />
             )}
             {nav && (
               <>
@@ -387,7 +379,7 @@ export default function AssetDetailClient({
       )}
 
       {/* Right column: metadata form */}
-      <div>
+      <div className="asset-detail-sidebar">
         <div className="card">
           <div className="card-header">Metadata</div>
 

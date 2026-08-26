@@ -74,7 +74,7 @@ export default async function MediaPage(props: { searchParams: Promise<SearchPar
   }
 
   return (
-    <AppShell user={user}>
+    <AppShell user={user} wide>
       <div className="page-header">
         <div>
           <h1>Media Library</h1>
