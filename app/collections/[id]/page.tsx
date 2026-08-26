@@ -48,69 +48,74 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
   const appBaseUrl = (process.env.PUBLIC_SHARE_BASE_URL ?? process.env.APP_BASE_URL ?? '').replace(/\/$/, '');
 
   return (
-    <AppShell user={user}>
+    <AppShell user={user} wide>
       <div className="breadcrumb">
         <Link href="/collections">Collections</Link>
         <span className="breadcrumb-sep">›</span>
         <span>{collection.name}</span>
       </div>
 
-      <div className="page-header">
-        <div>
-          <h1>{collection.name}</h1>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 6, alignItems: 'center' }}>
-            <span className="coll-type-badge">{collection.type}</span>
-            {collection.date && (
-              <span style={{ color: '#6b7491', fontSize: 13 }}>
-                {new Date(collection.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-              </span>
-            )}
-            {collection.opponent && (
-              <span style={{ color: '#6b7491', fontSize: 13 }}>vs {collection.opponent}</span>
-            )}
-            {collection.season && (
-              <span style={{ color: '#6b7491', fontSize: 13 }}>{collection.season.name}</span>
-            )}
-            {collection.venue && (
-              <span style={{ color: '#6b7491', fontSize: 13 }}>📍 {collection.venue}</span>
-            )}
+      {/* Capped — these are simple forms (edit/share/rules/picker), not a grid, so they stay
+          readable instead of stretching to the page's full uncapped width. Only the gallery below
+          benefits from that extra width, same split as the stat row/config panels on /home. */}
+      <div style={{ maxWidth: 1100 }}>
+        <div className="page-header">
+          <div>
+            <h1>{collection.name}</h1>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 6, alignItems: 'center' }}>
+              <span className="coll-type-badge">{collection.type}</span>
+              {collection.date && (
+                <span style={{ color: '#6b7491', fontSize: 13 }}>
+                  {new Date(collection.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </span>
+              )}
+              {collection.opponent && (
+                <span style={{ color: '#6b7491', fontSize: 13 }}>vs {collection.opponent}</span>
+              )}
+              {collection.season && (
+                <span style={{ color: '#6b7491', fontSize: 13 }}>{collection.season.name}</span>
+              )}
+              {collection.venue && (
+                <span style={{ color: '#6b7491', fontSize: 13 }}>📍 {collection.venue}</span>
+              )}
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ color: '#8890b4', fontSize: 13 }}>{assets.length} assets</span>
+            <CollectionEditForm
+              id={collection.id}
+              name={collection.name}
+              date={collection.date ? collection.date.toISOString().split('T')[0] : null}
+              opponent={collection.opponent}
+              venue={collection.venue}
+              isCustom={isCustom}
+            />
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ color: '#8890b4', fontSize: 13 }}>{assets.length} assets</span>
-          <CollectionEditForm
-            id={collection.id}
-            name={collection.name}
-            date={collection.date ? collection.date.toISOString().split('T')[0] : null}
-            opponent={collection.opponent}
-            venue={collection.venue}
-            isCustom={isCustom}
-          />
-        </div>
-      </div>
 
-      {isCustom && (
-        <>
-          <CollectionSharePanel
-            id={collection.id}
-            isPublic={collection.isPublic}
-            hasPassword={Boolean(collection.sharePasswordHash)}
-            shareToken={collection.shareToken}
-            appBaseUrl={appBaseUrl}
-            shareMinRating={collection.shareMinRating}
-            shareDateRangeDays={collection.shareDateRangeDays}
-            expiresAt={collection.expiresAt}
-          />
-          <CollectionRulesEditor
-            collectionId={collection.id}
-            playerRules={collection.playerRules}
-            sponsorRules={collection.sponsorRules}
-            allPlayers={allPlayers}
-            allSponsors={allSponsors}
-          />
-          <CollectionAssetPicker collectionId={collection.id} existingAssetIds={assets.map((a) => a.id)} />
-        </>
-      )}
+        {isCustom && (
+          <>
+            <CollectionSharePanel
+              id={collection.id}
+              isPublic={collection.isPublic}
+              hasPassword={Boolean(collection.sharePasswordHash)}
+              shareToken={collection.shareToken}
+              appBaseUrl={appBaseUrl}
+              shareMinRating={collection.shareMinRating}
+              shareDateRangeDays={collection.shareDateRangeDays}
+              expiresAt={collection.expiresAt}
+            />
+            <CollectionRulesEditor
+              collectionId={collection.id}
+              playerRules={collection.playerRules}
+              sponsorRules={collection.sponsorRules}
+              allPlayers={allPlayers}
+              allSponsors={allSponsors}
+            />
+            <CollectionAssetPicker collectionId={collection.id} existingAssetIds={assets.map((a) => a.id)} />
+          </>
+        )}
+      </div>
 
       {assets.length === 0 ? (
         <div className="empty-state card">

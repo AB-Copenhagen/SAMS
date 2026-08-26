@@ -19,7 +19,7 @@ export default async function SharedCollectionPage(props: { params: Promise<{ to
   const publicAssets = assets.map(sanitizePublicAsset);
 
   return (
-    <div className="share-page" style={{ maxWidth: 1200 }}>
+    <div className="share-page" style={{ maxWidth: 2000 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/AB1889.png" alt="AB Copenhagen" style={{ width: 40, height: 40 }} />
