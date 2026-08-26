@@ -301,7 +301,7 @@ export default function AssetDetailClient({
     .map((c) => ({ id: c.id, label: collectionLabel(c) }));
 
   return (
-    <div className="asset-detail-layout">
+    <div className="sidebar-layout">
       {/* Left column: preview + EXIF */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -486,7 +486,7 @@ export default function AssetDetailClient({
       )}
 
       {/* Right column: metadata form */}
-      <div className="asset-detail-sidebar">
+      <div className="sticky-sidebar">
         <div className="card">
           <div className="card-header">Tags &amp; collection</div>
 

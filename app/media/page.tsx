@@ -4,7 +4,6 @@ import { getCurrentUser } from '../../lib/auth';
 import { prisma } from '../../lib/db';
 import AppShell from '../../components/AppShell';
 import MediaFilterBar from '../../components/MediaFilterBar';
-import PerPageSelector from '../../components/PerPageSelector';
 import MediaLibraryGallery from '../../components/MediaLibraryGallery';
 import { buildMediaLibraryWhere, mediaNavQueryString } from '../../lib/media-query';
 
@@ -67,48 +66,56 @@ export default async function MediaPage(props: { searchParams: Promise<SearchPar
 
   return (
     <AppShell user={user} wide>
-      <div className="page-header">
-        <div>
-          <h1>Media Library</h1>
-          <p>{total} asset{total !== 1 ? 's' : ''}{isFiltered ? ' (filtered)' : ''}</p>
+      <div className="sidebar-layout">
+        <div style={{ minWidth: 0 }}>
+          <div className="page-header">
+            <div>
+              <h1>Media Library</h1>
+              <p>{total} asset{total !== 1 ? 's' : ''}{isFiltered ? ' (filtered)' : ''}</p>
+            </div>
+          </div>
+
+          {assets.length === 0 ? (
+            <div className="empty-state card">
+              <h3>No assets found</h3>
+              <p>Try adjusting your filters or upload new files.</p>
+            </div>
+          ) : (
+            <MediaLibraryGallery assets={assets} customCollections={customCollections} navQuery={navQuery} />
+          )}
+
+          {assets.length > 0 && (
+            <div className="pagination">
+              <a
+                href={pageUrl(page - 1)}
+                className="btn-secondary"
+                style={{ pointerEvents: page <= 1 ? 'none' : 'auto', opacity: page <= 1 ? 0.4 : 1, textDecoration: 'none' }}
+              >
+                ← Prev
+              </a>
+              <span className="page-info">Page {page} of {pages} · {total} total</span>
+              <a
+                href={pageUrl(page + 1)}
+                className="btn-secondary"
+                style={{ pointerEvents: page >= pages ? 'none' : 'auto', opacity: page >= pages ? 0.4 : 1, textDecoration: 'none' }}
+              >
+                Next →
+              </a>
+            </div>
+          )}
         </div>
+
         <Suspense>
-          <PerPageSelector options={PER_PAGE_OPTIONS} current={perPage} />
+          <MediaFilterBar
+            seasons={seasons}
+            collections={collections}
+            players={players}
+            sponsors={sponsors}
+            perPageOptions={PER_PAGE_OPTIONS}
+            currentPerPage={perPage}
+          />
         </Suspense>
       </div>
-
-      <Suspense>
-        <MediaFilterBar seasons={seasons} collections={collections} players={players} sponsors={sponsors} />
-      </Suspense>
-
-      {assets.length === 0 ? (
-        <div className="empty-state card">
-          <h3>No assets found</h3>
-          <p>Try adjusting your filters or upload new files.</p>
-        </div>
-      ) : (
-        <MediaLibraryGallery assets={assets} customCollections={customCollections} navQuery={navQuery} />
-      )}
-
-      {assets.length > 0 && (
-        <div className="pagination">
-          <a
-            href={pageUrl(page - 1)}
-            className="btn-secondary"
-            style={{ pointerEvents: page <= 1 ? 'none' : 'auto', opacity: page <= 1 ? 0.4 : 1, textDecoration: 'none' }}
-          >
-            ← Prev
-          </a>
-          <span className="page-info">Page {page} of {pages} · {total} total</span>
-          <a
-            href={pageUrl(page + 1)}
-            className="btn-secondary"
-            style={{ pointerEvents: page >= pages ? 'none' : 'auto', opacity: page >= pages ? 0.4 : 1, textDecoration: 'none' }}
-          >
-            Next →
-          </a>
-        </div>
-      )}
     </AppShell>
   );
 }
