@@ -2,29 +2,32 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser, isAdmin } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { addConfirmedStringTag } from '../../../../lib/asset-tags';
+import { REVIEWABLE_ASSET_WHERE } from '../../../../lib/asset-review';
 
-// Permanent safety-net for the AI tagging pipeline: the pipeline (lib/tagging-pipeline.ts,
-// app/api/assets/[id]/tag-faces) now auto-confirms every player/sponsor match it finds, so
-// 'suggested' tags should no longer accumulate in normal operation. This exists as an admin-only
-// on-demand backstop — e.g. if a future pipeline change reintroduces a 'suggested' path, or to
-// clear out a one-off manual match import — rather than needing per-tag review via
-// TagReviewList/app/players/[id]/app/sponsors/[id]. Confirms every currently-suggested tag and
-// stamps reviewedAt/reviewedBy on any asset that had one, so it also drops out of /review.
+// Permanent safety-net for the AI tagging pipeline and for the review queue in general. The
+// pipeline (lib/tagging-pipeline.ts, app/api/assets/[id]/tag-faces) auto-confirms every
+// player/sponsor match it finds, so 'suggested' tags should no longer accumulate in normal
+// operation — but plenty of assets land in /review with no suggested tags at all (nothing
+// detected, or tags already confirmed) and just sit there waiting on a manual pass that isn't
+// going to happen. This confirms every currently-suggested tag, then closes out the *entire*
+// review queue (REVIEWABLE_ASSET_WHERE), not just the assets that had a suggested tag — that's
+// what actually empties /review from the Jobs page's "Accept all suggested tags" button.
 function slugify(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '-');
 }
 
-// Preview — how many suggested tags exist right now.
+// Preview — how many suggested tags exist right now, and how many assets are in the review queue.
 export async function GET() {
   const user = await getCurrentUser();
   if (!isAdmin(user)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
-  const [playerTags, sponsorTags] = await Promise.all([
+  const [playerTags, sponsorTags, reviewQueueTotal] = await Promise.all([
     prisma.assetPlayerTag.count({ where: { status: 'suggested' } }),
     prisma.assetSponsorTag.count({ where: { status: 'suggested' } }),
+    prisma.asset.count({ where: REVIEWABLE_ASSET_WHERE }),
   ]);
 
-  return NextResponse.json({ playerTagsSuggested: playerTags, sponsorTagsSuggested: sponsorTags });
+  return NextResponse.json({ playerTagsSuggested: playerTags, sponsorTagsSuggested: sponsorTags, reviewQueueTotal });
 }
 
 export async function POST() {
@@ -44,15 +47,12 @@ export async function POST() {
     }),
   ]);
 
-  const affectedAssetIds = new Set<string>();
-
   for (const tag of playerTags) {
     await prisma.assetPlayerTag.update({
       where: { id: tag.id },
       data: { status: 'confirmed', reviewedAt: now, reviewedBy: user.email },
     });
     await addConfirmedStringTag(tag.assetId, `player:${slugify(tag.player.name)}`);
-    affectedAssetIds.add(tag.assetId);
   }
 
   for (const tag of sponsorTags) {
@@ -61,19 +61,16 @@ export async function POST() {
       data: { status: 'confirmed', reviewedAt: now, reviewedBy: user.email },
     });
     await addConfirmedStringTag(tag.assetId, `sponsor:${slugify(tag.sponsor.name)}`);
-    affectedAssetIds.add(tag.assetId);
   }
 
-  if (affectedAssetIds.size > 0) {
-    await prisma.asset.updateMany({
-      where: { id: { in: [...affectedAssetIds] }, reviewedAt: null },
-      data: { reviewedAt: now, reviewedBy: user.email },
-    });
-  }
+  const { count: assetsClosed } = await prisma.asset.updateMany({
+    where: REVIEWABLE_ASSET_WHERE,
+    data: { reviewedAt: now, reviewedBy: user.email },
+  });
 
   return NextResponse.json({
     playerTagsConfirmed: playerTags.length,
     sponsorTagsConfirmed: sponsorTags.length,
-    assetsClosed: affectedAssetIds.size,
+    assetsClosed,
   });
 }
