@@ -1232,6 +1232,15 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   .sidebar-layout { grid-template-columns: 1fr; }
 }
 
+/* Media Library: filters should come before the gallery once stacked on mobile, so narrowing
+   results doesn't require scrolling past a full page of thumbnails first — the opposite of
+   asset-detail's default stacking (image first, metadata form after), so this needs an explicit
+   opt-in modifier rather than changing .sidebar-layout's default DOM-order stacking. */
+@media (max-width: 860px) {
+  .sidebar-layout-filters-first > *:first-child { order: 2; }
+  .sidebar-layout-filters-first > *:last-child { order: 1; }
+}
+
 /* Sticky + independently scrollable so a long sidebar (asset-detail's metadata form, the Media
    Library's filter stack) never gets pushed out of view by scrolling the main content next to it.
    Only above the collapse breakpoint: on a phone/narrow window the sidebar stacks under the main

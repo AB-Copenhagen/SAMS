@@ -66,7 +66,7 @@ export default async function MediaPage(props: { searchParams: Promise<SearchPar
 
   return (
     <AppShell user={user} wide>
-      <div className="sidebar-layout">
+      <div className="sidebar-layout sidebar-layout-filters-first">
         <div style={{ minWidth: 0 }}>
           <div className="page-header">
             <div>
