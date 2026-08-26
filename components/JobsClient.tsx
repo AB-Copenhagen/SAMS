@@ -17,7 +17,7 @@ type QueueStatus = {
   pendingAssets: QueuedAsset[];
   failedAssets: QueuedAsset[];
 };
-type SuggestedCounts = { playerTagsSuggested: number; sponsorTagsSuggested: number };
+type SuggestedCounts = { playerTagsSuggested: number; sponsorTagsSuggested: number; reviewQueueTotal: number };
 type ApproveResult = { playerTagsConfirmed: number; sponsorTagsConfirmed: number; assetsClosed: number };
 
 const CRON_INTERVAL_MS = 15 * 60 * 1000;
@@ -73,7 +73,7 @@ export default function JobsClient() {
   }, []);
 
   async function approveAllSuggested() {
-    if (!confirm('Confirm every currently-suggested player/sponsor tag and close out the assets they belong to?')) return;
+    if (!confirm('Confirm every currently-suggested player/sponsor tag and clear every asset out of the review queue?')) return;
     setApproving(true);
     setApproveResult(null);
     try {
@@ -174,23 +174,24 @@ export default function JobsClient() {
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Suggested tag backlog</div>
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Review queue backlog</div>
         <p style={{ fontSize: 12, color: '#8890b4', marginTop: 0, marginBottom: 12 }}>
-          The tagging pipeline auto-confirms every player/sponsor match it finds, so this should
-          normally sit at zero. Use this as a manual backstop to clear any suggested tags that do
-          show up (e.g. from a manual match import) without reviewing them one at a time.
+          Confirms any suggested player/sponsor tags, then clears every remaining asset out of the
+          /review queue — including ones with no suggested tags left to confirm (nothing detected,
+          or tags already confirmed) that would otherwise sit there waiting on a manual pass.
         </p>
         {suggested ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 13, flexWrap: 'wrap' }}>
             <div><strong>{suggested.playerTagsSuggested}</strong> suggested player tag(s)</div>
             <div><strong>{suggested.sponsorTagsSuggested}</strong> suggested sponsor tag(s)</div>
+            <div><strong>{suggested.reviewQueueTotal}</strong> asset(s) in review queue</div>
             <button
               className="btn-primary"
               type="button"
-              disabled={approving || (suggested.playerTagsSuggested === 0 && suggested.sponsorTagsSuggested === 0)}
+              disabled={approving || suggested.reviewQueueTotal === 0}
               onClick={approveAllSuggested}
             >
-              {approving ? 'Approving…' : 'Accept all suggested tags'}
+              {approving ? 'Clearing…' : 'Accept all suggested tags'}
             </button>
           </div>
         ) : <p style={{ color: '#8890b4', fontSize: 13 }}>Loading…</p>}
