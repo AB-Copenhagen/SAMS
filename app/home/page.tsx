@@ -22,14 +22,14 @@ export default async function HomePage() {
     prisma.collection.count(),
     prisma.player.count({ where: { active: true } }),
     prisma.asset.aggregate({ _sum: { fileSize: true } }),
-    prisma.asset.findMany({ orderBy: { uploadedAt: 'desc' }, take: 8, select: { id: true, title: true, assetUrl: true, fileType: true, eventName: true, uploadedAt: true, thumbnailKey: true, thumbnailStatus: true } }),
+    prisma.asset.findMany({ orderBy: { uploadedAt: 'desc' }, take: 12, select: { id: true, title: true, assetUrl: true, fileType: true, eventName: true, uploadedAt: true, thumbnailKey: true, thumbnailStatus: true } }),
     prisma.collection.findMany({ orderBy: { createdAt: 'desc' }, take: 5, include: { _count: { select: { assets: true } }, season: { select: { name: true } } } }),
   ]);
 
   const storageMB = ((sizeResult._sum.fileSize ?? 0) / 1024 / 1024).toFixed(1);
 
   return (
-    <AppShell user={user}>
+    <AppShell user={user} wide>
       <div className="page-header">
         <div>
           <h1>Dashboard</h1>
@@ -59,7 +59,7 @@ export default async function HomePage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 16, alignItems: 'start' }}>
+      <div className="sidebar-layout">
         <div className="card">
           <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             Recent uploads
@@ -70,7 +70,7 @@ export default async function HomePage() {
               <p>No assets yet. <Link href="/upload" className="asset-link">Upload the first.</Link></p>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8 }}>
+            <div className="gallery">
               {recentAssets.map((a) => (
                 <a key={a.id} href={`/media/${a.id}`} className="asset-card">
                   <div className="asset-thumb">
