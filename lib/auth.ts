@@ -1,8 +1,8 @@
 import { cookies } from 'next/headers';
 import { createHmac, timingSafeEqual } from 'crypto';
-import { verifyDescopeSession } from './descope';
+import { verifyDescopeSession, resolveAppRole } from './descope';
 
-export type UserRole = 'ADMIN' | 'PLAYER' | 'MEDIA' | 'SPONSOR';
+export type UserRole = 'ADMIN' | 'STAFF' | 'PLAYER' | 'MEDIA' | 'SPONSOR';
 
 export type User = {
   id: string;
@@ -12,14 +12,6 @@ export type User = {
 };
 
 const SESSION_COOKIE_NAME = 'dam_session';
-
-export function isAdminEmail(email: string): boolean {
-  const allowlist = (process.env.ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  return allowlist.includes(email.toLowerCase());
-}
 
 function getSecret(): string {
   const secret = process.env.SESSION_SECRET;
@@ -69,13 +61,16 @@ export async function getCurrentUser(): Promise<User | null> {
 
   // Fallback: raw Descope session token (covers legacy cookies and direct API calls)
   const descopeSession = await verifyDescopeSession(session.value);
-  if (!descopeSession || !isAdminEmail(descopeSession.email)) return null;
+  if (!descopeSession) return null;
+
+  const role = resolveAppRole(descopeSession.roles);
+  if (!role) return null;
 
   return {
     id: descopeSession.id,
     email: descopeSession.email,
     name: descopeSession.name,
-    role: 'ADMIN',
+    role,
   };
 }
 
