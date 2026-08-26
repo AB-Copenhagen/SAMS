@@ -30,15 +30,21 @@ export default function DescopeLoginForm() {
 
     if (res.ok) {
       router.push('/upload');
+    } else if (res.status === 403) {
+      router.push('/login/unauthorized');
     } else {
       const body = await res.json().catch(() => ({}));
-      setError(body.message ?? 'Sign in failed. Check your role permissions.');
+      setError(body.message ?? 'Sign in failed. Please try again.');
     }
   }
 
+  // The Descope flow itself (not our backend) fires this for a hard failure — e.g. the loginId
+  // doesn't match any user — rather than a per-field validation error the widget shows inline.
+  // Treated the same as our own 403: this is an access/identity problem, not a transient one, so
+  // send the user to a clear terminal page instead of leaving the flow hung with a one-line error.
   function handleError(e: Event) {
     console.error('Descope flow error', e);
-    setError('An error occurred during sign in. Please try again.');
+    router.push('/login/unauthorized');
   }
 
   return (
@@ -48,7 +54,7 @@ export default function DescopeLoginForm() {
         onSuccess={handleSuccess}
         onError={handleError}
       />
-      {error ? <div className="alert">{error}</div> : null}
+      {error ? <div className="alert alert-error">{error}</div> : null}
     </>
   );
 }
