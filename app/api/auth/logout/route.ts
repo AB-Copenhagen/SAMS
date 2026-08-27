@@ -5,7 +5,10 @@ export async function POST() {
   response.cookies.set({
     name: 'dam_session',
     value: '',
+    httpOnly: true,
     path: '/',
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
     maxAge: 0,
   });
   return response;
