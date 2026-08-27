@@ -131,6 +131,7 @@ export default function ReviewWorkflowClient({
   draftsRef.current = drafts;
 
   const pendingCount = items.length - drafts.size;
+  const unseenAhead = items.length - cursor;
 
   const fetchMore = useCallback(async () => {
     setFetchingMore(true);
@@ -160,13 +161,18 @@ export default function ReviewWorkflowClient({
 
   useEffect(() => { fetchMore(); }, [fetchMore]);
 
+  // Refill once loaded-but-not-yet-viewed items run low — this must track unseenAhead
+  // (items.length - cursor), not pendingCount (unrated backlog): Next/ArrowRight advance the
+  // cursor without adding a draft, so a reviewer who browses forward without rating every item
+  // would otherwise outrun this trigger entirely and hit the loaded batch's end unrefilled.
   useEffect(() => {
-    if (!fetchingMore && pendingCount <= REFILL_THRESHOLD && pendingCount < remaining) {
+    if (!fetchingMore && unseenAhead <= REFILL_THRESHOLD && pendingCount < remaining) {
       fetchMore();
     }
-  }, [pendingCount, remaining, fetchingMore, fetchMore]);
+  }, [unseenAhead, pendingCount, remaining, fetchingMore, fetchMore]);
 
   const current = items[cursor] as QueueItem | undefined;
+  const canGoForward = !(cursor >= items.length - 1 && !fetchingMore && pendingCount >= remaining);
 
   // Reset the working draft whenever the current asset changes — pre-fill from what was actually
   // submitted if this item was already reviewed this session, otherwise its original tags.
@@ -303,12 +309,12 @@ export default function ReviewWorkflowClient({
       if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
       if (e.key >= '1' && e.key <= '4') { e.preventDefault(); rateAndAdvance(Number(e.key)); }
       if (e.key.toLowerCase() === 's' && !drafts.has(current?.id ?? '')) { e.preventDefault(); skip(); }
-      if (e.key === 'ArrowRight') { e.preventDefault(); advance(); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); if (canGoForward) advance(); }
       if (e.key === 'ArrowLeft') { e.preventDefault(); retreat(); }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [current?.id, drafts, rateAndAdvance, skip, advance, retreat]);
+  }, [current?.id, drafts, rateAndAdvance, skip, advance, retreat, canGoForward]);
 
   if (loadingInitial) {
     return <div className="card"><p style={{ padding: 20 }}>Loading review queue…</p></div>;
@@ -336,7 +342,6 @@ export default function ReviewWorkflowClient({
   const hasPoster = isVideo && current.thumbnailKey && current.thumbnailStatus === 'done';
   const showVideoElement = isVideo && (playingVideo || !hasPoster);
   const canGoBack = cursor > 0;
-  const canGoForward = !(cursor >= items.length - 1 && !fetchingMore && pendingCount >= remaining);
 
   return (
     <div>
