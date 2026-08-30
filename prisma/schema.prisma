@@ -143,6 +143,21 @@ model IngestJob {
   @@index([deviceId, updatedAt])
 }
 
+model ShareEvent {
+  id           String   @id @default(cuid())
+  kind         String   // "view" | "download"
+  token        String
+  collectionId String?
+  assetId      String?
+  ipHash       String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  @@index([kind, createdAt])
+  @@index([kind, collectionId])
+  @@index([kind, assetId])
+}
+
 model CronRun {
   id                 String    @id @default(cuid())
   startedAt          DateTime  @default(now())

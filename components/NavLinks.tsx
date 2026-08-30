@@ -23,17 +23,6 @@ function NavItem({ href, label, icon, active, badge }: NavItemProps) {
   );
 }
 
-function NavSection({ label }: { label: string }) {
-  return (
-    <div className="nav-section">
-      <span>{label}</span>
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="6 9 12 15 18 9" />
-      </svg>
-    </div>
-  );
-}
-
 export default function NavLinks({ role, unreviewedCount = 0 }: { role: string; unreviewedCount?: number }) {
   const pathname = usePathname();
 
@@ -132,10 +121,23 @@ export default function NavLinks({ role, unreviewedCount = 0 }: { role: string; 
         />
       )}
 
-      <div className="nav-divider" />
-
-      <NavSection label="Library" />
-      <NavSection label="Analytics" />
+      {role === 'ADMIN' && (
+        <>
+          <div className="nav-divider" />
+          <NavItem
+            href="/analytics"
+            label="Analytics"
+            active={pathname.startsWith('/analytics')}
+            icon={
+              <Icon>
+                <line x1="18" y1="20" x2="18" y2="10" />
+                <line x1="12" y1="20" x2="12" y2="4" />
+                <line x1="6" y1="20" x2="6" y2="14" />
+              </Icon>
+            }
+          />
+        </>
+      )}
     </>
   );
 }

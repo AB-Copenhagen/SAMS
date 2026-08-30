@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { resolveShareTarget } from '../../../../../../../lib/collections';
 import { renderExport, EXPORT_PRESETS } from '../../../../../../../lib/export-presets';
+import { logShareEvent } from '../../../../../../../lib/share-analytics';
+import { requestIp } from '../../../../../../../lib/rate-limit';
 
 export const maxDuration = 60;
 
@@ -24,6 +26,15 @@ export async function GET(request: Request, props: { params: Promise<{ token: st
   if (!asset.fileType.startsWith('image/')) {
     return NextResponse.json({ message: 'Resized exports are only available for images' }, { status: 400 });
   }
+
+  await logShareEvent({
+    kind: 'download',
+    token,
+    collectionId: asset.collectionId,
+    assetId: asset.id,
+    ip: requestIp(request),
+    userAgent: request.headers.get('user-agent'),
+  });
 
   try {
     const buffer = await renderExport(asset.editedKey ?? asset.objectKey, presetKey);

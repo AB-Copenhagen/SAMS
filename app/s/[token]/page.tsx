@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import { applyShareFilters, getPublicCollectionByToken, resolveCollectionAssets, sanitizePublicAsset } from '../../../lib/collections';
 import { isShareUnlocked } from '../../../lib/share-auth';
+import { logShareEvent } from '../../../lib/share-analytics';
 import SharePasswordForm from '../../../components/SharePasswordForm';
 import PublicAssetGallery from '../../../components/PublicAssetGallery';
 
@@ -14,6 +16,15 @@ export default async function SharedCollectionPage(props: { params: Promise<{ to
   if (!unlocked) {
     return <SharePasswordForm token={token} name={collection.name} />;
   }
+
+  const h = await headers();
+  await logShareEvent({
+    kind: 'view',
+    token,
+    collectionId: collection.id,
+    ip: h.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown',
+    userAgent: h.get('user-agent'),
+  });
 
   const assets = applyShareFilters(await resolveCollectionAssets(collection), collection);
   const publicAssets = assets.map(sanitizePublicAsset);

@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import { resolveShareTarget, sanitizePublicAsset } from '../../../../lib/collections';
 import { exportUrl, isImage, originalUrl } from '../../../../lib/public-asset-share';
+import { logShareEvent } from '../../../../lib/share-analytics';
 import SharePasswordForm from '../../../../components/SharePasswordForm';
 import { SaveShareMenu } from '../../../../components/PublicAssetView';
 
@@ -12,6 +14,16 @@ export default async function SharedAssetPage(props: { params: Promise<{ token: 
   if (target.kind === 'password-required') {
     return <SharePasswordForm token={token} name={target.name} />;
   }
+
+  const h = await headers();
+  await logShareEvent({
+    kind: 'view',
+    token,
+    collectionId: target.asset.collectionId,
+    assetId: target.asset.id,
+    ip: h.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown',
+    userAgent: h.get('user-agent'),
+  });
 
   const asset = sanitizePublicAsset(target.asset);
 
