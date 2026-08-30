@@ -299,6 +299,21 @@ CREATE INDEX IF NOT EXISTS "Asset_thumbnailStatus_uploadedAt_idx" ON "Asset"("th
 
 ALTER TABLE "Collection" ADD COLUMN "expiresAt" DATETIME;
 ALTER TABLE "Asset" ADD COLUMN "expiresAt" DATETIME;
+
+CREATE TABLE IF NOT EXISTS "ShareEvent" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "kind" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "collectionId" TEXT,
+    "assetId" TEXT,
+    "ipHash" TEXT,
+    "userAgent" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS "ShareEvent_kind_createdAt_idx" ON "ShareEvent"("kind", "createdAt");
+CREATE INDEX IF NOT EXISTS "ShareEvent_kind_collectionId_idx" ON "ShareEvent"("kind", "collectionId");
+CREATE INDEX IF NOT EXISTS "ShareEvent_kind_assetId_idx" ON "ShareEvent"("kind", "assetId");
 `;
 
 const statements = sql
