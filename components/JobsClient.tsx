@@ -117,8 +117,8 @@ export default function JobsClient() {
     loadQueue();
     loadRuns();
     loadSuggested();
-    const qi = setInterval(loadQueue, 10000);
-    const ri = setInterval(loadRuns, 15000);
+    const qi = setInterval(loadQueue, 30000);
+    const ri = setInterval(loadRuns, 60000);
     return () => { clearInterval(qi); clearInterval(ri); };
   }, [loadQueue, loadRuns, loadSuggested]);
 
