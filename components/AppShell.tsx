@@ -1,6 +1,5 @@
 import type { User } from '../lib/auth';
-import { prisma } from '../lib/db';
-import { REVIEWABLE_ASSET_WHERE } from '../lib/asset-review';
+import { getCachedUnreviewedCount } from '../lib/asset-review';
 import SidebarShell from './SidebarShell';
 
 export default async function AppShell({
@@ -14,7 +13,7 @@ export default async function AppShell({
   wide?: boolean;
   children: React.ReactNode;
 }) {
-  const unreviewedCount = await prisma.asset.count({ where: REVIEWABLE_ASSET_WHERE });
+  const unreviewedCount = await getCachedUnreviewedCount();
 
   return (
     <div className="app-shell">

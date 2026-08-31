@@ -3,6 +3,7 @@ import { getCurrentUser } from '../../../../../lib/auth';
 import { prisma } from '../../../../../lib/db';
 import { syncPlayerTags, syncSponsorTags } from '../../../../../lib/asset-tags';
 import { resolveEventFieldDefaults } from '../../../../../lib/collections';
+import { invalidateUnreviewedCount } from '../../../../../lib/asset-review';
 
 // Single fast-path action for the /review workflow: rate + sync tags + stamp the review log
 // in one round trip, so rating an asset (click or 1-4 key) is a single network call.
@@ -56,6 +57,8 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
         : seasonIdBody !== undefined ? { seasonId: seasonIdBody } : {}),
     },
   });
+
+  invalidateUnreviewedCount();
 
   return NextResponse.json(updated);
 }
