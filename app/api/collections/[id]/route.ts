@@ -44,6 +44,7 @@ type PatchBody = {
   date?: string | null;
   opponent?: string | null;
   venue?: string | null;
+  seasonId?: string | null;
   isPublic?: boolean;
   password?: string | null; // string to set/change, null to clear, omit to leave unchanged
   regenerateToken?: boolean;
@@ -78,6 +79,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       ...(body.date      !== undefined && { date: body.date ? new Date(body.date) : null }),
       ...(body.opponent  !== undefined && { opponent: body.opponent || null }),
       ...(body.venue     !== undefined && { venue: body.venue || null }),
+      ...(body.seasonId  !== undefined && { seasonId: body.seasonId || null }),
       ...(body.isPublic  !== undefined && { isPublic: body.isPublic }),
       ...(body.shareMinRating     !== undefined && { shareMinRating: body.shareMinRating }),
       ...(body.shareDateRangeDays !== undefined && { shareDateRangeDays: body.shareDateRangeDays }),
@@ -93,6 +95,14 @@ export async function DELETE(_: Request, props: { params: Promise<{ id: string }
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+
+  const existing = await prisma.collection.findUnique({ where: { id: params.id }, select: { id: true } });
+  if (!existing) return NextResponse.json({ message: 'Not found' }, { status: 404 });
+
+  // Assets attached directly (game/training/event/press collections) aren't cascade-deleted —
+  // only the CollectionAsset/rule join tables used by custom collections are. Unlink them instead
+  // of deleting them, so removing a collection never deletes the underlying media.
+  await prisma.asset.updateMany({ where: { collectionId: params.id }, data: { collectionId: null } });
   await prisma.collection.delete({ where: { id: params.id } });
   return NextResponse.json({ success: true });
 }

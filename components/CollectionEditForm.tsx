@@ -3,22 +3,26 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+type Season = { id: string; name: string };
+
 interface Props {
   id: string;
   name: string;
   date: string | null;   // ISO date string YYYY-MM-DD or null
   opponent: string | null;
   venue: string | null;
+  seasonId: string | null;
+  seasons?: Season[];
   isCustom?: boolean;
 }
 
-export default function CollectionEditForm({ id, name, date, opponent, venue, isCustom = false }: Props) {
+export default function CollectionEditForm({ id, name, date, opponent, venue, seasonId, seasons = [], isCustom = false }: Props) {
   const router = useRouter();
   const [editing,  setEditing]  = useState(false);
   const [saving,   setSaving]   = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error,    setError]    = useState('');
-  const [form, setForm] = useState({ name, date: date ?? '', opponent: opponent ?? '', venue: venue ?? '' });
+  const [form, setForm] = useState({ name, date: date ?? '', opponent: opponent ?? '', venue: venue ?? '', seasonId: seasonId ?? '' });
 
   function set(field: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -31,7 +35,7 @@ export default function CollectionEditForm({ id, name, date, opponent, venue, is
     try {
       const res = await fetch(`/api/collections/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(`Delete failed (${res.status})`);
-      router.push('/collections?view=custom');
+      router.push(isCustom ? '/collections?view=custom' : '/collections');
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Delete failed');
@@ -52,6 +56,7 @@ export default function CollectionEditForm({ id, name, date, opponent, venue, is
           date:     form.date || null,
           opponent: form.opponent.trim() || null,
           venue:    form.venue.trim() || null,
+          seasonId: form.seasonId || null,
         }),
       });
       if (!res.ok) throw new Error(`Save failed (${res.status})`);
@@ -65,7 +70,7 @@ export default function CollectionEditForm({ id, name, date, opponent, venue, is
   }
 
   function cancel() {
-    setForm({ name, date: date ?? '', opponent: opponent ?? '', venue: venue ?? '' });
+    setForm({ name, date: date ?? '', opponent: opponent ?? '', venue: venue ?? '', seasonId: seasonId ?? '' });
     setError('');
     setEditing(false);
   }
@@ -82,17 +87,15 @@ export default function CollectionEditForm({ id, name, date, opponent, venue, is
           >
             Edit
           </button>
-          {isCustom && (
-            <button
-              className="btn-secondary"
-              type="button"
-              onClick={deleteCollection}
-              disabled={deleting}
-              style={{ fontSize: 13, color: '#c0392b' }}
-            >
-              {deleting ? <><span className="spinner" /> Deleting…</> : 'Delete'}
-            </button>
-          )}
+          <button
+            className="btn-secondary"
+            type="button"
+            onClick={deleteCollection}
+            disabled={deleting}
+            style={{ fontSize: 13, color: '#c0392b' }}
+          >
+            {deleting ? <><span className="spinner" /> Deleting…</> : 'Delete'}
+          </button>
         </div>
         {error && <div className="alert alert-error" style={{ fontSize: 12 }}>{error}</div>}
       </div>
@@ -137,6 +140,15 @@ export default function CollectionEditForm({ id, name, date, opponent, venue, is
                 onChange={(e) => set('opponent', e.target.value)}
                 placeholder="e.g. Thisted FC"
               />
+            </div>
+            <div className="field" style={{ margin: 0 }}>
+              <label>Season</label>
+              <select value={form.seasonId} onChange={(e) => set('seasonId', e.target.value)}>
+                <option value="">No season</option>
+                {seasons.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
             </div>
             <div className="field" style={{ margin: 0, gridColumn: '1 / -1' }}>
               <label>Venue</label>

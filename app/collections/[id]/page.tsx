@@ -45,6 +45,10 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
       ])
     : [[], []];
 
+  const seasons = isCustom
+    ? []
+    : await prisma.season.findMany({ orderBy: { startDate: 'desc' }, select: { id: true, name: true } });
+
   const appBaseUrl = (process.env.PUBLIC_SHARE_BASE_URL ?? process.env.APP_BASE_URL ?? '').replace(/\/$/, '');
 
   return (
@@ -88,6 +92,8 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
               date={collection.date ? collection.date.toISOString().split('T')[0] : null}
               opponent={collection.opponent}
               venue={collection.venue}
+              seasonId={collection.seasonId}
+              seasons={seasons}
               isCustom={isCustom}
             />
           </div>
