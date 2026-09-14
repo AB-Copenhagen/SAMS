@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import PlayerHeadshotField from './PlayerHeadshotField';
 
 type Player  = { id: string; name: string; number: number | null; position: string | null; headshotUrl: string | null; active: boolean; team: string | null; seasonId: string | null; season?: { id: string; name: string } | null; faceEnrolledAt?: string | null; _count?: { assetTags: number } };
 type Sponsor = { id: string; name: string; logoUrl: string | null; tier: string | null; active: boolean; aliasesJson?: string | null; _count?: { assetTags: number } };
@@ -44,8 +45,9 @@ function PlayersTab() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [importError, setImportError] = useState('');
   const [selected, setSelected] = useState<Player | null>(null);
-  const [editing, setEditing] = useState({ name: '', number: '', position: '', headshotUrl: '', team: '', seasonId: '' });
+  const [editing, setEditing] = useState({ name: '', number: '', position: '', headshotUrl: '', team: '', seasonId: '', active: true });
   const [saving, setSaving] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
   const [enrollResult, setEnrollResult] = useState<{ total: number; enrolled: number; errors: unknown[] } | null>(null);
   const [saveWarning, setSaveWarning] = useState('');
@@ -63,6 +65,7 @@ function PlayersTab() {
       headshotUrl: p.headshotUrl ?? '',
       team:        p.team        ?? '',
       seasonId:    p.seasonId    ?? '',
+      active:      p.active,
     });
   }
 
@@ -77,7 +80,7 @@ function PlayersTab() {
       headshotUrl: editing.headshotUrl,
       team:        editing.team,
       seasonId:    editing.seasonId || null,
-      active:      selected.active,
+      active:      editing.active,
     });
     const body = await res.json().catch(() => ({}));
     setSaving(false);
@@ -105,6 +108,14 @@ function PlayersTab() {
     if (!confirm('Delete this player?')) return;
     await apiFetch('/api/players/' + id, 'DELETE');
     setSelected(null);
+    setV((n) => n + 1);
+  }
+
+  async function toggleActive(p: Player) {
+    await apiFetch('/api/players/' + p.id, 'PUT', {
+      name: p.name, number: p.number, position: p.position, headshotUrl: p.headshotUrl,
+      team: p.team, seasonId: p.seasonId, active: !p.active,
+    });
     setV((n) => n + 1);
   }
 
@@ -174,6 +185,10 @@ function PlayersTab() {
             </span>
           )}
           {mergeError && <span style={{ fontSize: 13, color: '#dc2626' }}>{mergeError}</span>}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#6b7491', whiteSpace: 'nowrap' }}>
+            <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+            Show archived ({players?.filter((p) => !p.active).length ?? 0})
+          </label>
           <button className="btn-secondary" type="button" onClick={mergeDuplicates} disabled={merging}>
             {merging ? <><span className="spinner" /> Merging…</> : 'Merge duplicate players'}
           </button>
@@ -187,20 +202,28 @@ function PlayersTab() {
 
         <div className="config-list">
           {loading && <p style={{ color: '#8890b4', fontSize: 13 }}>Loading…</p>}
-          {players?.map((p) => (
-            <div key={p.id} className="config-item player-row" style={{ cursor: 'pointer' }}>
+          {players?.filter((p) => showArchived || p.active).map((p) => (
+            <div key={p.id} className="config-item player-row" style={{ cursor: 'pointer', opacity: p.active ? 1 : 0.55 }}>
               <div onClick={() => openPlayer(p)} style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
                 <div className="config-avatar">
                   {p.headshotUrl ? <img src={`/api/players/${p.id}/headshot`} alt={p.name} /> : p.name.charAt(0)}
                 </div>
                 <div className="config-item-info">
-                  <div className="config-item-title">{p.name}{p.number != null ? ` #${p.number}` : ''}</div>
+                  <div className="config-item-title">{p.name}{p.number != null ? ` #${p.number}` : ''}{!p.active && ' · Archived'}</div>
                   <div className="config-item-sub">
                     {[p.position, p.team, p.season?.name].filter(Boolean).join(' · ') || 'No details'}
                     {' · '}{p.faceEnrolledAt ? 'Face enrolled' : 'Face not enrolled'}
                   </div>
                 </div>
               </div>
+              <button
+                className="btn-secondary"
+                type="button"
+                onClick={(e) => { e.stopPropagation(); toggleActive(p); }}
+                style={{ fontSize: 13, whiteSpace: 'nowrap' }}
+              >
+                {p.active ? 'Archive' : 'Restore'}
+              </button>
               <Link
                 href={`/players/${p.id}`}
                 onClick={(e) => e.stopPropagation()}
@@ -210,7 +233,7 @@ function PlayersTab() {
               </Link>
             </div>
           ))}
-          {!loading && !players?.length && (
+          {!loading && !players?.filter((p) => showArchived || p.active).length && (
             <div className="empty-state" style={{ padding: '24px 0' }}><p>No players yet.</p></div>
           )}
         </div>
@@ -228,10 +251,11 @@ function PlayersTab() {
             <label>Position</label>
             <input value={form.position} onChange={(e) => setForm((f) => ({ ...f, position: e.target.value }))} placeholder="Midfielder" />
           </div>
-          <div className="field">
-            <label>Headshot URL</label>
-            <input value={form.headshotUrl} onChange={(e) => setForm((f) => ({ ...f, headshotUrl: e.target.value }))} placeholder="https://…" />
-          </div>
+          <PlayerHeadshotField
+            playerId={null}
+            value={form.headshotUrl}
+            onChange={(headshotUrl) => setForm((f) => ({ ...f, headshotUrl }))}
+          />
           <div className="field" style={{ display: 'flex', alignItems: 'flex-end' }}>
             <button className="btn-primary" type="button" onClick={add}>Add player</button>
           </div>
@@ -246,17 +270,6 @@ function PlayersTab() {
               <button className="modal-close" type="button" onClick={() => setSelected(null)}>×</button>
             </div>
             <div className="modal-body">
-              {selected.headshotUrl && (
-                <div style={{ textAlign: 'center', marginBottom: 20 }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`/api/players/${selected.id}/headshot`}
-                    alt={editing.name}
-                    style={{ height: 130, borderRadius: 8, objectFit: 'cover', objectPosition: 'top' }}
-                  />
-                </div>
-              )}
-
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
                 <div className="field" style={{ gridColumn: '1 / -1' }}>
                   <label>Name</label>
@@ -284,9 +297,20 @@ function PlayersTab() {
                     {seasons?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
+                <PlayerHeadshotField
+                  playerId={selected.id}
+                  value={editing.headshotUrl}
+                  onChange={(headshotUrl) => ef('headshotUrl', headshotUrl)}
+                />
                 <div className="field" style={{ gridColumn: '1 / -1' }}>
-                  <label>Headshot URL</label>
-                  <input value={editing.headshotUrl} onChange={(e) => ef('headshotUrl', e.target.value)} placeholder="https://…" />
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400 }}>
+                    <input
+                      type="checkbox"
+                      checked={editing.active}
+                      onChange={(e) => setEditing((f) => ({ ...f, active: e.target.checked }))}
+                    />
+                    Currently with the team (uncheck to archive)
+                  </label>
                 </div>
               </div>
 
