@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import { getCurrentUser } from '../../lib/auth';
 import { prisma } from '../../lib/db';
+import { getCachedSeasons } from '../../lib/lookup-cache';
 import AppShell from '../../components/AppShell';
 import NewCollectionForm from '../../components/NewCollectionForm';
 import PerPageSelector from '../../components/PerPageSelector';
@@ -43,7 +44,7 @@ export default async function CollectionsPage(props: { searchParams: Promise<Sea
           },
         })
       : Promise.resolve([]),
-    prisma.season.findMany({ orderBy: { startDate: 'desc' }, select: { id: true, name: true } }),
+    getCachedSeasons(),
   ]);
 
   const customCollections = view === 'custom'

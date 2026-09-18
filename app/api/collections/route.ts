@@ -1,18 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
+import { getCachedCollections, invalidateCollections } from '../../../lib/lookup-cache';
 
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  const collections = await prisma.collection.findMany({
-    orderBy: { date: 'desc' },
-    include: {
-      season: { select: { name: true } },
-      stadium: { select: { name: true } },
-      _count: { select: { assets: true } },
-    },
-  });
+  const collections = await getCachedCollections();
   return NextResponse.json(collections);
 }
 
@@ -31,5 +25,6 @@ export async function POST(request: Request) {
       stadiumId: body.stadiumId || null,
     },
   });
+  invalidateCollections();
   return NextResponse.json(collection);
 }

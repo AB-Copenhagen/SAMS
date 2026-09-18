@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { getCurrentUser } from '../../lib/auth';
 import { prisma } from '../../lib/db';
-import { getCachedPlayers, getCachedSponsors, getCachedSeasons } from '../../lib/lookup-cache';
+import { getCachedPlayers, getCachedSponsors, getCachedSeasons, getCachedCollections } from '../../lib/lookup-cache';
 import AppShell from '../../components/AppShell';
 import MediaFilterBar from '../../components/MediaFilterBar';
 import MediaLibraryGallery from '../../components/MediaLibraryGallery';
@@ -36,17 +36,20 @@ export default async function MediaPage(props: { searchParams: Promise<SearchPar
   const where = buildMediaLibraryWhere(filters);
   const navQuery = mediaNavQueryString(filters);
 
-  const [assets, total, seasons, collections, allPlayers, allSponsors, customCollections] = await Promise.all([
+  const [assets, total, seasons, allCollections, allPlayers, allSponsors] = await Promise.all([
     prisma.asset.findMany({ where, orderBy: { uploadedAt: 'desc' }, take: perPage, skip: (page - 1) * perPage }),
     prisma.asset.count({ where }),
     getCachedSeasons(),
-    prisma.collection.findMany({ orderBy: { date: 'desc' }, select: { id: true, name: true, date: true } }),
+    getCachedCollections(),
     getCachedPlayers(),
     getCachedSponsors(),
-    prisma.collection.findMany({ where: { type: 'custom' }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
   ]);
   const players = allPlayers.filter((p) => p.active);
   const sponsors = allSponsors.filter((s) => s.active);
+  const collections = allCollections.filter((c) => c.type !== 'custom');
+  const customCollections = allCollections
+    .filter((c) => c.type === 'custom')
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const pages      = Math.ceil(total / perPage);
   const isFiltered = !!(q || type || seasonId || category || collectionId || playerIds.length || sponsorIds.length || rating);
