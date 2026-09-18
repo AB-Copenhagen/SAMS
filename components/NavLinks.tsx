@@ -11,19 +11,18 @@ function Icon({ children }: { children: React.ReactNode }) {
   );
 }
 
-type NavItemProps = { href: string; label: string; icon: React.ReactNode; active: boolean; badge?: number };
+type NavItemProps = { href: string; label: string; icon: React.ReactNode; active: boolean };
 
-function NavItem({ href, label, icon, active, badge }: NavItemProps) {
+function NavItem({ href, label, icon, active }: NavItemProps) {
   return (
     <Link href={href} className={'nav-item' + (active ? ' active' : '')}>
       {icon}
       <span className="nav-text">{label}</span>
-      {!!badge && <span className="nav-badge">{badge}</span>}
     </Link>
   );
 }
 
-export default function NavLinks({ role, unreviewedCount = 0 }: { role: string; unreviewedCount?: number }) {
+export default function NavLinks({ role }: { role: string }) {
   const pathname = usePathname();
 
   return (
@@ -59,17 +58,6 @@ export default function NavLinks({ role, unreviewedCount = 0 }: { role: string; 
           <Icon>
             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
             <circle cx="12" cy="13" r="4" />
-          </Icon>
-        }
-      />
-      <NavItem
-        href="/review"
-        label="Review"
-        active={pathname.startsWith('/review')}
-        badge={unreviewedCount}
-        icon={
-          <Icon>
-            <path d="M20 6L9 17l-5-5" />
           </Icon>
         }
       />

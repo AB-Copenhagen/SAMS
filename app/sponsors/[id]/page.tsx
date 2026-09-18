@@ -4,7 +4,6 @@ import { getCurrentUser } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
 import AppShell from '../../../components/AppShell';
 import AssetGallery from '../../../components/AssetGallery';
-import TagReviewList from '../../../components/TagReviewList';
 
 const PER_PAGE = 30;
 
@@ -25,16 +24,10 @@ export default async function SponsorPhotosPage(
   const page = Math.max(1, parseInt(searchParams.page ?? '1'));
 
   // A photo can be matched to a sponsor via more than one source (logo + ocr-text + manual),
-  // which creates multiple confirmed/suggested rows for the same (sponsorId, assetId) pair by
-  // design (each source tracks its own confirmation independently) — `distinct: ['assetId']`
-  // collapses those back to one row per photo for display/pagination purposes.
-  const [suggestedTags, confirmedTags, distinctConfirmed] = await Promise.all([
-    prisma.assetSponsorTag.findMany({
-      where: { sponsorId: sponsor.id, status: 'suggested' },
-      include: { asset: { select: { id: true, title: true, fileType: true } } },
-      orderBy: { createdAt: 'desc' },
-      distinct: ['assetId'],
-    }),
+  // which creates multiple confirmed rows for the same (sponsorId, assetId) pair by design (each
+  // source tracks its own confirmation independently) — `distinct: ['assetId']` collapses those
+  // back to one row per photo for display/pagination purposes.
+  const [confirmedTags, distinctConfirmed] = await Promise.all([
     prisma.assetSponsorTag.findMany({
       where: { sponsorId: sponsor.id, status: 'confirmed' },
       include: { asset: true },
@@ -73,13 +66,6 @@ export default async function SponsorPhotosPage(
           <button className="btn-secondary" type="button">Edit sponsor</button>
         </Link>
       </div>
-
-      <TagReviewList
-        kind="sponsor"
-        items={suggestedTags.map((t) => ({
-          tagId: t.id, assetId: t.asset.id, title: t.asset.title, fileType: t.asset.fileType, confidence: t.confidence,
-        }))}
-      />
 
       {assets.length === 0 ? (
         <div className="empty-state card">

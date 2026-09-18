@@ -1,8 +1,7 @@
 import type { User } from '../lib/auth';
-import { getCachedUnreviewedCount } from '../lib/asset-review';
 import SidebarShell from './SidebarShell';
 
-export default async function AppShell({
+export default function AppShell({
   user,
   wide,
   children,
@@ -13,11 +12,9 @@ export default async function AppShell({
   wide?: boolean;
   children: React.ReactNode;
 }) {
-  const unreviewedCount = await getCachedUnreviewedCount();
-
   return (
     <div className="app-shell">
-      <SidebarShell user={user} unreviewedCount={unreviewedCount} />
+      <SidebarShell user={user} />
 
       <div className="main-content">
         <div className={`page-body${wide ? ' page-body-wide' : ''}`}>{children}</div>
