@@ -4,7 +4,6 @@ import { getCurrentUser } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
 import AppShell from '../../../components/AppShell';
 import AssetGallery from '../../../components/AssetGallery';
-import TagReviewList from '../../../components/TagReviewList';
 
 const PER_PAGE = 30;
 
@@ -28,16 +27,10 @@ export default async function PlayerPhotosPage(
   const page = Math.max(1, parseInt(searchParams.page ?? '1'));
 
   // A photo can be matched to a player via more than one source (face + jersey-ocr), which
-  // creates multiple confirmed/suggested rows for the same (playerId, assetId) pair by design
-  // (each source tracks its own confirmation independently) — `distinct: ['assetId']` collapses
-  // those back to one row per photo for display/pagination purposes.
-  const [suggestedTags, confirmedTags, distinctConfirmed] = await Promise.all([
-    prisma.assetPlayerTag.findMany({
-      where: { playerId: player.id, status: 'suggested' },
-      include: { asset: { select: { id: true, title: true, fileType: true } } },
-      orderBy: { createdAt: 'desc' },
-      distinct: ['assetId'],
-    }),
+  // creates multiple confirmed rows for the same (playerId, assetId) pair by design (each source
+  // tracks its own confirmation independently) — `distinct: ['assetId']` collapses those back to
+  // one row per photo for display/pagination purposes.
+  const [confirmedTags, distinctConfirmed] = await Promise.all([
     prisma.assetPlayerTag.findMany({
       where: { playerId: player.id, status: 'confirmed' },
       include: { asset: true },
@@ -79,13 +72,6 @@ export default async function PlayerPhotosPage(
           <button className="btn-secondary" type="button">Edit player</button>
         </Link>
       </div>
-
-      <TagReviewList
-        kind="player"
-        items={suggestedTags.map((t) => ({
-          tagId: t.id, assetId: t.asset.id, title: t.asset.title, fileType: t.asset.fileType, confidence: t.confidence,
-        }))}
-      />
 
       {assets.length === 0 ? (
         <div className="empty-state card">

@@ -10,7 +10,7 @@ import LogoutButton from './LogoutButton';
 // Holds the mobile drawer open/closed state. Below the sidebar's collapse breakpoint (see
 // `@media (max-width: 860px)` in globals.css) the sidebar is off-canvas by default; this is what
 // slides it in via `.sidebar-open` and closes it again on navigation or backdrop tap.
-export default function SidebarShell({ user, unreviewedCount }: { user: User; unreviewedCount: number }) {
+export default function SidebarShell({ user }: { user: User }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -53,7 +53,7 @@ export default function SidebarShell({ user, unreviewedCount }: { user: User; un
         </div>
 
         <nav className="sidebar-nav">
-          <NavLinks role={user.role} unreviewedCount={unreviewedCount} />
+          <NavLinks role={user.role} />
         </nav>
 
         <div className="sidebar-footer">
