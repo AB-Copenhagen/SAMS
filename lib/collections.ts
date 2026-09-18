@@ -49,7 +49,7 @@ export type AssetWithTags = Prisma.AssetGetPayload<{ include: typeof CONFIRMED_T
  * so membership logic lives in exactly one place. Always includes confirmed player/sponsor tags
  * so callers can show "featuring" credits without a second query.
  */
-export async function resolveCollectionAssets(collection: CollectionWithRules): Promise<AssetWithTags[]> {
+function collectionMembershipWhere(collection: CollectionWithRules): Prisma.AssetWhereInput {
   const playerIds = collection.playerRules.map((r) => r.playerId);
   const sponsorIds = collection.sponsorRules.map((r) => r.sponsorId);
 
@@ -60,11 +60,27 @@ export async function resolveCollectionAssets(collection: CollectionWithRules): 
   if (playerIds.length) or.push({ playerTags: { some: { status: 'confirmed', playerId: { in: playerIds } } } });
   if (sponsorIds.length) or.push({ sponsorTags: { some: { status: 'confirmed', sponsorId: { in: sponsorIds } } } });
 
+  return { OR: or };
+}
+
+export async function resolveCollectionAssets(collection: CollectionWithRules): Promise<AssetWithTags[]> {
   return prisma.asset.findMany({
-    where: { OR: or },
+    where: collectionMembershipWhere(collection),
     orderBy: { uploadedAt: 'desc' },
     include: CONFIRMED_TAGS_INCLUDE,
   });
+}
+
+// Id-only variant of resolveCollectionAssets for callers (nav prev/next) that only need
+// membership + ordering, not the full tag include — that include pulls every confirmed
+// player/sponsor tag row for every asset just to be discarded down to an id.
+async function resolveCollectionAssetIds(collection: CollectionWithRules): Promise<string[]> {
+  const assets = await prisma.asset.findMany({
+    where: collectionMembershipWhere(collection),
+    orderBy: { uploadedAt: 'desc' },
+    select: { id: true },
+  });
+  return assets.map((a) => a.id);
 }
 
 /**
@@ -84,7 +100,7 @@ export async function getCollectionNavContext(collectionId: string): Promise<{ n
   if (!collection) return null;
 
   const assetIds = collection.type === 'custom'
-    ? (await resolveCollectionAssets(collection)).map((a) => a.id)
+    ? await resolveCollectionAssetIds(collection)
     : collection.assets.map((a) => a.id);
 
   return { name: collection.name, assetIds };

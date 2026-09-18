@@ -5,6 +5,7 @@ import { prisma } from '../../../lib/db';
 import { getPresignedUrl } from '../../../lib/wasabi';
 import { getCollectionNavContext } from '../../../lib/collections';
 import { getMediaLibraryNavContext, mediaNavQueryString } from '../../../lib/media-query';
+import { getCachedSeasons, getCachedCollections, getCachedStadiums, getCachedPlayers, getCachedSponsors } from '../../../lib/lookup-cache';
 import AppShell from '../../../components/AppShell';
 import AssetDetailClient, { type AssetNav } from '../../../components/AssetDetailClient';
 
@@ -72,12 +73,12 @@ export default async function AssetDetailPage(props: { params: Promise<{ id: str
     }
   }
 
-  const [seasons, collections, stadiums, players, sponsors, playerTags, sponsorTags, customCollectionMemberships, signedUrl] = await Promise.all([
-    prisma.season.findMany({ orderBy: { startDate: 'desc' }, select: { id: true, name: true } }),
-    prisma.collection.findMany({ orderBy: { date: 'desc' }, select: { id: true, name: true, type: true, date: true, seasonId: true } }),
-    prisma.stadium.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
-    prisma.player.findMany({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, name: true, number: true } }),
-    prisma.sponsor.findMany({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
+  const [seasons, collections, stadiums, allPlayers, allSponsors, playerTags, sponsorTags, customCollectionMemberships, signedUrl] = await Promise.all([
+    getCachedSeasons(),
+    getCachedCollections(),
+    getCachedStadiums(),
+    getCachedPlayers(),
+    getCachedSponsors(),
     // A player/sponsor can be confirmed via more than one source (face + jersey-ocr, or
     // logo + ocr-text) for the same asset — distinct collapses those to one row per player/sponsor.
     prisma.assetPlayerTag.findMany({ where: { assetId: params.id, status: 'confirmed' }, select: { playerId: true }, distinct: ['playerId'] }),
@@ -85,6 +86,8 @@ export default async function AssetDetailPage(props: { params: Promise<{ id: str
     prisma.collectionAsset.findMany({ where: { assetId: params.id }, select: { collectionId: true } }),
     getPresignedUrl(asset.editedKey ?? asset.objectKey),
   ]);
+  const players = allPlayers.filter((p) => p.active);
+  const sponsors = allSponsors.filter((s) => s.active);
 
   return (
     <AppShell user={user} wide>

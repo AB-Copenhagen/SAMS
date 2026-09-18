@@ -40,6 +40,18 @@ export const getCachedStadiums = unstable_cache(
   { tags: ['stadiums'], revalidate: 60 },
 );
 
+// Superset of what the media library, asset detail, and collections pages each need (event
+// listing, custom-collection dropdowns, per-asset event picker) — callers filter/sort in memory
+// rather than each issuing their own uncached prisma.collection.findMany.
+export const getCachedCollections = unstable_cache(
+  () => prisma.collection.findMany({
+    orderBy: { date: 'desc' },
+    select: { id: true, name: true, type: true, date: true, seasonId: true },
+  }),
+  ['lookup-collections'],
+  { tags: ['collections'], revalidate: 60 },
+);
+
 // Next 16's revalidateTag requires a cache-life profile alongside the tag — { expire: 60 } just
 // mirrors the revalidate: 60 above; it doesn't change how long an un-invalidated entry lives.
 const PROFILE = { expire: 60 };
@@ -48,3 +60,4 @@ export function invalidatePlayers(): void { revalidateTag('players', PROFILE); }
 export function invalidateSponsors(): void { revalidateTag('sponsors', PROFILE); }
 export function invalidateSeasons(): void { revalidateTag('seasons', PROFILE); }
 export function invalidateStadiums(): void { revalidateTag('stadiums', PROFILE); }
+export function invalidateCollections(): void { revalidateTag('collections', PROFILE); }

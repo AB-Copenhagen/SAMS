@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { generateShareToken, hashSharePassword } from '../../../../lib/collections';
+import { invalidateCollections } from '../../../../lib/lookup-cache';
 
 const ASSET_PAGE_SIZE = 100;
 
@@ -88,6 +89,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       ...(needsToken && { shareToken: generateShareToken() }),
     },
   });
+  invalidateCollections();
   return NextResponse.json(collection);
 }
 
@@ -104,5 +106,6 @@ export async function DELETE(_: Request, props: { params: Promise<{ id: string }
   // of deleting them, so removing a collection never deletes the underlying media.
   await prisma.asset.updateMany({ where: { collectionId: params.id }, data: { collectionId: null } });
   await prisma.collection.delete({ where: { id: params.id } });
+  invalidateCollections();
   return NextResponse.json({ success: true });
 }

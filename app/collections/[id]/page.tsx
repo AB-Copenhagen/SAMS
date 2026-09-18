@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { getCurrentUser } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
 import { resolveCollectionAssets } from '../../../lib/collections';
+import { getCachedPlayers, getCachedSponsors, getCachedSeasons } from '../../../lib/lookup-cache';
 import AppShell from '../../../components/AppShell';
 import CollectionEditForm from '../../../components/CollectionEditForm';
 import CollectionSharePanel from '../../../components/CollectionSharePanel';
@@ -39,15 +40,10 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
   const assets = isCustom ? await resolveCollectionAssets(collection) : collection.assets;
 
   const [allPlayers, allSponsors] = isCustom
-    ? await Promise.all([
-        prisma.player.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true, number: true } }),
-        prisma.sponsor.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
-      ])
+    ? await Promise.all([getCachedPlayers(), getCachedSponsors()])
     : [[], []];
 
-  const seasons = isCustom
-    ? []
-    : await prisma.season.findMany({ orderBy: { startDate: 'desc' }, select: { id: true, name: true } });
+  const seasons = isCustom ? [] : await getCachedSeasons();
 
   const appBaseUrl = (process.env.PUBLIC_SHARE_BASE_URL ?? process.env.APP_BASE_URL ?? '').replace(/\/$/, '');
 

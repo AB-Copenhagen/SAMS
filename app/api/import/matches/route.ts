@@ -3,6 +3,7 @@ import { getCurrentUser } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { fetchSeasonFixtures } from '../../../../lib/api-football';
 import type { ParsedMatch } from '../../../../lib/api-football';
+import { invalidateCollections } from '../../../../lib/lookup-cache';
 
 // GET — fetch fixtures from api-football server-side + existing keys for dedup
 export async function GET(request: Request) {
@@ -62,6 +63,8 @@ export async function POST(request: Request) {
     });
     created++;
   }
+
+  if (created > 0) invalidateCollections();
 
   return NextResponse.json({ created, skipped });
 }
