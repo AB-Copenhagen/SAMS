@@ -3,6 +3,7 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
+  ListObjectsV2Command,
   CreateMultipartUploadCommand,
   UploadPartCommand,
   ListPartsCommand,
@@ -10,6 +11,7 @@ import {
   AbortMultipartUploadCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { createHash } from 'node:crypto';
 import { redis } from './redis';
 
 let _client: S3Client | undefined;
@@ -154,6 +156,53 @@ export async function completeMultipartUpload(objectKey: string, uploadId: strin
 export async function abortMultipartUpload(objectKey: string, uploadId: string): Promise<void> {
   const { client, bucket } = getClient();
   await client.send(new AbortMultipartUploadCommand({ Bucket: bucket, Key: objectKey, UploadId: uploadId }));
+}
+
+// --- Listing + download (read-only inspection of objects not managed through the normal
+// upload/presign flow above — currently only the ScorePlay import, lib/scoreplay-import.ts) ---
+
+export interface WasabiObjectSummary { key: string; size: number }
+
+export async function listAllObjectsUnderPrefix(prefix: string): Promise<WasabiObjectSummary[]> {
+  const { client, bucket } = getClient();
+  const out: WasabiObjectSummary[] = [];
+  let token: string | undefined;
+  do {
+    const res = await client.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ContinuationToken: token, MaxKeys: 1000 }));
+    for (const obj of res.Contents ?? []) {
+      if (obj.Key && obj.Size != null) out.push({ key: obj.Key, size: obj.Size });
+    }
+    token = res.IsTruncated ? res.NextContinuationToken : undefined;
+  } while (token);
+  return out;
+}
+
+export async function listTopLevelFolders(prefix: string): Promise<string[]> {
+  const { client, bucket } = getClient();
+  const res = await client.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, Delimiter: '/' }));
+  return (res.CommonPrefixes ?? [])
+    .map((p) => p.Prefix ?? '')
+    .filter(Boolean)
+    .map((p) => p.slice(prefix.length).replace(/\/$/, ''));
+}
+
+export async function fetchObjectJson<T = unknown>(key: string): Promise<T> {
+  const { client, bucket } = getClient();
+  const res = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  const text = (await res.Body?.transformToString('utf-8')) ?? '';
+  return JSON.parse(text) as T;
+}
+
+export async function hashObjectSha256(key: string): Promise<{ hex: string; size: number; contentType?: string }> {
+  const { client, bucket } = getClient();
+  const res = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  const hash = createHash('sha256');
+  let size = 0;
+  for await (const chunk of res.Body as unknown as AsyncIterable<Uint8Array>) {
+    hash.update(chunk);
+    size += chunk.length;
+  }
+  return { hex: hash.digest('hex'), size, contentType: res.ContentType };
 }
 
 export function getPublicUrl(objectKey: string): string {

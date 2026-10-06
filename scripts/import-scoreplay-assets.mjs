@@ -259,7 +259,6 @@ async function processPair(folderName, pair) {
     return;
   }
 
-  const isVideo = sidecar.file?.type === 'video';
   const fileType = hashed.contentType || extMime(filename);
   const capturedTime = sidecar.dates?.captured_time;
   const exifJson = (capturedTime && !capturedTime.startsWith('0000:'))
@@ -281,11 +280,10 @@ async function processPair(folderName, pair) {
     else unmatchedSponsors.set(name, (unmatchedSponsors.get(name) ?? 0) + 1);
   }
 
-  // ScorePlay already identified players on this photo — skip Rekognition for it and let the
-  // review queue surface it directly; only fall back to our own pipeline when ScorePlay gave us
-  // nothing (or the name didn't match an existing Player row).
-  const hasPlayerTags = matchedPlayerIds.length > 0;
-  const faceTagStatus = isVideo ? 'skipped' : (hasPlayerTags ? 'skipped' : 'pending');
+  // Our own Rekognition pipeline never runs for this import (cost + time tradeoff) — player tags
+  // come only from ScorePlay's own sidecar data where it matches an existing Player row. 'skipped'
+  // (not 'pending') still lets these surface in the review queue normally.
+  const faceTagStatus = 'skipped';
 
   const assetId = randomId();
   const tagNames = (sidecar.tags ?? []).map((t) => t.name).filter(Boolean);
@@ -321,10 +319,9 @@ async function processPair(folderName, pair) {
   for (const playerId of matchedPlayerIds) await insertTag('AssetPlayerTag', 'playerId', assetId, playerId);
   for (const sponsorId of matchedSponsorIds) await insertTag('AssetSponsorTag', 'sponsorId', assetId, sponsorId);
 
-  const enqueued = [];
-  if (!isVideo && faceTagStatus === 'pending') enqueued.push(publishJob('/api/jobs/tag-asset', { assetId }));
-  enqueued.push(publishJob('/api/jobs/generate-thumbnail', { assetId }));
-  await Promise.all(enqueued);
+  // Thumbnail generation only — no tag-asset enqueue, Rekognition is intentionally skipped for
+  // this import.
+  await publishJob('/api/jobs/generate-thumbnail', { assetId });
 
   console.log(`  OK ${assetId} — ${mediaKey} (${matchedPlayerIds.length} player tag(s), ${matchedSponsorIds.length} sponsor tag(s))`);
   stats.created++;
