@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import { getCurrentUser } from '../../lib/auth';
 import { prisma } from '../../lib/db';
 import { getCachedSeasons } from '../../lib/lookup-cache';
+import { formatCollectionType } from '../../lib/collection-types';
 import AppShell from '../../components/AppShell';
 import NewCollectionForm from '../../components/NewCollectionForm';
 import PerPageSelector from '../../components/PerPageSelector';
@@ -222,7 +223,7 @@ export default async function CollectionsPage(props: { searchParams: Promise<Sea
       {view === 'event' && (total === 0 ? (
         <div className="empty-state card">
           <h3>No collections yet</h3>
-          <p>Create a collection to group assets from a game or event.</p>
+          <p>Create a collection to group assets from a game, training session, or other event.</p>
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -257,7 +258,7 @@ export default async function CollectionsPage(props: { searchParams: Promise<Sea
                       : '—'}
                   </td>
                   <td style={{ padding: '10px 16px' }}>
-                    <span className="coll-type-badge">{c.type}</span>
+                    <span className="coll-type-badge">{formatCollectionType(c.type).icon} {formatCollectionType(c.type).label}</span>
                   </td>
                   <td style={{ padding: '10px 16px', color: '#6b7491' }}>{c.season?.name ?? '—'}</td>
                   <td style={{ padding: '10px 16px', textAlign: 'right', color: '#6b7491' }}>{c._count.assets}</td>

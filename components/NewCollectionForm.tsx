@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { COLLECTION_TYPES } from '../lib/collection-types';
 
 type Season = { id: string; name: string };
 
@@ -10,6 +11,7 @@ export default function NewCollectionForm({ seasons }: { seasons: Season[] }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: '', type: 'game', date: '', opponent: '', venue: '', seasonId: '' });
   const isCustom = form.type === 'custom';
+  const isGame = form.type === 'game';
   const [saving, setSaving] = useState(false);
 
   async function submit() {
@@ -51,11 +53,9 @@ export default function NewCollectionForm({ seasons }: { seasons: Season[] }) {
           <div className="field">
             <label>Type</label>
             <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
-              <option value="game">Game</option>
-              <option value="training">Training</option>
-              <option value="event">Event</option>
-              <option value="press">Press</option>
-              <option value="custom">Custom / Shareable</option>
+              {COLLECTION_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
             </select>
           </div>
           {isCustom ? (
@@ -79,14 +79,18 @@ export default function NewCollectionForm({ seasons }: { seasons: Season[] }) {
                   </select>
                 </div>
               </div>
+              {isGame && (
               <div className="field">
                 <label>Opponent</label>
                 <input value={form.opponent} onChange={(e) => setForm((f) => ({ ...f, opponent: e.target.value }))} placeholder="FC Nordsjælland" />
               </div>
+              )}
+              {isGame && (
               <div className="field">
                 <label>Venue</label>
                 <input value={form.venue} onChange={(e) => setForm((f) => ({ ...f, venue: e.target.value }))} placeholder="Gladsaxe Stadion" />
               </div>
+              )}
             </>
           )}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
