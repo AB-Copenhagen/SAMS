@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
 import { getCachedCollections, invalidateCollections } from '../../../lib/lookup-cache';
+import { isKnownCollectionType } from '../../../lib/collection-types';
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
   const collection = await prisma.collection.create({
     data: {
       name: body.name,
-      type: body.type ?? 'game',
+      type: isKnownCollectionType(body.type) ? body.type : 'game',
       date: body.date ? new Date(body.date) : null,
       opponent: body.opponent ?? null,
       venue: body.venue ?? null,

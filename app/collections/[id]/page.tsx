@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { getCurrentUser } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
 import { resolveCollectionAssets } from '../../../lib/collections';
+import { formatCollectionType } from '../../../lib/collection-types';
 import { getCachedPlayers, getCachedSponsors, getCachedSeasons } from '../../../lib/lookup-cache';
 import AppShell from '../../../components/AppShell';
 import CollectionEditForm from '../../../components/CollectionEditForm';
@@ -63,7 +64,7 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
           <div>
             <h1>{collection.name}</h1>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 6, alignItems: 'center' }}>
-              <span className="coll-type-badge">{collection.type}</span>
+              <span className="coll-type-badge">{formatCollectionType(collection.type).icon} {formatCollectionType(collection.type).label}</span>
               {collection.date && (
                 <span style={{ color: '#6b7491', fontSize: 13 }}>
                   {new Date(collection.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}

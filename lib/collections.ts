@@ -162,7 +162,10 @@ export async function matchCollectionByCaptureDate(exifJson: string | null): Pro
   const takenMs = new Date(takenIso).getTime();
 
   const candidates = await prisma.collection.findMany({
-    where: { date: { gte: new Date(takenMs - EXIF_MATCH_WINDOW_MS), lte: new Date(takenMs + EXIF_MATCH_WINDOW_MS) } },
+    // Restricted to games: training/social/investor collections can carry dates too (e.g. a
+    // training week or a social-content shoot), and would otherwise compete with fixtures for
+    // date-proximity auto-matching, which only ever made sense for one-game-per-day fixtures.
+    where: { type: 'game', date: { gte: new Date(takenMs - EXIF_MATCH_WINDOW_MS), lte: new Date(takenMs + EXIF_MATCH_WINDOW_MS) } },
     select: { id: true, date: true, seasonId: true },
   });
   if (candidates.length === 0) return null;

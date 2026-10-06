@@ -53,6 +53,8 @@ model Asset {
   shareToken         String?     @unique
   shareUpdatedAt     DateTime?
   expiresAt          DateTime?
+  importSource       String?
+  legacyMetaJson     String?
   playerTags         AssetPlayerTag[]
   sponsorTags        AssetSponsorTag[]
   collectionMemberships CollectionAsset[]
@@ -61,6 +63,7 @@ model Asset {
   @@index([seasonId, uploadedAt])
   @@index([collectionId])
   @@index([category])
+  @@index([importSource])
   @@index([faceTagStatus, uploadedAt])
   @@index([thumbnailStatus, uploadedAt])
   @@index([reviewedAt, faceTagStatus])

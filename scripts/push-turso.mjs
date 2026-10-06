@@ -314,6 +314,11 @@ CREATE TABLE IF NOT EXISTS "ShareEvent" (
 CREATE INDEX IF NOT EXISTS "ShareEvent_kind_createdAt_idx" ON "ShareEvent"("kind", "createdAt");
 CREATE INDEX IF NOT EXISTS "ShareEvent_kind_collectionId_idx" ON "ShareEvent"("kind", "collectionId");
 CREATE INDEX IF NOT EXISTS "ShareEvent_kind_assetId_idx" ON "ShareEvent"("kind", "assetId");
+
+ALTER TABLE "Asset" ADD COLUMN "importSource" TEXT;
+ALTER TABLE "Asset" ADD COLUMN "legacyMetaJson" TEXT;
+
+CREATE INDEX IF NOT EXISTS "Asset_importSource_idx" ON "Asset"("importSource");
 `;
 
 const statements = sql
