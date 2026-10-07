@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { verifyQstashSignature, publishJob } from '../../../../lib/qstash';
-import { pairScoreplayFolder, processScoreplayBatch, SCOREPLAY_FOLDERS } from '../../../../lib/scoreplay-import';
+import { verifyQstashSignature } from '../../../../lib/qstash';
+import { pairScoreplayFolder, processScoreplayBatch, publishJobWithRetry, SCOREPLAY_FOLDERS } from '../../../../lib/scoreplay-import';
 
 // QStash job: imports one batch of a single scoreplay/<folder>/ directory, then re-enqueues
 // itself with the next offset until that folder is exhausted — one chain per folder, kicked off
@@ -26,10 +26,14 @@ export async function POST(request: Request) {
   const { result, nextIndex } = await processScoreplayBatch(folder, pairs, offset ?? 0, BATCH_TIME_BUDGET_MS);
   const done = nextIndex >= pairs.length;
 
+  let chained = true;
   if (!done) {
-    await publishJob('/api/jobs/import-scoreplay-folder', { folder, offset: nextIndex });
+    chained = await publishJobWithRetry('/api/jobs/import-scoreplay-folder', { folder, offset: nextIndex });
+    if (!chained) {
+      console.error(`[scoreplay-import] ${folder}: FAILED to re-enqueue at offset ${nextIndex} after retries — chain is now stalled, re-run start-scoreplay-import for this folder to resume`);
+    }
   }
 
-  console.log(`[scoreplay-import] ${folder}: ${offset ?? 0}->${nextIndex}/${pairs.length} — ${JSON.stringify(result)}${done ? ' DONE' : ''}`);
-  return NextResponse.json({ folder, offset: offset ?? 0, nextIndex, total: pairs.length, done, result });
+  console.log(`[scoreplay-import] ${folder}: ${offset ?? 0}->${nextIndex}/${pairs.length} — ${JSON.stringify(result)}${done ? ' DONE' : chained ? '' : ' CHAIN BROKEN'}`);
+  return NextResponse.json({ folder, offset: offset ?? 0, nextIndex, total: pairs.length, done, chained, result });
 }

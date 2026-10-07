@@ -64,6 +64,25 @@ function normalizeName(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
+/**
+ * A chain's self-re-enqueue call is the one publishJob failure that can't just be logged and
+ * moved past — if it's lost, that folder's import silently stops forever (QStash's own retry
+ * only covers the CURRENT invocation, not a dropped future one). A few quick retries absorb a
+ * transient blip (e.g. QStash briefly rate-limiting under the burst of many folders publishing
+ * at once) without waiting on QStash's own backoff timing.
+ */
+export async function publishJobWithRetry(path: string, body: unknown, attempts = 3): Promise<boolean> {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await publishJob(path, body);
+    } catch (err) {
+      console.error(`[scoreplay-import] publishJob attempt ${i + 1}/${attempts} failed for ${path}:`, err);
+      if (i < attempts - 1) await new Promise((r) => setTimeout(r, 500 * (i + 1)));
+    }
+  }
+  return false;
+}
+
 export interface ScoreplayPair { mediaKey: string; jsonKey: string; filename: string; size: number }
 
 export async function pairScoreplayFolder(folder: string): Promise<ScoreplayPair[]> {
