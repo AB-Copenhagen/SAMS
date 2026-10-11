@@ -5,21 +5,51 @@ import { prisma } from '../../lib/db';
 import AppShell from '../../components/AppShell';
 import DeleteAssetRowButton from '../../components/DeleteAssetRowButton';
 
+const PER_PAGE = 50;
+
+const TABLE_ROW_SELECT = {
+  id: true,
+  title: true,
+  eventName: true,
+  fileType: true,
+  fileSize: true,
+  uploadedAt: true,
+  detectedTagsJson: true,
+  assetUrl: true,
+} as const;
+
 function typeBadge(fileType: string) {
   if (fileType.startsWith('image/')) return <span className="type-badge badge-image">Image</span>;
   if (fileType.startsWith('video/')) return <span className="type-badge badge-video">Video</span>;
   return <span className="type-badge">{fileType}</span>;
 }
 
-export default async function AdminPage() {
+export default async function AdminPage(props: { searchParams: Promise<{ page?: string }> }) {
+  const searchParams = await props.searchParams;
   const user = await getCurrentUser();
   if (!user || user.role !== 'ADMIN') redirect('/login');
 
-  const assets = await prisma.asset.findMany({ orderBy: { uploadedAt: 'desc' } });
+  const page = Math.max(1, parseInt(searchParams.page ?? '1') || 1);
 
-  const imageCount = assets.filter((a) => a.fileType.startsWith('image/')).length;
-  const videoCount = assets.filter((a) => a.fileType.startsWith('video/')).length;
-  const totalMB = (assets.reduce((sum, a) => sum + (a.fileSize ?? 0), 0) / 1024 / 1024).toFixed(1);
+  const [assets, total, imageCount, videoCount, sizeAgg] = await Promise.all([
+    prisma.asset.findMany({
+      orderBy: { uploadedAt: 'desc' },
+      take: PER_PAGE,
+      skip: (page - 1) * PER_PAGE,
+      select: TABLE_ROW_SELECT,
+    }),
+    prisma.asset.count(),
+    prisma.asset.count({ where: { fileType: { startsWith: 'image/' } } }),
+    prisma.asset.count({ where: { fileType: { startsWith: 'video/' } } }),
+    prisma.asset.aggregate({ _sum: { fileSize: true } }),
+  ]);
+
+  const pages = Math.ceil(total / PER_PAGE);
+  const totalMB = ((sizeAgg._sum.fileSize ?? 0) / 1024 / 1024).toFixed(1);
+
+  function pageUrl(p: number) {
+    return '/admin' + (p > 1 ? `?page=${p}` : '');
+  }
 
   return (
     <AppShell user={user}>
@@ -36,7 +66,7 @@ export default async function AdminPage() {
       <div className="stat-row">
         <div className="stat-card">
           <div className="stat-label">Total assets</div>
-          <div className="stat-value">{assets.length}</div>
+          <div className="stat-value">{total}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Photos</div>
@@ -112,6 +142,26 @@ export default async function AdminPage() {
           </div>
         )}
       </div>
+
+      {assets.length > 0 && (
+        <div className="pagination">
+          <a
+            href={pageUrl(page - 1)}
+            className="btn-secondary"
+            style={{ pointerEvents: page <= 1 ? 'none' : 'auto', opacity: page <= 1 ? 0.4 : 1, textDecoration: 'none' }}
+          >
+            ← Prev
+          </a>
+          <span className="page-info">Page {page} of {pages} · {total} total</span>
+          <a
+            href={pageUrl(page + 1)}
+            className="btn-secondary"
+            style={{ pointerEvents: page >= pages ? 'none' : 'auto', opacity: page >= pages ? 0.4 : 1, textDecoration: 'none' }}
+          >
+            Next →
+          </a>
+        </div>
+      )}
     </AppShell>
   );
 }
