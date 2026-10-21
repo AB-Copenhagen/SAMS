@@ -32,13 +32,12 @@ export async function publishJob(path: string, body: unknown, retries = DEFAULT_
   return true;
 }
 
-// Verifies the Upstash-Signature header on an incoming QStash callback. If no signing key is
-// configured (local dev), verification is skipped and the request is trusted — same "optional
-// secret, trusted if unset" convention already used for CRON_SECRET in the ingest cron.
+// Verifies the Upstash-Signature header on an incoming QStash callback. Mirrors the ingest
+// cron's authorized() check: no signing key configured means reject, not trust every caller.
 export async function verifyQstashSignature(request: Request, rawBody: string): Promise<boolean> {
   const currentSigningKey = process.env.QSTASH_CURRENT_SIGNING_KEY;
   const nextSigningKey = process.env.QSTASH_NEXT_SIGNING_KEY;
-  if (!currentSigningKey) return true;
+  if (!currentSigningKey) return false; // no signing key configured — reject rather than trust every caller
 
   const signature = request.headers.get('upstash-signature');
   if (!signature) return false;

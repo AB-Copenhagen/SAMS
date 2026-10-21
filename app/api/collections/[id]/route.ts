@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '../../../../lib/auth';
+import { getCurrentUser, isAdmin } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { generateShareToken, hashSharePassword } from '../../../../lib/collections';
 import { invalidateCollections } from '../../../../lib/lookup-cache';
@@ -35,6 +35,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
       sponsorRules: { include: { sponsor: true } },
       _count: { select: { assets: true } },
     },
+    omit: { sharePasswordSalt: true, sharePasswordHash: true },
   });
   if (!collection) return NextResponse.json({ message: 'Not found' }, { status: 404 });
   return NextResponse.json({ ...collection, assetsTotal: collection._count.assets, page, pageSize: ASSET_PAGE_SIZE });
@@ -54,11 +55,22 @@ type PatchBody = {
   expiresAt?: string | null;
 };
 
+// Fields that control who can reach a collection's media from outside the app — gated behind
+// isAdmin below, same bar as the checklist's other "publish/delete"-level mutations, rather than
+// anything a logged-in STAFF session can flip.
+const SHARE_SETTING_FIELDS = [
+  'isPublic', 'password', 'regenerateToken', 'shareMinRating', 'shareDateRangeDays', 'expiresAt',
+] as const satisfies readonly (keyof PatchBody)[];
+
 export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   const body = await request.json() as PatchBody;
+
+  if (SHARE_SETTING_FIELDS.some((field) => body[field] !== undefined) && !isAdmin(user)) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
+  }
 
   const existing = await prisma.collection.findUnique({ where: { id: params.id }, select: { shareToken: true } });
   if (!existing) return NextResponse.json({ message: 'Not found' }, { status: 404 });
@@ -88,6 +100,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       ...(passwordFields && { ...passwordFields, shareUpdatedAt: new Date() }),
       ...(needsToken && { shareToken: generateShareToken() }),
     },
+    omit: { sharePasswordSalt: true, sharePasswordHash: true },
   });
   invalidateCollections();
   return NextResponse.json(collection);
@@ -96,7 +109,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
 export async function DELETE(_: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  if (!isAdmin(user)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const existing = await prisma.collection.findUnique({ where: { id: params.id }, select: { id: true } });
   if (!existing) return NextResponse.json({ message: 'Not found' }, { status: 404 });
