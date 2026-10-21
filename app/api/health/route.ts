@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { S3Client, HeadBucketCommand } from '@aws-sdk/client-s3';
 import { prisma } from '../../../lib/db';
+import { getCurrentUser, isAdmin } from '../../../lib/auth';
 
 const ENV_KEYS = [
   'TURSO_DATABASE_URL',
@@ -15,13 +16,8 @@ const ENV_KEYS = [
 ] as const;
 
 export async function GET() {
-  // 1. Environment variables — present/missing only, never the values
-  const env: Record<string, 'set' | 'missing'> = {};
-  for (const key of ENV_KEYS) {
-    env[key] = process.env[key] ? 'set' : 'missing';
-  }
-
-  // 2. Database connectivity
+  // Database connectivity — cheap enough to check on every call, and it's the one signal an
+  // external uptime monitor (which won't have an admin session) actually needs.
   let database: { ok: boolean; latencyMs?: number; error?: string } = { ok: false };
   try {
     const t0 = Date.now();
@@ -31,7 +27,22 @@ export async function GET() {
     database = { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 
-  // 3. Wasabi storage connectivity
+  const admin = isAdmin(await getCurrentUser());
+  if (!admin) {
+    return NextResponse.json({ ok: database.ok }, { status: database.ok ? 200 : 503 });
+  }
+
+  // Everything below is diagnostic detail (which secrets are configured, the storage bucket name,
+  // raw provider error text) — reserved for admins so it isn't free reconnaissance, and the
+  // Wasabi round-trip below isn't a no-auth-required way to generate load against storage.
+
+  // Environment variables — present/missing only, never the values
+  const env: Record<string, 'set' | 'missing'> = {};
+  for (const key of ENV_KEYS) {
+    env[key] = process.env[key] ? 'set' : 'missing';
+  }
+
+  // Wasabi storage connectivity
   let storage: { ok: boolean; latencyMs?: number; bucket?: string; error?: string } = { ok: false };
   const region    = process.env.WASABI_REGION;
   const endpoint  = process.env.WASABI_ENDPOINT;
