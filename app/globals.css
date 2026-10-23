@@ -1314,15 +1314,17 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   }
 }
 
-/* ─── Customer list filter rail ──────────────────────────────
+/* ─── Customer list filter rail / detail attribute sidebar ───
    Deliberately a separate class from .sidebar-layout above, not a reuse of it: that class
    always puts its aside second/right (Media Library's filters sit right of the gallery), and
    flipping that for this one page would change an existing convention. This one puts the rail
    first/left in DOM and visual order on desktop — closer to a contact-list CRM's left filter
-   rail — and still collapses to a single column (rail above table) on mobile. */
+   rail — and still collapses to a single column (rail above content) on mobile. Shared by
+   /customers/list (filter rail) and /customers/[id] (attribute sidebar) — 280px fits both;
+   the attribute labels on the detail page are the tighter fit of the two. */
 .customer-layout {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 280px 1fr;
   gap: 20px;
   align-items: start;
 }
@@ -1356,6 +1358,28 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .customer-rail-item.active { background: var(--color-primary-tint); color: var(--color-primary); font-weight: 600; }
 .customer-rail-item-count { font-size: 11.5px; color: #8890b4; }
 .customer-rail-item.active .customer-rail-item-count { color: var(--color-primary); }
+
+/* Customer detail page: read-only "label above value" rows in the attribute sidebar — same
+   label styling as a form .field, but the value is plain text/a link, not an input. */
+.detail-value { font-size: 13.5px; color: #2d3154; }
+
+/* Activity feed (customer detail page) — same shape as .config-avatar sitting before
+   .config-item-info in a .config-item row, but a flat color square instead of a circle, since
+   this marks an event type rather than standing in for a missing photo. */
+.activity-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+.activity-icon-login { background: #eff6ff; color: #1d4ed8; }
+.activity-icon-consent { background: #fffbeb; color: #b45309; }
+.activity-icon-segment { background: var(--color-primary-tint); color: var(--color-primary); }
+.activity-icon-order { background: #f0fdf4; color: #15803d; }
 
 /* ─── Asset detail ───────────────────────────────────────── */
 .asset-detail-media img, .asset-detail-media video {

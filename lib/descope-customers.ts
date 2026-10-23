@@ -95,6 +95,7 @@ export async function* iterateAllCustomers(): AsyncGenerator<DescopeCustomer> {
 }
 
 export type RecentLogin = { occurredAt: Date; ip: string | null; country: string | null };
+export type LoginEvent = { userId: string } & RecentLogin;
 
 type RawAuditEvent = { userId?: string; occurred?: number; geo?: string; remoteAddress?: string };
 
@@ -102,8 +103,14 @@ type RawAuditEvent = { userId?: string; occurred?: number; geo?: string; remoteA
 // (same endpoint/auth shape as auth.ab.dk's api/poll-descope-audit.js, confirmed live:
 // response is `{ audits, total }`, `occurred` is epoch MS, `geo` is a 2-letter country code).
 // There's no documented bulk "last login per user" endpoint, so this fetches recent
-// LoginSucceed events for the window and reduces to one per user here.
-export async function fetchRecentLogins(fromMs: number, toMs: number): Promise<Map<string, RecentLogin>> {
+// LoginSucceed events for the window once and returns both views callers need: `latestByUser`
+// (one per user, for the Customer.lastLoginAt/IP/Country snapshot) and `events` (every
+// individual login in the window, for the CustomerActivity log — see
+// app/api/cron/sync-descope-logins).
+export async function fetchRecentLogins(
+  fromMs: number,
+  toMs: number
+): Promise<{ latestByUser: Map<string, RecentLogin>; events: LoginEvent[] }> {
   const res = await fetch('https://api.descope.com/v1/mgmt/audit/search', {
     method: 'POST',
     headers: {
@@ -125,16 +132,19 @@ export async function fetchRecentLogins(fromMs: number, toMs: number): Promise<M
   }
 
   const data = (await res.json()) as { audits?: RawAuditEvent[] };
-  const logins = new Map<string, RecentLogin>();
+  const latestByUser = new Map<string, RecentLogin>();
+  const events: LoginEvent[] = [];
   for (const event of data.audits ?? []) {
-    if (!event.userId || logins.has(event.userId)) continue; // already have this user's latest
+    if (!event.userId) continue;
     const occurredMs = Number(event.occurred);
     if (!Number.isFinite(occurredMs)) continue;
-    logins.set(event.userId, {
+    const login: RecentLogin = {
       occurredAt: new Date(occurredMs),
       ip: event.remoteAddress ?? null,
       country: event.geo ?? null,
-    });
+    };
+    events.push({ userId: event.userId, ...login });
+    if (!latestByUser.has(event.userId)) latestByUser.set(event.userId, login); // already have this user's latest
   }
-  return logins;
+  return { latestByUser, events };
 }

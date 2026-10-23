@@ -346,3 +346,20 @@ model StaffPreference {
   defaultLandingPage String?
   updatedAt          DateTime @updatedAt
 }
+
+// A real chronological event log for a Customer, written by the sync crons/jobs as they detect
+// an actual change (not a snapshot of current state, which the Customer row already holds).
+// Standalone like CustomerSyncRun above — no @relation back to Customer, same precedent.
+model CustomerActivity {
+  id         String   @id @default(cuid())
+  customerId String
+  type       String   // "login" | "consent_changed" | "segments_changed" | "order_placed"
+  occurredAt DateTime
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  // Lets every writer use createMany({ skipDuplicates: true }) (or a plain create()) without
+  // double-logging on a re-run or an overlapping sync window.
+  @@unique([customerId, type, occurredAt])
+  @@index([customerId, occurredAt])
+}

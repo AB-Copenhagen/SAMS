@@ -9,8 +9,9 @@ export const fetchCache = 'force-no-store';
 
 // Must match this cron's own schedule in vercel.json, plus a small overlap to tolerate
 // scheduling jitter — same approach as auth.ab.dk's api/poll-descope-audit.js. The overlap
-// means a login can be processed twice; harmless here since this only ever sets the newest
-// value it has seen for a user, never appends.
+// means a login can be seen twice: harmless for the Customer.lastLoginAt snapshot below (it
+// only ever sets the newest value seen), and absorbed by CustomerActivity's unique constraint
+// for the per-event log (each insert below just no-ops on a duplicate).
 const WINDOW_MS = 30 * 60 * 1000;
 const OVERLAP_MS = 5 * 60 * 1000;
 
@@ -35,15 +36,29 @@ export async function GET(request: Request) {
   try {
     const to = Date.now();
     const from = to - WINDOW_MS - OVERLAP_MS;
-    const logins = await fetchRecentLogins(from, to);
+    const { latestByUser, events } = await fetchRecentLogins(from, to);
 
     let processed = 0;
-    for (const [customerId, login] of logins) {
+    for (const [customerId, login] of latestByUser) {
       await db.customer.updateMany({
         where: { id: customerId },
         data: { lastLoginAt: login.occurredAt, lastLoginIp: login.ip, lastLoginCountry: login.country },
       });
       processed++;
+    }
+
+    // createMany's skipDuplicates isn't supported on SQLite (this schema's provider), so each
+    // event is inserted individually — a unique-constraint hit just means this exact login was
+    // already logged (the deliberate window overlap above), not a real failure.
+    for (const e of events) {
+      await db.customerActivity.create({
+        data: {
+          customerId: e.userId,
+          type: 'login',
+          occurredAt: e.occurredAt,
+          detail: e.country ? `Logged in from ${e.country}` : 'Logged in',
+        },
+      }).catch(() => {});
     }
 
     const finishedAt = new Date();
