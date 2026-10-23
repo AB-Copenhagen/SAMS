@@ -2,10 +2,21 @@ import { NextResponse } from 'next/server';
 import { createPrismaClient } from '../../../../lib/db';
 import { iterateAllCustomers } from '../../../../lib/descope-customers';
 import { publishJob } from '../../../../lib/qstash';
+import { supersedeStaleRun } from '../../../../lib/customer-sync-run';
 
-export const maxDuration = 60;
+// 280s, not the platform's full 300s ceiling — leaves headroom to still hit the catch block and
+// record a clean "error" before a hard platform kill. Needed because this processes customers
+// sequentially (2 Turso round-trips each via findUnique+upsert, plus a QStash publish for
+// anything changed) — at a few hundred customers that routinely ran past the previous 60s cap,
+// leaving CustomerSyncRun rows stuck in "running" forever (see supersedeStaleRun below).
+export const maxDuration = 280;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
+
+// Update the run's processed count this often during the loop, not just at the end — so even if
+// this invocation also runs out of time, the row reflects real partial progress instead of a
+// stuck "0 processed" with no way to tell it ever did anything.
+const PROGRESS_UPDATE_INTERVAL = 50;
 
 const RUN_RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // 30d — bounds table growth, mirrors CronRun
 
@@ -25,6 +36,7 @@ export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const db = createPrismaClient();
+  await supersedeStaleRun(db, 'descope');
   const startedAt = new Date();
   const run = await db.customerSyncRun.create({ data: { source: 'descope', startedAt, status: 'running' } });
   db.customerSyncRun.deleteMany({ where: { startedAt: { lt: new Date(Date.now() - RUN_RETENTION_MS) } } })
@@ -70,6 +82,10 @@ export async function GET(request: Request) {
       if (isChanged) {
         changed++;
         await publishJob('/api/jobs/sync-customer-external', { customerId: customer.userId });
+      }
+
+      if (processed % PROGRESS_UPDATE_INTERVAL === 0) {
+        await db.customerSyncRun.update({ where: { id: run.id }, data: { processed } }).catch(() => {});
       }
     }
 
