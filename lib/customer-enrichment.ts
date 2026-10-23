@@ -37,19 +37,24 @@ export type ExternalDataFields = {
 
 // Fetches fresh Shopify + MailerLite data, writes it to the Customer row, logs an activity
 // row on a real change, and returns the fields it wrote so the caller (the detail page) can
-// use them immediately without a second DB read. Each platform is independently try/caught —
-// a Shopify hiccup shouldn't block MailerLite refreshing or vice versa, same as when this lived
-// in the QStash job it replaced.
+// use them immediately without a second DB read. Each platform is gated on its *own*
+// syncedAt and independently try/caught — not a shared staleness check — specifically so that
+// one platform succeeding (and refreshing its syncedAt) can never mask the other having failed
+// and never gotten to set its own. Without this, a MailerLite fetch that throws once (e.g. a
+// missing API key) would never retry again until Shopify's own syncedAt also went stale, since
+// the two were previously gated together on shopifySyncedAt alone.
 export async function refreshCustomerExternalData(customer: {
   id: string;
   email: string | null;
   shopifyOrderCount: number | null;
+  shopifySyncedAt: Date | null;
   mailerliteStatus: string | null;
+  mailerliteSyncedAt: Date | null;
 }): Promise<Partial<ExternalDataFields>> {
   if (!customer.email) return {};
   const updates: Partial<ExternalDataFields> = {};
 
-  try {
+  if (isExternalDataStale(customer.shopifySyncedAt)) try {
     const shopify = await findCustomerByEmail(customer.email);
     const shopifyFields: Partial<ExternalDataFields> = {
       shopifyCustomerId: shopify?.shopifyCustomerId ?? null,
@@ -77,7 +82,7 @@ export async function refreshCustomerExternalData(customer: {
     console.error(`[customer-enrichment] Shopify refresh failed for ${customer.id}:`, err);
   }
 
-  try {
+  if (isExternalDataStale(customer.mailerliteSyncedAt)) try {
     const subscriber = await findSubscriberByEmail(customer.email);
     const mailerliteFields: Partial<ExternalDataFields> = {
       mailerliteSubscriberId: subscriber?.id ?? null,
