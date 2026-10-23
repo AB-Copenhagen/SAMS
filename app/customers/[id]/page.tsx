@@ -37,7 +37,7 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
           <h1>{customer.name || customer.email || customer.id}</h1>
           <p>{customer.email}</p>
         </div>
-        <Link href="/customers" className="asset-link">← Back to customers</Link>
+        <Link href="/customers/list" className="asset-link">← Back to customers</Link>
       </div>
 
       <div className="card">

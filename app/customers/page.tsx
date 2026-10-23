@@ -1,63 +1,57 @@
 import Link from 'next/link';
 import { getCurrentUser, requireAdmin } from '../../lib/auth';
-import { prisma } from '../../lib/db';
-import { getCachedStaffPreferences, resolvePageSize } from '../../lib/staff-preferences';
 import AppShell from '../../components/AppShell';
-import { buildCustomerWhere, listDistinctGoliathSegments } from '../../lib/customer-query';
+import { getCustomerKpis, getCachedCustomerDashboard, type CustomerSyncRunSummary } from '../../lib/customer-query';
 
-const DEFAULT_PER_PAGE = 50;
+const SOURCE_LABELS: Record<string, string> = {
+  descope: 'Descope profiles',
+  'descope-logins': 'Descope logins',
+  goliath: 'Goliath segments',
+};
 
-function segmentNames(json: string | null): string[] {
-  if (!json) return [];
-  try {
-    return JSON.parse(json) as string[];
-  } catch {
-    return [];
-  }
+function pct(part: number, total: number): string {
+  return total > 0 ? `${Math.round((part / total) * 100)}%` : '—';
 }
 
-export default async function CustomersPage(
-  props: {
-    searchParams: Promise<{
-      page?: string;
-      q?: string;
-      marketingOptIn?: string;
-      minSpend?: string;
-      segment?: string;
-    }>;
+function statusColor(status: string | null): string {
+  if (status === 'error') return '#dc2626';
+  if (status === 'running') return '#8890b4';
+  if (status === 'success') return '#16a34a';
+  return '#8890b4';
+}
+
+function SyncRunRow({ run }: { run: CustomerSyncRunSummary }) {
+  const label = SOURCE_LABELS[run.source] ?? run.source;
+  if (!run.status) {
+    return (
+      <div className="config-item">
+        <div className="config-item-info">
+          <div className="config-item-title">{label}</div>
+          <div className="config-item-sub">Not yet run</div>
+        </div>
+      </div>
+    );
   }
-) {
-  const searchParams = await props.searchParams;
+  return (
+    <div className="config-item">
+      <div className="config-item-info">
+        <div className="config-item-title">
+          {label}{' '}
+          <span style={{ fontWeight: 400, color: statusColor(run.status) }}>· {run.status}</span>
+        </div>
+        <div className="config-item-sub">
+          {run.status === 'error'
+            ? run.errorMessage ?? 'Unknown error'
+            : `${run.finishedAt ? new Date(run.finishedAt).toLocaleString() : 'in progress'}${run.processed != null ? ` · ${run.processed} processed` : ''}`}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default async function CustomersDashboardPage() {
   const user = requireAdmin(await getCurrentUser());
-  const pref = await getCachedStaffPreferences(user.id);
-  const PER_PAGE = resolvePageSize(pref, DEFAULT_PER_PAGE);
-
-  const page = Math.max(1, parseInt(searchParams.page ?? '1') || 1);
-  const q = searchParams.q ?? '';
-  const marketingOptIn =
-    searchParams.marketingOptIn === 'true' ? true : searchParams.marketingOptIn === 'false' ? false : undefined;
-  const minSpend = searchParams.minSpend ? Number(searchParams.minSpend) : undefined;
-  const segment = searchParams.segment || undefined;
-  const where = buildCustomerWhere({ q: q || undefined, marketingOptIn, minSpend, segment });
-
-  const [customers, total, segmentOptions] = await Promise.all([
-    prisma.customer.findMany({ where, orderBy: { updatedAt: 'desc' }, take: PER_PAGE, skip: (page - 1) * PER_PAGE }),
-    prisma.customer.count({ where }),
-    listDistinctGoliathSegments(),
-  ]);
-
-  const pages = Math.ceil(total / PER_PAGE) || 1;
-
-  function pageUrl(p: number) {
-    const params = new URLSearchParams();
-    if (q) params.set('q', q);
-    if (marketingOptIn !== undefined) params.set('marketingOptIn', String(marketingOptIn));
-    if (minSpend !== undefined) params.set('minSpend', String(minSpend));
-    if (segment) params.set('segment', segment);
-    if (p > 1) params.set('page', String(p));
-    const qs = params.toString();
-    return '/customers' + (qs ? `?${qs}` : '');
-  }
+  const [kpis, dashboard] = await Promise.all([getCustomerKpis(), getCachedCustomerDashboard()]);
 
   return (
     <AppShell user={user}>
@@ -66,109 +60,106 @@ export default async function CustomersPage(
           <h1>Customers</h1>
           <p>Unified fan record — Descope identity, Goliath segments, Shopify spend.</p>
         </div>
+        <Link href="/customers/list" className="btn-primary" style={{ textDecoration: 'none' }}>
+          Browse all customers →
+        </Link>
       </div>
 
-      <form method="get" className="card" style={{ display: 'flex', gap: 12, alignItems: 'center', padding: 16 }}>
-        <input
-          type="text"
-          name="q"
-          placeholder="Search name or email"
-          defaultValue={q}
-          style={{ flex: 1, padding: '8px 10px' }}
-        />
-        <select name="marketingOptIn" defaultValue={marketingOptIn === undefined ? '' : String(marketingOptIn)}>
-          <option value="">All consent</option>
-          <option value="true">Opted in</option>
-          <option value="false">Opted out</option>
-        </select>
-        <select name="segment" defaultValue={segment ?? ''}>
-          <option value="">All segments</option>
-          {segmentOptions.map((name) => (
-            <option key={name} value={name}>{name}</option>
-          ))}
-        </select>
-        <input
-          type="number"
-          name="minSpend"
-          placeholder="Min spend (DKK)"
-          defaultValue={minSpend ?? ''}
-          style={{ width: 150, padding: '8px 10px' }}
-        />
-        <button className="btn-primary" type="submit">Search</button>
-      </form>
+      <div className="stat-row">
+        <div className="stat-card">
+          <div className="stat-label">Total customers</div>
+          <div className="stat-value">{kpis.total}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Opted in</div>
+          <div className="stat-value">{kpis.optedIn} <span style={{ fontSize: 14, color: '#8890b4' }}>({pct(kpis.optedIn, kpis.total)})</span></div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Synced w/ Goliath</div>
+          <div className="stat-value">{kpis.goliathSynced} <span style={{ fontSize: 14, color: '#8890b4' }}>({pct(kpis.goliathSynced, kpis.total)})</span></div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Synced w/ Shopify</div>
+          <div className="stat-value">{kpis.shopifySynced} <span style={{ fontSize: 14, color: '#8890b4' }}>({pct(kpis.shopifySynced, kpis.total)})</span></div>
+        </div>
+      </div>
 
-      <div className="card" style={{ padding: 0 }}>
-        {customers.length === 0 ? (
-          <div style={{ padding: '48px 32px', textAlign: 'center', color: '#8890b4' }}>
-            No customers synced yet — the sync cron (/api/cron/sync-customers) populates this table.
+      <div className="card">
+        <div className="card-header">Sync health</div>
+        <div className="config-list">
+          {dashboard.syncRuns.map((run) => <SyncRunRow key={run.source} run={run} />)}
+          <div className="config-item">
+            <div className="config-item-info">
+              <div className="config-item-title">Shopify spend</div>
+              <div className="config-item-sub">
+                {dashboard.shopify.mostRecentSyncedAt
+                  ? `Most recent sync ${new Date(dashboard.shopify.mostRecentSyncedAt).toLocaleString()} · ${dashboard.shopify.syncedCount} customer(s) synced`
+                  : 'No customer has synced Shopify data yet'}
+                {' · syncs per-customer, enqueued from the Descope sync (no single run to report)'}
+              </div>
+            </div>
           </div>
+        </div>
+      </div>
+
+      <div className="dashboard-row">
+        <div className="card">
+          <div className="card-header">Top spenders (Shopify)</div>
+          {dashboard.topSpenders.length === 0 ? (
+            <p style={{ color: '#8890b4', fontSize: 13 }}>No Shopify spend synced yet.</p>
+          ) : (
+            <div className="config-list">
+              {dashboard.topSpenders.map((c) => (
+                <div key={c.id} className="config-item">
+                  <div className="config-item-info">
+                    <Link href={`/customers/${c.id}`} className="config-item-title asset-link" style={{ display: 'block' }}>
+                      {c.name || c.email || c.id}
+                    </Link>
+                    <div className="config-item-sub">{c.shopifyLifetimeSpend!.toFixed(2)} DKK</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <div className="card-header">Recent logins</div>
+          {dashboard.recentLogins.length === 0 ? (
+            <p style={{ color: '#8890b4', fontSize: 13 }}>No login activity synced yet.</p>
+          ) : (
+            <div className="config-list">
+              {dashboard.recentLogins.map((c) => (
+                <div key={c.id} className="config-item">
+                  <div className="config-item-info">
+                    <Link href={`/customers/${c.id}`} className="config-item-title asset-link" style={{ display: 'block' }}>
+                      {c.name || c.email || c.id}
+                    </Link>
+                    <div className="config-item-sub">
+                      {new Date(c.lastLoginAt!).toLocaleString()}{c.lastLoginCountry ? ` (${c.lastLoginCountry})` : ''}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">Top Goliath segments</div>
+        {dashboard.topSegments.length === 0 ? (
+          <p style={{ color: '#8890b4', fontSize: 13 }}>No segment membership synced yet.</p>
         ) : (
-          <div className="asset-table-wrap">
-            <table className="asset-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Consent</th>
-                  <th>Goliath segments</th>
-                  <th>Lifetime spend</th>
-                  <th>Last login</th>
-                  <th>Last synced</th>
-                </tr>
-              </thead>
-              <tbody>
-                {customers.map((customer) => (
-                  <tr key={customer.id}>
-                    <td style={{ fontWeight: 500 }}>
-                      <Link href={`/customers/${customer.id}`} className="asset-link">
-                        {customer.name || '—'}
-                      </Link>
-                    </td>
-                    <td>{customer.email || '—'}</td>
-                    <td>
-                      {customer.marketingOptIn === null ? '—' : customer.marketingOptIn ? 'Opted in' : 'Opted out'}
-                    </td>
-                    <td style={{ color: '#6b7491', fontSize: 12 }}>
-                      {segmentNames(customer.goliathSegmentsJson).join(', ') || '—'}
-                    </td>
-                    <td>
-                      {customer.shopifyLifetimeSpend != null ? `${customer.shopifyLifetimeSpend.toFixed(2)} DKK` : '—'}
-                    </td>
-                    <td style={{ whiteSpace: 'nowrap', color: '#8890b4' }}>
-                      {customer.lastLoginAt
-                        ? `${new Date(customer.lastLoginAt).toLocaleString()}${customer.lastLoginCountry ? ` (${customer.lastLoginCountry})` : ''}`
-                        : '—'}
-                    </td>
-                    <td style={{ whiteSpace: 'nowrap', color: '#8890b4' }}>
-                      {customer.updatedAt ? new Date(customer.updatedAt).toLocaleString() : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div>
+            {dashboard.topSegments.map((s) => (
+              <Link key={s.name} href={`/customers/list?segment=${encodeURIComponent(s.name)}`} className="segment-chip" style={{ fontSize: 13, padding: '4px 10px' }}>
+                {s.name} · {s.count}
+              </Link>
+            ))}
           </div>
         )}
       </div>
-
-      {customers.length > 0 && (
-        <div className="pagination">
-          <a
-            href={pageUrl(page - 1)}
-            className="btn-secondary"
-            style={{ pointerEvents: page <= 1 ? 'none' : 'auto', opacity: page <= 1 ? 0.4 : 1, textDecoration: 'none' }}
-          >
-            ← Prev
-          </a>
-          <span className="page-info">Page {page} of {pages} · {total} total</span>
-          <a
-            href={pageUrl(page + 1)}
-            className="btn-secondary"
-            style={{ pointerEvents: page >= pages ? 'none' : 'auto', opacity: page >= pages ? 0.4 : 1, textDecoration: 'none' }}
-          >
-            Next →
-          </a>
-        </div>
-      )}
     </AppShell>
   );
 }
