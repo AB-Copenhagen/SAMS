@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/process-ingest-jobs",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-customers",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-goliath-segments",
+      "schedule": "0 */6 * * *"
     }
   ]
 }

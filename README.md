@@ -62,6 +62,21 @@ A Digital Asset Manager (DAM) built for professional soccer teams. SAMS centrali
 - **Stadiums** — venue list used for autocomplete across the app
 - **Devices** — mint/revoke API keys for unattended ingest tools (the CLI, future integrations)
 
+### Customers (CRM, Phase 1)
+- `/customers` — searchable, paginated unified fan record: Descope identity + marketing
+  consent, Goliath CDP segment membership, and Shopify lifetime spend/order history, each
+  shown with its own "last synced" timestamp. Admin-only, read-only for now.
+- Populated entirely by background sync, not manual entry: `/api/cron/sync-customers` (every
+  30 min) pages through the AB mobile app's own Descope project and upserts the local
+  `Customer` cache, enqueueing a QStash job (`/api/jobs/sync-customer-external`) per new/changed
+  fan to pull their Shopify spend; `/api/cron/sync-goliath-segments` (every 6h) separately walks
+  Goliath's segments API to attach segment membership, since Goliath has no per-user read
+  endpoint (see `lib/goliath.ts`).
+- The join key across all three systems is the fan's Descope `userId` — Goliath already logs
+  users in through Descope, so its `externalId` for a fan is the same ID.
+- Future phases: pushing a segment built here back into Goliath for in-app targeting, and
+  syncing opted-in fans to MailerLite for campaign sending.
+
 ### Authentication & Access Control
 - Powered by [Descope](https://descope.com) — passwordless, SSO, and social login out of the box
 - Four roles: `ADMIN`, `PLAYER`, `MEDIA`, `SPONSOR`
@@ -138,6 +153,19 @@ APP_BASE_URL=
 NEXT_PUBLIC_DESCOPE_PROJECT_ID=
 DESCOPE_SERVICE_ACCOUNT_KEY=
 
+# Customers (/customers) — unified fan record, kept fresh by the sync-customers and
+# sync-goliath-segments crons. DESCOPE_CUSTOMER_PROJECT_ID is the consumer-facing "MyAB"
+# project the mobile app itself uses — a DIFFERENT Descope project from the one above.
+DESCOPE_CUSTOMER_PROJECT_ID=
+DESCOPE_CUSTOMER_MANAGEMENT_KEY=
+GOLIATH_API_KEY=
+GOLIATH_API_BASE_URL=
+# SHOPIFY_APP_CLIENT_ID/SECRET are OAuth app credentials, not usable directly — see .env.example
+SHOPIFY_APP_CLIENT_ID=
+SHOPIFY_APP_CLIENT_SECRET=
+SHOPIFY_STORE_DOMAIN=
+SHOPIFY_ADMIN_API_ACCESS_TOKEN=
+
 # Session signing — generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 SESSION_SECRET=
 
@@ -164,9 +192,16 @@ Schema changes are applied directly to Turso (no `prisma migrate` — see `scrip
 node scripts/push-turso.mjs          # apply/update the database schema
 node scripts/setup-wasabi-cors.mjs   # allow browser presigned-URL uploads
 node scripts/setup-rekognition-collection.mjs   # create the player face collection (run once)
+node scripts/shopify-oauth-install.mjs <shop>.myshopify.com   # mint a Shopify Admin API token
 ```
 
 After the Rekognition collection exists, enroll your squad's faces from Configure → Players → "Enroll all faces".
+
+`shopify-oauth-install.mjs` needs `SHOPIFY_APP_CLIENT_ID`/`SHOPIFY_APP_CLIENT_SECRET` already set
+in `.env.local`, and `http://localhost:8734/shopify/callback` added to the app's "Allowed
+redirection URL(s)" in the Shopify Partner Dashboard first — see the script's header comment.
+It writes `SHOPIFY_STORE_DOMAIN`/`SHOPIFY_ADMIN_API_ACCESS_TOKEN` into `.env.local` when done;
+add the same two values to the Vercel project's env vars for preview/production.
 
 ### CLI ingest tool
 
