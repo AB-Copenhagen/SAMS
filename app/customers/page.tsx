@@ -60,7 +60,7 @@ export default async function CustomersPage(
   }
 
   return (
-    <AppShell user={user}>
+    <AppShell user={user} wide>
       <div className="page-header">
         <div>
           <h1>Customers</h1>
@@ -74,14 +74,26 @@ export default async function CustomersPage(
           name="q"
           placeholder="Search name or email"
           defaultValue={q}
-          style={{ flex: 1, padding: '8px 10px' }}
+          style={{ flex: '1 1 200px', padding: '8px 10px' }}
         />
-        <select name="marketingOptIn" defaultValue={marketingOptIn === undefined ? '' : String(marketingOptIn)}>
+        {/* Every select/input here needs an explicit width/flex — the global `select, input {
+            width: 100% }` rule (app/globals.css) otherwise becomes each one's flex-basis (flex-basis:
+            auto resolves to the width property), so two unstyled 100%-basis selects were swallowing
+            nearly the whole row and collapsing the flex:1 search input next to them to ~20px. */}
+        <select
+          name="marketingOptIn"
+          defaultValue={marketingOptIn === undefined ? '' : String(marketingOptIn)}
+          style={{ flex: '0 0 auto', width: 'auto' }}
+        >
           <option value="">All consent</option>
           <option value="true">Opted in</option>
           <option value="false">Opted out</option>
         </select>
-        <select name="segment" defaultValue={segment ?? ''}>
+        <select
+          name="segment"
+          defaultValue={segment ?? ''}
+          style={{ flex: '0 0 auto', width: 'auto' }}
+        >
           <option value="">All segments</option>
           {segmentOptions.map((name) => (
             <option key={name} value={name}>{name}</option>
@@ -92,9 +104,9 @@ export default async function CustomersPage(
           name="minSpend"
           placeholder="Min spend (DKK)"
           defaultValue={minSpend ?? ''}
-          style={{ width: 150, padding: '8px 10px' }}
+          style={{ flex: '0 0 150px', width: 150, padding: '8px 10px' }}
         />
-        <button className="btn-primary" type="submit">Search</button>
+        <button className="btn-primary" type="submit" style={{ flex: '0 0 auto' }}>Search</button>
       </form>
 
       <div className="card" style={{ padding: 0 }}>
