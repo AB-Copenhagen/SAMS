@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { getCurrentUser, isAdmin } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
 import AppShell from '../../../components/AppShell';
+import { customerAdminUrl } from '../../../lib/shopify';
+import { userDashboardUrl } from '../../../lib/goliath';
 
 function segmentNames(json: string | null): string[] {
   if (!json) return [];
@@ -26,6 +28,8 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
   if (!customer) notFound();
 
   const segments = segmentNames(customer.goliathSegmentsJson);
+  const shopifyUrl = customer.shopifyCustomerId ? customerAdminUrl(customer.shopifyCustomerId) : null;
+  const goliathUrl = customer.goliathUserId ? userDashboardUrl(customer.goliathUserId) : null;
 
   return (
     <AppShell user={user}>
@@ -44,6 +48,15 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
           Marketing consent:{' '}
           {customer.marketingOptIn === null ? 'Unknown' : customer.marketingOptIn ? 'Opted in' : 'Opted out'}
         </p>
+        <p>
+          Account created: {customer.descopeCreatedAt ? new Date(customer.descopeCreatedAt).toLocaleDateString() : '—'}
+        </p>
+        <p>
+          Last login:{' '}
+          {customer.lastLoginAt ? new Date(customer.lastLoginAt).toLocaleString() : '—'}
+          {customer.lastLoginIp ? ` from ${customer.lastLoginIp}` : ''}
+          {customer.lastLoginCountry ? ` (${customer.lastLoginCountry})` : ''}
+        </p>
         <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.descopeSyncedAt)}</p>
       </div>
 
@@ -57,6 +70,13 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
           </ul>
         ) : (
           <p>No segment membership synced.</p>
+        )}
+        {goliathUrl && (
+          <p>
+            <a href={goliathUrl} target="_blank" rel="noopener noreferrer" className="asset-link">
+              View in Goliath ↗
+            </a>
+          </p>
         )}
         <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.goliathSyncedAt)}</p>
       </div>
@@ -72,6 +92,13 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
           Last order:{' '}
           {customer.shopifyLastOrderAt ? new Date(customer.shopifyLastOrderAt).toLocaleDateString() : '—'}
         </p>
+        {shopifyUrl && (
+          <p>
+            <a href={shopifyUrl} target="_blank" rel="noopener noreferrer" className="asset-link">
+              View in Shopify ↗
+            </a>
+          </p>
+        )}
         <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.shopifySyncedAt)}</p>
       </div>
     </AppShell>

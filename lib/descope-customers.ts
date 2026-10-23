@@ -9,6 +9,7 @@ export type DescopeCustomer = {
   name: string | null;
   phone: string | null;
   marketingOptIn: boolean | null;
+  createdAt: Date | null;
 };
 
 // Custom attribute key (MyAB project console → Custom attributes) that holds marketing
@@ -36,6 +37,7 @@ type RawDescopeUser = {
   phone?: string;
   loginIds?: string[];
   customAttributes?: Record<string, unknown>;
+  createdTime?: number; // epoch SECONDS (confirmed live — unlike audit's `occurred`, which is ms)
 };
 
 function toCustomer(raw: RawDescopeUser): DescopeCustomer {
@@ -46,6 +48,7 @@ function toCustomer(raw: RawDescopeUser): DescopeCustomer {
     name: raw.name ?? null,
     phone: raw.phone ?? null,
     marketingOptIn: typeof marketingValue === 'boolean' ? marketingValue : null,
+    createdAt: typeof raw.createdTime === 'number' ? new Date(raw.createdTime * 1000) : null,
   };
 }
 
@@ -77,4 +80,49 @@ export async function* iterateAllCustomers(): AsyncGenerator<DescopeCustomer> {
     if (data.users.length < PAGE_SIZE) return;
     page++;
   }
+}
+
+export type RecentLogin = { occurredAt: Date; ip: string | null; country: string | null };
+
+type RawAuditEvent = { userId?: string; occurred?: number; geo?: string; remoteAddress?: string };
+
+// Descope's user object has no last-login field — this comes from the Search Audit API instead
+// (same endpoint/auth shape as auth.ab.dk's api/poll-descope-audit.js, confirmed live:
+// response is `{ audits, total }`, `occurred` is epoch MS, `geo` is a 2-letter country code).
+// There's no documented bulk "last login per user" endpoint, so this fetches recent
+// LoginSucceed events for the window and reduces to one per user here.
+export async function fetchRecentLogins(fromMs: number, toMs: number): Promise<Map<string, RecentLogin>> {
+  const res = await fetch('https://api.descope.com/v1/mgmt/audit/search', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${projectId()}:${managementKey()}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      auditTypes: ['info', 'warn', 'error'],
+      actions: ['LoginSucceed'],
+      from: String(fromMs),
+      to: String(toMs),
+      size: 500,
+      oldestFirst: false, // newest-first, so the first event seen per userId is already their latest
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Descope audit search failed: ${res.status} ${await res.text()}`);
+  }
+
+  const data = (await res.json()) as { audits?: RawAuditEvent[] };
+  const logins = new Map<string, RecentLogin>();
+  for (const event of data.audits ?? []) {
+    if (!event.userId || logins.has(event.userId)) continue; // already have this user's latest
+    const occurredMs = Number(event.occurred);
+    if (!Number.isFinite(occurredMs)) continue;
+    logins.set(event.userId, {
+      occurredAt: new Date(occurredMs),
+      ip: event.remoteAddress ?? null,
+      country: event.geo ?? null,
+    });
+  }
+  return logins;
 }

@@ -54,3 +54,15 @@ async function getLastOrderDate(shopifyCustomerId: number): Promise<Date | null>
   const order = data.orders?.[0];
   return order ? new Date(order.created_at) : null;
 }
+
+// Deep link to a customer's record in Shopify's unified admin (admin.shopify.com), which
+// SHOPIFY_STORE_DOMAIN's ".myshopify.com" handle maps onto directly — the legacy
+// "https://{shop}/admin/..." form still redirects here, so this is the canonical one to link to.
+// Returns null (rather than throwing, like the fetch helpers above) since this is called from
+// page rendering, where a missing env var should just hide the link, not break the page.
+export function customerAdminUrl(shopifyCustomerId: string): string | null {
+  const domain = process.env.SHOPIFY_STORE_DOMAIN;
+  if (!domain) return null;
+  const handle = domain.replace(/\.myshopify\.com$/, '');
+  return `https://admin.shopify.com/store/${handle}/customers/${shopifyCustomerId}`;
+}
