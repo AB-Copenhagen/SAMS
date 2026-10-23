@@ -5,6 +5,7 @@ import { prisma } from '../../../lib/db';
 import AppShell from '../../../components/AppShell';
 import { customerAdminUrl } from '../../../lib/shopify';
 import { userDashboardUrl } from '../../../lib/goliath';
+import { subscriberDashboardUrl } from '../../../lib/mailerlite';
 import { avatarColor, avatarInitial, segmentNames } from '../../../lib/customer-ui';
 
 const ACTIVITY_PER_PAGE = 20;
@@ -42,6 +43,11 @@ const ACTIVITY_META: Record<string, { label: string; className: string; icon: Re
     className: 'activity-icon-order',
     icon: <Icon><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 0 1-8 0" /></Icon>,
   },
+  mailerlite_status_changed: {
+    label: 'MailerLite status changed',
+    className: 'activity-icon-mailerlite',
+    icon: <Icon><path d="M4 4h16v16H4z" /><polyline points="22 6 12 13 2 6" /></Icon>,
+  },
 };
 
 export default async function CustomerDetailPage(props: { params: Promise<{ id: string }>; searchParams: Promise<{ page?: string }> }) {
@@ -65,8 +71,10 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
   const activityPages = Math.ceil(activityTotal / ACTIVITY_PER_PAGE) || 1;
 
   const segments = segmentNames(customer.goliathSegmentsJson);
+  const mailerliteGroups = segmentNames(customer.mailerliteGroupsJson);
   const shopifyUrl = customer.shopifyCustomerId ? customerAdminUrl(customer.shopifyCustomerId) : null;
   const goliathUrl = customer.goliathUserId ? userDashboardUrl(customer.goliathUserId) : null;
+  const mailerliteUrl = customer.mailerliteSubscriberId ? subscriberDashboardUrl(customer.mailerliteSubscriberId) : null;
   const daysSinceLogin = customer.lastLoginAt
     ? Math.floor((Date.now() - new Date(customer.lastLoginAt).getTime()) / 86_400_000)
     : null;
@@ -153,6 +161,39 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
               </p>
             )}
             <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.shopifySyncedAt)}</p>
+          </div>
+
+          <div className="card">
+            <div className="card-header">MailerLite</div>
+            <div className="field">
+              <label>Status</label>
+              <div className="detail-value">
+                {customer.mailerliteStatus ? (
+                  <span className={'mailerlite-badge' + (customer.mailerliteStatus === 'active' ? ' mailerlite-badge-active' : ' mailerlite-badge-other')}>
+                    {customer.mailerliteStatus.toUpperCase()}
+                  </span>
+                ) : '—'}
+              </div>
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              {mailerliteGroups.length > 0
+                ? mailerliteGroups.map((name) => <span key={name} className="segment-chip">{name}</span>)
+                : <p style={{ color: '#8890b4', fontSize: 13 }}>No group membership synced.</p>}
+            </div>
+            <div className="field">
+              <label>Sent / opens</label>
+              <div className="detail-value">
+                {customer.mailerliteSentCount != null
+                  ? `${customer.mailerliteSentCount} sent · ${customer.mailerliteOpensCount ?? 0} opened${customer.mailerliteOpenRate != null ? ` (${Math.round(customer.mailerliteOpenRate * 100)}%)` : ''}`
+                  : '—'}
+              </div>
+            </div>
+            {mailerliteUrl && (
+              <p style={{ marginBottom: 8 }}>
+                <a href={mailerliteUrl} target="_blank" rel="noopener noreferrer" className="asset-link">View in MailerLite ↗</a>
+              </p>
+            )}
+            <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.mailerliteSyncedAt)}</p>
           </div>
         </aside>
 

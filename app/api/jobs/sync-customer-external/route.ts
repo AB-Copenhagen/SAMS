@@ -2,16 +2,19 @@ import { NextResponse } from 'next/server';
 import { verifyQstashSignature } from '../../../../lib/qstash';
 import { createPrismaClient } from '../../../../lib/db';
 import { findCustomerByEmail } from '../../../../lib/shopify';
+import { findSubscriberByEmail } from '../../../../lib/mailerlite';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-// QStash job: refreshes one customer's Shopify spend fields. Enqueued by
-// app/api/cron/sync-customers whenever a customer is new or its Descope-sourced fields
-// changed. Goliath segment membership is refreshed separately, in bulk, by
+// QStash job: refreshes one customer's Shopify spend fields and MailerLite subscriber status
+// (matched by email, like Shopify — MailerLite has no concept of our Descope user id either).
+// Enqueued by app/api/cron/sync-customers whenever a customer is new or its Descope-sourced
+// fields changed. Goliath segment membership is refreshed separately, in bulk, by
 // app/api/cron/sync-goliath-segments — Goliath's API has no per-user read endpoint to call
-// here (see lib/goliath.ts).
+// here (see lib/goliath.ts); MailerLite does have one (see lib/mailerlite.ts), so it's synced
+// here like Shopify instead.
 export async function POST(request: Request) {
   const rawBody = await request.text();
   if (!(await verifyQstashSignature(request, rawBody))) {
@@ -23,7 +26,10 @@ export async function POST(request: Request) {
 
   const db = createPrismaClient();
   try {
-    const customer = await db.customer.findUnique({ where: { id: customerId }, select: { email: true, shopifyOrderCount: true } });
+    const customer = await db.customer.findUnique({
+      where: { id: customerId },
+      select: { email: true, shopifyOrderCount: true, mailerliteStatus: true },
+    });
     if (!customer) return NextResponse.json({ message: 'Customer not found' }, { status: 404 });
 
     if (customer.email) {
@@ -57,6 +63,36 @@ export async function POST(request: Request) {
         // story here is intentionally simpler than the ingest pipeline's since this is just a
         // read-cache refresh, not a user-facing upload.
         console.error(`[jobs/sync-customer-external] Shopify sync failed for ${customerId}:`, err);
+      }
+
+      try {
+        const subscriber = await findSubscriberByEmail(customer.email);
+        await db.customer.update({
+          where: { id: customerId },
+          data: {
+            mailerliteSubscriberId: subscriber?.id ?? null,
+            mailerliteStatus: subscriber?.status ?? null,
+            mailerliteGroupsJson: subscriber ? JSON.stringify(subscriber.groupNames) : null,
+            mailerliteSentCount: subscriber?.sentCount ?? null,
+            mailerliteOpensCount: subscriber?.opensCount ?? null,
+            mailerliteOpenRate: subscriber?.openRate ?? null,
+            mailerliteSyncedAt: new Date(),
+          },
+        });
+
+        if (customer.mailerliteStatus && subscriber && customer.mailerliteStatus !== subscriber.status) {
+          await db.customerActivity.create({
+            data: {
+              customerId,
+              type: 'mailerlite_status_changed',
+              occurredAt: new Date(),
+              detail: `MailerLite: ${customer.mailerliteStatus} → ${subscriber.status}`,
+            },
+          }).catch(() => {});
+        }
+      } catch (err) {
+        // Same "don't fail the whole job" shape as the Shopify call above.
+        console.error(`[jobs/sync-customer-external] MailerLite sync failed for ${customerId}:`, err);
       }
     }
 
