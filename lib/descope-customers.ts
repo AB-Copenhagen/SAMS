@@ -34,18 +34,30 @@ type RawDescopeUser = {
   userId: string;
   email?: string;
   name?: string;
+  givenName?: string;
+  middleName?: string;
+  familyName?: string;
   phone?: string;
   loginIds?: string[];
   customAttributes?: Record<string, unknown>;
   createdTime?: number; // epoch SECONDS (confirmed live — unlike audit's `occurred`, which is ms)
 };
 
+// `name` is frequently blank even when givenName/familyName are populated (confirmed live: ~12%
+// of a sample had this split) — falling back to assembling it from the parts keeps those
+// customers findable by the /customers name search instead of silently losing their name.
+function resolveName(raw: RawDescopeUser): string | null {
+  if (raw.name) return raw.name;
+  const parts = [raw.givenName, raw.middleName, raw.familyName].filter(Boolean);
+  return parts.length ? parts.join(' ') : null;
+}
+
 function toCustomer(raw: RawDescopeUser): DescopeCustomer {
   const marketingValue = raw.customAttributes?.[MARKETING_ATTRIBUTE_KEY];
   return {
     userId: raw.userId,
     email: raw.email ?? raw.loginIds?.[0] ?? null,
-    name: raw.name ?? null,
+    name: resolveName(raw),
     phone: raw.phone ?? null,
     marketingOptIn: typeof marketingValue === 'boolean' ? marketingValue : null,
     createdAt: typeof raw.createdTime === 'number' ? new Date(raw.createdTime * 1000) : null,
