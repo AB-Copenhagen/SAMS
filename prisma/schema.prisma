@@ -294,3 +294,40 @@ model CollectionSponsorRule {
 
   @@unique([collectionId, sponsorId])
 }
+
+model Customer {
+  // The Descope internal userId from the consumer-facing "MyAB" project — stable across
+  // Descope, Goliath (which logs users in through Descope, so its externalId is this same
+  // value) and, once matched by email, Shopify. See lib/descope-customers.ts.
+  id                   String    @id
+  email                String?
+  name                 String?
+  phone                String?
+  marketingOptIn       Boolean?
+  descopeSyncedAt      DateTime?
+  goliathUserId        String?
+  goliathSegmentsJson  String?
+  goliathSyncedAt      DateTime?
+  shopifyCustomerId    String?
+  shopifyLifetimeSpend Float?
+  shopifyOrderCount    Int?
+  shopifyLastOrderAt   DateTime?
+  shopifySyncedAt      DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([email])
+  @@index([shopifyLifetimeSpend])
+}
+
+model CustomerSyncRun {
+  id           String    @id @default(cuid())
+  source       String    // "descope" | "goliath" | "shopify"
+  startedAt    DateTime  @default(now())
+  finishedAt   DateTime?
+  status       String    @default("running") // running | success | error
+  processed    Int       @default(0)
+  errorMessage String?
+
+  @@index([source, startedAt])
+}

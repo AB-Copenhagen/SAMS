@@ -319,6 +319,40 @@ ALTER TABLE "Asset" ADD COLUMN "importSource" TEXT;
 ALTER TABLE "Asset" ADD COLUMN "legacyMetaJson" TEXT;
 
 CREATE INDEX IF NOT EXISTS "Asset_importSource_idx" ON "Asset"("importSource");
+
+CREATE TABLE IF NOT EXISTS "Customer" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "email" TEXT,
+    "name" TEXT,
+    "phone" TEXT,
+    "marketingOptIn" BOOLEAN,
+    "descopeSyncedAt" DATETIME,
+    "goliathUserId" TEXT,
+    "goliathSegmentsJson" TEXT,
+    "goliathSyncedAt" DATETIME,
+    "shopifyCustomerId" TEXT,
+    "shopifyLifetimeSpend" REAL,
+    "shopifyOrderCount" INTEGER,
+    "shopifyLastOrderAt" DATETIME,
+    "shopifySyncedAt" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS "Customer_email_idx" ON "Customer"("email");
+CREATE INDEX IF NOT EXISTS "Customer_shopifyLifetimeSpend_idx" ON "Customer"("shopifyLifetimeSpend");
+
+CREATE TABLE IF NOT EXISTS "CustomerSyncRun" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "source" TEXT NOT NULL,
+    "startedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "finishedAt" DATETIME,
+    "status" TEXT NOT NULL DEFAULT 'running',
+    "processed" INTEGER NOT NULL DEFAULT 0,
+    "errorMessage" TEXT
+);
+
+CREATE INDEX IF NOT EXISTS "CustomerSyncRun_source_startedAt_idx" ON "CustomerSyncRun"("source", "startedAt");
 `;
 
 const statements = sql
