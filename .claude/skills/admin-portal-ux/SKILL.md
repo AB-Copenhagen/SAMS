@@ -15,20 +15,29 @@ one task in 30 seconds on a phone.
 
 ## Current state (read before changing it)
 
-- Nav is a single flat list in `components/NavLinks.tsx` — no section grouping, even though
-  `.nav-section` and `.nav-divider` CSS already exist in `app/globals.css` for exactly this.
-- No global/cross-entity search exists anywhere. Search is page-local: `/customers`
-  (name/email + marketingOptIn/segment/minSpend filters), `/media` (`MediaFilterBar`:
-  q/type/season/category/collection/players/sponsors/rating). `/admin`, `/collections`,
-  `/jobs`, `/analytics`, `/configure` have none.
+- Nav is grouped into Library / CRM / Operations sections in `components/NavLinks.tsx`, using
+  `.nav-section`/`.nav-divider` — the same `NAV_SECTIONS` array also feeds the command
+  palette's "Go to" results (`components/CommandPalette.tsx`).
+- Global search exists: `Cmd+K`/`Ctrl+K` opens `CommandPalette`, which hits
+  `app/api/search/route.ts` for cross-entity results (assets/players/sponsors/collections for
+  any logged-in role; customers only when `isAdmin(user)` — never queried otherwise). Page-local
+  filters still exist too: `/customers/list` (name/email + consent/segment/minSpend, now a
+  left-side filter rail, not a top bar), `/media` (`MediaFilterBar`: q/type/season/category/
+  collection/players/sponsors/rating).
 - Roles: `ADMIN | STAFF | PLAYER | MEDIA | SPONSOR` (`lib/auth.ts`), helper `isAdmin(user)`.
-  Hard `ADMIN`-only routes: `/admin`, `/customers`, `/customers/[id]`, `/analytics`,
-  `/jobs` (redirects to `/home`, inconsistently — not `/login` like the others). Everything
-  else is open to any logged-in role.
-- `/profile` is Descope's own `UserProfile` widget — account/security only, no app
-  preferences. `/configure` is where Players/Sponsors/Seasons/Stadiums/Devices get managed,
-  which is "catalog settings," a different thing from personal "my profile" settings — don't
-  conflate the two when adding a settings area.
+  `requireAdmin(user)` is the standard gate for a whole ADMIN-only route — redirects a
+  logged-in non-admin to `/home`, no session at all to `/login`, consistently. Hard
+  `ADMIN`-only routes: `/admin`, `/customers`, `/customers/list`, `/customers/[id]`,
+  `/analytics`, `/jobs`. Everything else is open to any logged-in role.
+- `/profile` has both Descope's `UserProfile` widget (account/security) and app-level display
+  preferences (theme, default page size, default landing page — `lib/staff-preferences.ts`,
+  `StaffPreference` table). `/configure` is where Players/Sponsors/Seasons/Stadiums/Devices get
+  managed, which is "catalog settings," a different thing from personal "my profile"
+  settings — don't conflate the two when adding a settings area.
+- `/customers` is a **dashboard** (KPI tiles, sync health, top segments/spenders, recent
+  logins) — the table itself lives at `/customers/list`. This is the reference shape for any
+  future CRM-adjacent entity with enough going on to warrant an overview before the raw list
+  (see "Pair a dashboard with a list" below).
 
 ## Principles
 
@@ -66,14 +75,38 @@ one task in 30 seconds on a phone.
   Goliath + Shopify into one page — treat that as the bar for any future detail page: don't
   make the admin click between three tabs to see identity, activity, and commercial data for
   one record.
+- **Pair a dashboard with a list once an entity has more than one angle worth seeing.**
+  `/customers` (KPIs + sync health + top segments/spenders + recent activity) →
+  `/customers/list` (the filterable table) is the reference shape: the list stays reachable
+  one click away ("Browse all X →" in the dashboard's `page-header`), and a dashboard that's
+  cron/sync-fed shows the sync's own health (last run status/time/processed count per source —
+  see `getCachedCustomerDashboard` in `lib/customer-query.ts`), not just counts of the data it
+  produced, so a page full of `—`s is self-explanatory instead of looking broken.
+- **Stay honest about what's actually editable.** A synced/read-only record (the Customer CRM
+  record, sourced from Descope/Goliath/Shopify) should look read-only — status chips, not
+  editable-looking dropdowns; no "owner"/"assign"/"add contact" affordances implying a manual
+  workflow this app doesn't have. Save dropdown-style inline-editable fields for data this app
+  actually owns and writes (Players/Sponsors/Seasons in `/configure`).
+- **Color is for scanability on dense people-lists, not branding.** The customer list's
+  per-row avatar colors (`--avatar-color-*` in `app/globals.css`, hashed from the customer id
+  in `app/customers/list/page.tsx`) are a deliberately separate palette from the AB brand
+  colors (`--ab-*`) — don't pull avatar colors into brand-facing UI, and don't reuse
+  `--color-primary`/`--color-accent` for a new per-row-color need instead of extending this
+  palette.
 
 ## Conventions to reuse (don't invent new ones)
 
 - Breakpoint: **860px** for sidebar/mobile-drawer collapse (same as `press-worker-usability`).
-- `.page-header`, `.page-body`/`.page-body-wide`, `.card`, `.stat-row`/`.stat-card`,
-  `.asset-table`/`.asset-table-wrap`, `.tabs`/`.tab-btn`, `.pagination`/`.page-info`,
-  `.breadcrumb`, `.sidebar-layout` (list+filters two-column) — all already defined in
-  `app/globals.css`; extend them, don't fork a parallel set of classes.
+- `.page-header`, `.page-body`/`.page-body-wide`, `.card`, `.card-header`, `.config-list`/
+  `.config-item`/`.config-item-info` (title+sub stacked inside a row — the info wrapper is
+  required, `.config-item` itself is a flex row), `.stat-row`/`.stat-card`, `.dashboard-row`
+  (a handful of equal-width summary cards, auto-fit), `.asset-table`/`.asset-table-wrap`,
+  `.tabs`/`.tab-btn`, `.pagination`/`.page-info`, `.breadcrumb`, `.sidebar-layout` (main content
+  + a 380px aside, aside **second**/right — used by `/media`) vs. `.customer-layout` (a 240px
+  rail **first**/left + main content — used by `/customers/list`; a separate class precisely
+  because it flips the aside to the other side, which would change `/media`'s layout if done
+  by modifying `.sidebar-layout` instead) — all already defined in `app/globals.css`; extend
+  them, don't fork a parallel set of classes.
 - `.nav-section`/`.nav-divider` exist but are unused for grouping today — this is the
   mechanism for IA regrouping, not ad-hoc headers.
 - Styling approach: plain CSS, BEM-ish names, no Tailwind/CSS modules (matches
