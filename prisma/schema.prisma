@@ -335,3 +335,14 @@ model CustomerSyncRun {
 
   @@index([source, startedAt])
 }
+
+// Per-admin-staff display preferences. id = the signed-session user id (Descope user id) — no
+// FK, since staff identity lives entirely in Descope/the session cookie (see lib/auth.ts),
+// not a local User table.
+model StaffPreference {
+  id                 String   @id
+  theme              String?  // "light" | "dark" | null (= browser/system default)
+  defaultPageSize    Int?
+  defaultLandingPage String?
+  updatedAt          DateTime @updatedAt
+}

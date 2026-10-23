@@ -4,20 +4,19 @@ import { Suspense } from 'react';
 import { getCurrentUser } from '../../lib/auth';
 import { prisma } from '../../lib/db';
 import { getCachedSeasons } from '../../lib/lookup-cache';
+import { getCachedStaffPreferences, resolvePageSize, PAGE_SIZE_OPTIONS as PER_PAGE_OPTIONS } from '../../lib/staff-preferences';
 import { formatCollectionType } from '../../lib/collection-types';
 import AppShell from '../../components/AppShell';
 import NewCollectionForm from '../../components/NewCollectionForm';
 import PerPageSelector from '../../components/PerPageSelector';
 
-const PER_PAGE_OPTIONS = [25, 50, 100];
-
 type View = 'event' | 'player' | 'sponsor' | 'custom';
 type SearchParams = { page?: string; perPage?: string; view?: string };
 
-function viewUrl(view: View, perPage: number) {
+function viewUrl(view: View, perPage: number, defaultPerPage: number) {
   const params = new URLSearchParams();
   if (view !== 'event') params.set('view', view);
-  if (perPage !== 25) params.set('perPage', String(perPage));
+  if (perPage !== defaultPerPage) params.set('perPage', String(perPage));
   const s = params.toString();
   return '/collections' + (s ? '?' + s : '');
 }
@@ -26,10 +25,12 @@ export default async function CollectionsPage(props: { searchParams: Promise<Sea
   const searchParams = await props.searchParams;
   const user = await getCurrentUser();
   if (!user) redirect('/login');
+  const pref = await getCachedStaffPreferences(user.id);
+  const defaultPerPage = resolvePageSize(pref, 25);
 
   const view: View = ['player', 'sponsor', 'custom'].includes(searchParams.view ?? '') ? (searchParams.view as View) : 'event';
   const page    = Math.max(1, parseInt(searchParams.page ?? '1'));
-  const perPage = PER_PAGE_OPTIONS.includes(parseInt(searchParams.perPage ?? '')) ? parseInt(searchParams.perPage!) : 25;
+  const perPage = PER_PAGE_OPTIONS.includes(parseInt(searchParams.perPage ?? '')) ? parseInt(searchParams.perPage!) : defaultPerPage;
 
   const [total, collections, seasons] = await Promise.all([
     prisma.collection.count({ where: { type: { not: 'custom' } } }),
@@ -105,10 +106,10 @@ export default async function CollectionsPage(props: { searchParams: Promise<Sea
       </div>
 
       <div className="tabs" style={{ marginBottom: 16 }}>
-        <Link href={viewUrl('event', perPage)} className={'tab-btn' + (view === 'event' ? ' active' : '')}>By Event</Link>
-        <Link href={viewUrl('player', perPage)} className={'tab-btn' + (view === 'player' ? ' active' : '')}>By Player</Link>
-        <Link href={viewUrl('sponsor', perPage)} className={'tab-btn' + (view === 'sponsor' ? ' active' : '')}>By Sponsor</Link>
-        <Link href={viewUrl('custom', perPage)} className={'tab-btn' + (view === 'custom' ? ' active' : '')}>Custom / Shared</Link>
+        <Link href={viewUrl('event', perPage, defaultPerPage)} className={'tab-btn' + (view === 'event' ? ' active' : '')}>By Event</Link>
+        <Link href={viewUrl('player', perPage, defaultPerPage)} className={'tab-btn' + (view === 'player' ? ' active' : '')}>By Player</Link>
+        <Link href={viewUrl('sponsor', perPage, defaultPerPage)} className={'tab-btn' + (view === 'sponsor' ? ' active' : '')}>By Sponsor</Link>
+        <Link href={viewUrl('custom', perPage, defaultPerPage)} className={'tab-btn' + (view === 'custom' ? ' active' : '')}>Custom / Shared</Link>
       </div>
 
       {view === 'player' && (

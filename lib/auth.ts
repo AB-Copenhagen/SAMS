@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { verifyDescopeSession, resolveAppRole } from './descope';
 
@@ -76,4 +77,17 @@ export async function getCurrentUser(): Promise<User | null> {
 
 export function isAdmin(user: User | null): user is User {
   return Boolean(user && user.role === 'ADMIN');
+}
+
+/**
+ * Call at the top of an ADMIN-only server component page. Sends a request with no session at
+ * all to /login, and a logged-in request that just lacks the role to /home — centralized so
+ * every admin-only route redirects a logged-in non-admin the same way instead of some bouncing
+ * to /login and others to /home. `redirect()` never returns, so this narrows `user` for the
+ * rest of the caller.
+ */
+export function requireAdmin(user: User | null): User {
+  if (!user) redirect('/login');
+  if (!isAdmin(user)) redirect('/home');
+  return user;
 }

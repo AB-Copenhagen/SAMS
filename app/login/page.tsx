@@ -1,10 +1,14 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '../../lib/auth';
+import { getCachedStaffPreferences, resolveLandingPage } from '../../lib/staff-preferences';
 import DescopeLoginForm from '../../components/DescopeLoginForm';
 
 export default async function LoginPage() {
   const user = await getCurrentUser();
-  if (user) redirect('/upload');
+  if (user) {
+    const pref = await getCachedStaffPreferences(user.id);
+    redirect(resolveLandingPage(pref, user.role, '/upload'));
+  }
 
   return (
     <div className="login-page">

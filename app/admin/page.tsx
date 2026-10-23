@@ -1,11 +1,11 @@
-import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { getCurrentUser } from '../../lib/auth';
+import { getCurrentUser, requireAdmin } from '../../lib/auth';
 import { prisma } from '../../lib/db';
+import { getCachedStaffPreferences, resolvePageSize } from '../../lib/staff-preferences';
 import AppShell from '../../components/AppShell';
 import DeleteAssetRowButton from '../../components/DeleteAssetRowButton';
 
-const PER_PAGE = 50;
+const DEFAULT_PER_PAGE = 50;
 
 const TABLE_ROW_SELECT = {
   id: true,
@@ -26,8 +26,9 @@ function typeBadge(fileType: string) {
 
 export default async function AdminPage(props: { searchParams: Promise<{ page?: string }> }) {
   const searchParams = await props.searchParams;
-  const user = await getCurrentUser();
-  if (!user || user.role !== 'ADMIN') redirect('/login');
+  const user = requireAdmin(await getCurrentUser());
+  const pref = await getCachedStaffPreferences(user.id);
+  const PER_PAGE = resolvePageSize(pref, DEFAULT_PER_PAGE);
 
   const page = Math.max(1, parseInt(searchParams.page ?? '1') || 1);
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyDescopeSession, resolveAppRole } from '../../../../lib/descope';
 import { createSessionCookie } from '../../../../lib/auth';
 import { checkRateLimit, requestIp } from '../../../../lib/rate-limit';
+import { getCachedStaffPreferences, resolveLandingPage } from '../../../../lib/staff-preferences';
 
 const RATE_LIMIT_WINDOW_SECONDS = 600;
 const RATE_LIMIT_MAX_ATTEMPTS = 20;
@@ -39,7 +40,10 @@ export async function POST(request: Request) {
     role,
   };
 
-  const response = NextResponse.json({ success: true });
+  const pref = await getCachedStaffPreferences(user.id);
+  const landingPage = resolveLandingPage(pref, user.role, '/upload');
+
+  const response = NextResponse.json({ success: true, landingPage });
   response.cookies.set({
     name: 'dam_session',
     value: createSessionCookie(user),

@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import { getCurrentUser } from '../../lib/auth';
 import { prisma } from '../../lib/db';
 import { getCachedPlayers, getCachedSponsors, getCachedSeasons, getCachedCollections } from '../../lib/lookup-cache';
+import { getCachedStaffPreferences, resolvePageSize } from '../../lib/staff-preferences';
 import AppShell from '../../components/AppShell';
 import MediaFilterBar from '../../components/MediaFilterBar';
 import MediaLibraryGallery from '../../components/MediaLibraryGallery';
@@ -20,6 +21,7 @@ export default async function MediaPage(props: { searchParams: Promise<SearchPar
   const searchParams = await props.searchParams;
   const user = await getCurrentUser();
   if (!user) redirect('/login');
+  const pref = await getCachedStaffPreferences(user.id);
 
   const q            = searchParams.q ?? '';
   const type         = searchParams.type ?? '';
@@ -30,7 +32,9 @@ export default async function MediaPage(props: { searchParams: Promise<SearchPar
   const sponsorIds   = searchParams.sponsorIds ? searchParams.sponsorIds.split(',').filter(Boolean) : [];
   const rating       = [1, 2, 3, 4].includes(parseInt(searchParams.rating ?? '')) ? parseInt(searchParams.rating!) : 0;
   const page     = Math.max(1, parseInt(searchParams.page ?? '1'));
-  const perPage  = PER_PAGE_OPTIONS.includes(parseInt(searchParams.perPage ?? '')) ? parseInt(searchParams.perPage!) : 25;
+  const perPage  = PER_PAGE_OPTIONS.includes(parseInt(searchParams.perPage ?? ''))
+    ? parseInt(searchParams.perPage!)
+    : resolvePageSize(pref, 25);
 
   const filters = { q, type, seasonId, category, collectionId, playerIds, sponsorIds, rating };
   const where = buildMediaLibraryWhere(filters);

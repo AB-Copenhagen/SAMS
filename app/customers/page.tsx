@@ -1,11 +1,11 @@
-import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { getCurrentUser, isAdmin } from '../../lib/auth';
+import { getCurrentUser, requireAdmin } from '../../lib/auth';
 import { prisma } from '../../lib/db';
+import { getCachedStaffPreferences, resolvePageSize } from '../../lib/staff-preferences';
 import AppShell from '../../components/AppShell';
 import { buildCustomerWhere, listDistinctGoliathSegments } from '../../lib/customer-query';
 
-const PER_PAGE = 50;
+const DEFAULT_PER_PAGE = 50;
 
 function segmentNames(json: string | null): string[] {
   if (!json) return [];
@@ -28,8 +28,9 @@ export default async function CustomersPage(
   }
 ) {
   const searchParams = await props.searchParams;
-  const user = await getCurrentUser();
-  if (!isAdmin(user)) redirect('/login');
+  const user = requireAdmin(await getCurrentUser());
+  const pref = await getCachedStaffPreferences(user.id);
+  const PER_PAGE = resolvePageSize(pref, DEFAULT_PER_PAGE);
 
   const page = Math.max(1, parseInt(searchParams.page ?? '1') || 1);
   const q = searchParams.q ?? '';
