@@ -1,12 +1,9 @@
-import { redirect } from 'next/navigation';
-import { getCurrentUser, isAdmin } from '../../lib/auth';
+import { getCurrentUser, requireAdmin } from '../../lib/auth';
 import AppShell from '../../components/AppShell';
 import JobsClient from '../../components/JobsClient';
 
 export default async function JobsPage() {
-  const user = await getCurrentUser();
-  if (!user) redirect('/login');
-  if (!isAdmin(user)) redirect('/home');
+  const user = requireAdmin(await getCurrentUser());
 
   return (
     <AppShell user={user}>

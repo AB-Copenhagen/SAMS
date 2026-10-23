@@ -1,6 +1,6 @@
-import { redirect, notFound } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getCurrentUser, isAdmin } from '../../../lib/auth';
+import { getCurrentUser, requireAdmin } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
 import AppShell from '../../../components/AppShell';
 import { customerAdminUrl } from '../../../lib/shopify';
@@ -21,8 +21,7 @@ function syncedLabel(date: Date | null) {
 
 export default async function CustomerDetailPage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const user = await getCurrentUser();
-  if (!isAdmin(user)) redirect('/login');
+  const user = requireAdmin(await getCurrentUser());
 
   const customer = await prisma.customer.findUnique({ where: { id: params.id } });
   if (!customer) notFound();

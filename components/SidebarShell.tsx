@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import type { User } from '../lib/auth';
 import NavLinks from './NavLinks';
 import LogoutButton from './LogoutButton';
+import CommandPalette from './CommandPalette';
 
 // Holds the mobile drawer open/closed state. Below the sidebar's collapse breakpoint (see
 // `@media (max-width: 860px)` in globals.css) the sidebar is off-canvas by default; this is what
@@ -50,6 +51,10 @@ export default function SidebarShell({ user }: { user: User }) {
           <button type="button" className="sidebar-close" aria-label="Close menu" onClick={() => setOpen(false)}>
             ×
           </button>
+        </div>
+
+        <div className="sidebar-search">
+          <CommandPalette role={user.role} />
         </div>
 
         <nav className="sidebar-nav">

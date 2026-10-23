@@ -19,6 +19,23 @@
   --color-accent: var(--ab-gold);
   --color-sidebar-bg: var(--ab-rich-black);
   --color-text: var(--ab-rich-black);
+
+  /* Page-shell tokens for the light/dark theme toggle (/profile preferences). Scoped to the
+     chrome this refactor touches — body canvas + the command palette — not every card/table,
+     most of which still hardcode light-mode hex values. See admin-portal-ux skill. */
+  --color-page-bg: #f0f2f7;
+  --color-page-text: #1a1a2e;
+  --color-surface: #ffffff;
+  --color-surface-text: #2d3154;
+  --color-surface-border: #e8ebf5;
+}
+
+:root[data-theme="dark"] {
+  --color-page-bg: #11131f;
+  --color-page-text: #d7dae8;
+  --color-surface: #1b1e2e;
+  --color-surface-text: #e3e5f0;
+  --color-surface-border: #2c3046;
 }
 
 html, body {
@@ -26,8 +43,8 @@ html, body {
   font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
   font-size: 14px;
   line-height: 1.5;
-  color: #1a1a2e;
-  background: #f0f2f7;
+  color: var(--color-page-text);
+  background: var(--color-page-bg);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -1273,3 +1290,108 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   border: 1px dashed #dde2f0;
 }
 .review-details-toggle:hover { background: #f7f8fc; color: #3a3f58; }
+
+/* ─── Sidebar search trigger + Cmd+K command palette ────────── */
+.sidebar-search { padding: 10px 8px 2px; }
+
+.command-palette-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 7px;
+  background: rgba(255,255,255,0.03);
+  color: #7c849f;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+.command-palette-trigger:hover { color: #c8ceea; border-color: rgba(255,255,255,0.16); }
+.command-palette-trigger span { flex: 1; }
+.command-palette-trigger kbd {
+  font-size: 11px;
+  font-family: inherit;
+  color: #555e80;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.command-palette-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13,15,28,.45);
+  backdrop-filter: blur(2px);
+  z-index: 400;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 72px 16px 16px;
+}
+
+.command-palette-dialog {
+  width: 100%;
+  max-width: 560px;
+  max-height: 70vh;
+  background: var(--color-surface);
+  border-radius: 12px;
+  box-shadow: 0 24px 64px rgba(0,0,0,.28);
+  overflow: hidden;
+  display: flex;
+}
+
+.command-palette { display: flex; flex-direction: column; width: 100%; min-height: 0; }
+
+.command-palette-input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--color-surface-border);
+  padding: 16px 20px;
+  font-size: 15px;
+  outline: none;
+  background: transparent;
+  color: var(--color-surface-text);
+}
+
+.command-palette-list {
+  overflow-y: auto;
+  padding: 8px;
+  min-height: 0;
+}
+
+.command-palette-empty {
+  padding: 24px 20px;
+  text-align: center;
+  color: #8890b4;
+  font-size: 13px;
+}
+
+.command-palette-group [cmdk-group-heading] {
+  padding: 10px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #8890b4;
+}
+
+.command-palette-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 7px;
+  font-size: 13.5px;
+  color: var(--color-surface-text);
+  cursor: pointer;
+}
+.command-palette-item svg { flex-shrink: 0; color: #8890b4; }
+.command-palette-item[aria-selected="true"] { background: var(--color-primary-tint); }
+.command-palette-item-sub { margin-left: auto; font-size: 12px; color: #8890b4; }
+
+@media (max-width: 640px) {
+  .command-palette-overlay { padding: 16px; align-items: center; }
+  .command-palette-dialog { max-height: 80vh; }
+}

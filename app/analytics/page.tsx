@@ -1,5 +1,4 @@
-import { redirect } from 'next/navigation';
-import { getCurrentUser } from '../../lib/auth';
+import { getCurrentUser, requireAdmin } from '../../lib/auth';
 import { prisma } from '../../lib/db';
 import AppShell from '../../components/AppShell';
 
@@ -40,8 +39,7 @@ function LeaderboardTable({
 }
 
 export default async function AnalyticsPage() {
-  const user = await getCurrentUser();
-  if (!user || user.role !== 'ADMIN') redirect('/login');
+  const user = requireAdmin(await getCurrentUser());
 
   const [
     imageCount,

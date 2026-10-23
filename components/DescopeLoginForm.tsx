@@ -29,7 +29,8 @@ export default function DescopeLoginForm() {
     });
 
     if (res.ok) {
-      router.push('/upload');
+      const body = await res.json().catch(() => ({}));
+      router.push(body.landingPage ?? '/upload');
     } else if (res.status === 403) {
       router.push('/login/unauthorized');
     } else {
