@@ -317,6 +317,13 @@ model Customer {
   shopifyOrderCount    Int?
   shopifyLastOrderAt   DateTime?
   shopifySyncedAt      DateTime?
+  mailerliteSubscriberId String?
+  mailerliteStatus       String?   // "active" | "unsubscribed" | "unconfirmed" | "bounced" | "junk"
+  mailerliteGroupsJson   String?   // flat JSON array of group names, same shape as goliathSegmentsJson
+  mailerliteSentCount    Int?
+  mailerliteOpensCount   Int?
+  mailerliteOpenRate     Float?    // 0-1
+  mailerliteSyncedAt     DateTime?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 

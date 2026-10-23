@@ -23,20 +23,21 @@ export function buildCustomerWhere(f: CustomerFilters): Record<string, unknown> 
   return AND.length ? { AND } : {};
 }
 
-// Small, fixed-size set (a club's total segment count), so a full scan of the
-// (indexed-elsewhere) goliathSegmentsJson column is fine rather than needing a dedicated
-// Segment table. Powers both the dashboard's "Top segments" card and the list page's segment
-// filter rail (the rail calls this with a high limit so every real segment is filterable, not
-// just the top few).
-export async function topGoliathSegments(limit: number): Promise<{ name: string; count: number }[]> {
+// Shared by topGoliathSegments and topMailerliteGroups below — both store membership as a flat
+// JSON-array-of-names string on Customer, small/fixed-size sets (a club's total segment or
+// MailerLite group count), so a full scan is fine rather than needing a dedicated join table.
+async function countJsonArrayField(
+  field: 'goliathSegmentsJson' | 'mailerliteGroupsJson',
+  limit: number,
+): Promise<{ name: string; count: number }[]> {
   const rows = await prisma.customer.findMany({
-    where: { goliathSegmentsJson: { not: null } },
-    select: { goliathSegmentsJson: true },
+    where: { [field]: { not: null } },
+    select: { [field]: true },
   });
   const counts = new Map<string, number>();
   for (const row of rows) {
     try {
-      for (const name of JSON.parse(row.goliathSegmentsJson ?? '[]') as string[]) {
+      for (const name of JSON.parse((row as Record<string, string | null>)[field] ?? '[]') as string[]) {
         counts.set(name, (counts.get(name) ?? 0) + 1);
       }
     } catch {
@@ -47,6 +48,17 @@ export async function topGoliathSegments(limit: number): Promise<{ name: string;
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
     .slice(0, limit);
+}
+
+// Powers both the dashboard's "Top segments" card and the list page's segment filter rail (the
+// rail calls this with a high limit so every real segment is filterable, not just the top few).
+export function topGoliathSegments(limit: number): Promise<{ name: string; count: number }[]> {
+  return countJsonArrayField('goliathSegmentsJson', limit);
+}
+
+// Powers the dashboard's "Top MailerLite groups" card.
+export function topMailerliteGroups(limit: number): Promise<{ name: string; count: number }[]> {
+  return countJsonArrayField('mailerliteGroupsJson', limit);
 }
 
 export type CustomerSyncRunSummary = {
@@ -60,6 +72,7 @@ export type CustomerSyncRunSummary = {
 
 export type CustomerDashboardData = {
   topSegments: { name: string; count: number }[];
+  topMailerliteGroups: { name: string; count: number }[];
   topSpenders: { id: string; name: string | null; email: string | null; shopifyLifetimeSpend: number | null }[];
   recentLogins: { id: string; name: string | null; email: string | null; lastLoginAt: Date | string | null; lastLoginCountry: string | null }[];
   syncRuns: CustomerSyncRunSummary[];
@@ -78,8 +91,9 @@ const SYNC_RUN_SOURCES = ['descope', 'descope-logins', 'goliath'] as const;
 // that would otherwise run 6+ queries per load.
 export const getCachedCustomerDashboard = unstable_cache(
   async (): Promise<CustomerDashboardData> => {
-    const [topSegments, topSpenders, recentLogins, syncRuns, shopifySyncedCount, shopifyMostRecent] = await Promise.all([
+    const [topSegments, topMailerliteGroupsResult, topSpenders, recentLogins, syncRuns, shopifySyncedCount, shopifyMostRecent] = await Promise.all([
       topGoliathSegments(6),
+      topMailerliteGroups(6),
       prisma.customer.findMany({
         where: { shopifyLifetimeSpend: { not: null } },
         orderBy: { shopifyLifetimeSpend: 'desc' },
@@ -103,6 +117,7 @@ export const getCachedCustomerDashboard = unstable_cache(
 
     return {
       topSegments,
+      topMailerliteGroups: topMailerliteGroupsResult,
       topSpenders,
       recentLogins,
       syncRuns: SYNC_RUN_SOURCES.map((source, i) => {
@@ -129,17 +144,19 @@ export type CustomerKpis = {
   optedOut: number;
   goliathSynced: number;
   shopifySynced: number;
+  mailerliteSynced: number;
 };
 
 // Deliberately not cached, unlike getCachedCustomerDashboard above — these are single indexed
 // count()s (cheap) and the dashboard's headline numbers, worth paying for freshness on every load.
 export async function getCustomerKpis(): Promise<CustomerKpis> {
-  const [total, optedIn, optedOut, goliathSynced, shopifySynced] = await Promise.all([
+  const [total, optedIn, optedOut, goliathSynced, shopifySynced, mailerliteSynced] = await Promise.all([
     prisma.customer.count(),
     prisma.customer.count({ where: { marketingOptIn: true } }),
     prisma.customer.count({ where: { marketingOptIn: false } }),
     prisma.customer.count({ where: { goliathSyncedAt: { not: null } } }),
     prisma.customer.count({ where: { shopifySyncedAt: { not: null } } }),
+    prisma.customer.count({ where: { mailerliteSyncedAt: { not: null } } }),
   ]);
-  return { total, optedIn, optedOut, goliathSynced, shopifySynced };
+  return { total, optedIn, optedOut, goliathSynced, shopifySynced, mailerliteSynced };
 }
