@@ -5,100 +5,221 @@ import { prisma } from '../../../lib/db';
 import AppShell from '../../../components/AppShell';
 import { customerAdminUrl } from '../../../lib/shopify';
 import { userDashboardUrl } from '../../../lib/goliath';
+import { avatarColor, avatarInitial, segmentNames } from '../../../lib/customer-ui';
 
-function segmentNames(json: string | null): string[] {
-  if (!json) return [];
-  try {
-    return JSON.parse(json) as string[];
-  } catch {
-    return [];
-  }
-}
+const ACTIVITY_PER_PAGE = 20;
 
 function syncedLabel(date: Date | null) {
   return date ? `Synced ${new Date(date).toLocaleString()}` : 'Not yet synced';
 }
 
-export default async function CustomerDetailPage(props: { params: Promise<{ id: string }> }) {
+function Icon({ children }: { children: React.ReactNode }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {children}
+    </svg>
+  );
+}
+
+const ACTIVITY_META: Record<string, { label: string; className: string; icon: React.ReactNode }> = {
+  login: {
+    label: 'Login',
+    className: 'activity-icon-login',
+    icon: <Icon><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><polyline points="10 17 15 12 10 7" /><line x1="15" y1="12" x2="3" y2="12" /></Icon>,
+  },
+  consent_changed: {
+    label: 'Consent changed',
+    className: 'activity-icon-consent',
+    icon: <Icon><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><polyline points="9 12 11 14 15 10" /></Icon>,
+  },
+  segments_changed: {
+    label: 'Segments changed',
+    className: 'activity-icon-segment',
+    icon: <Icon><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></Icon>,
+  },
+  order_placed: {
+    label: 'Order',
+    className: 'activity-icon-order',
+    icon: <Icon><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 0 1-8 0" /></Icon>,
+  },
+};
+
+export default async function CustomerDetailPage(props: { params: Promise<{ id: string }>; searchParams: Promise<{ page?: string }> }) {
   const params = await props.params;
+  const searchParams = await props.searchParams;
   const user = requireAdmin(await getCurrentUser());
 
   const customer = await prisma.customer.findUnique({ where: { id: params.id } });
   if (!customer) notFound();
 
+  const page = Math.max(1, parseInt(searchParams.page ?? '1') || 1);
+  const [activity, activityTotal] = await Promise.all([
+    prisma.customerActivity.findMany({
+      where: { customerId: customer.id },
+      orderBy: { occurredAt: 'desc' },
+      take: ACTIVITY_PER_PAGE,
+      skip: (page - 1) * ACTIVITY_PER_PAGE,
+    }),
+    prisma.customerActivity.count({ where: { customerId: customer.id } }),
+  ]);
+  const activityPages = Math.ceil(activityTotal / ACTIVITY_PER_PAGE) || 1;
+
   const segments = segmentNames(customer.goliathSegmentsJson);
   const shopifyUrl = customer.shopifyCustomerId ? customerAdminUrl(customer.shopifyCustomerId) : null;
   const goliathUrl = customer.goliathUserId ? userDashboardUrl(customer.goliathUserId) : null;
+  const daysSinceLogin = customer.lastLoginAt
+    ? Math.floor((Date.now() - new Date(customer.lastLoginAt).getTime()) / 86_400_000)
+    : null;
 
   return (
-    <AppShell user={user}>
+    <AppShell user={user} wide>
       <div className="page-header">
-        <div>
-          <h1>{customer.name || customer.email || customer.id}</h1>
-          <p>{customer.email}</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span className="customer-avatar" style={{ background: avatarColor(customer.id), width: 44, height: 44, fontSize: 17 }}>
+            {avatarInitial(customer.name, customer.email)}
+          </span>
+          <div>
+            <h1>{customer.name || customer.email || customer.id}</h1>
+            <p>{customer.email}</p>
+          </div>
         </div>
         <Link href="/customers/list" className="asset-link">← Back to customers</Link>
       </div>
 
-      <div className="card">
-        <h2>Identity &amp; consent</h2>
-        <p>Phone: {customer.phone || '—'}</p>
-        <p>
-          Marketing consent:{' '}
-          {customer.marketingOptIn === null ? 'Unknown' : customer.marketingOptIn ? 'Opted in' : 'Opted out'}
-        </p>
-        <p>
-          Account created: {customer.descopeCreatedAt ? new Date(customer.descopeCreatedAt).toLocaleDateString() : '—'}
-        </p>
-        <p>
-          Last login:{' '}
-          {customer.lastLoginAt ? new Date(customer.lastLoginAt).toLocaleString() : '—'}
-          {customer.lastLoginIp ? ` from ${customer.lastLoginIp}` : ''}
-          {customer.lastLoginCountry ? ` (${customer.lastLoginCountry})` : ''}
-        </p>
-        <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.descopeSyncedAt)}</p>
-      </div>
+      <div className="customer-layout">
+        <aside className="sticky-sidebar">
+          <div className="card">
+            <div className="card-header">Identity &amp; consent</div>
+            <div className="field">
+              <label>Phone</label>
+              <div className="detail-value">{customer.phone || '—'}</div>
+            </div>
+            <div className="field">
+              <label>Marketing consent</label>
+              <div className="detail-value">
+                {customer.marketingOptIn === null ? '—' : customer.marketingOptIn ? (
+                  <span className="consent-badge badge-opted-in">OPTED IN</span>
+                ) : (
+                  <span className="consent-badge badge-opted-out">OPTED OUT</span>
+                )}
+              </div>
+            </div>
+            <div className="field">
+              <label>Account created</label>
+              <div className="detail-value">{customer.descopeCreatedAt ? new Date(customer.descopeCreatedAt).toLocaleDateString() : '—'}</div>
+            </div>
+            <div className="field">
+              <label>Last login</label>
+              <div className="detail-value">
+                {customer.lastLoginAt ? new Date(customer.lastLoginAt).toLocaleString() : '—'}
+                {customer.lastLoginCountry ? ` (${customer.lastLoginCountry})` : ''}
+              </div>
+            </div>
+            <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.descopeSyncedAt)}</p>
+          </div>
 
-      <div className="card">
-        <h2>Goliath segments</h2>
-        {segments.length > 0 ? (
-          <ul>
-            {segments.map((name) => (
-              <li key={name}>{name}</li>
-            ))}
-          </ul>
-        ) : (
-          <p>No segment membership synced.</p>
-        )}
-        {goliathUrl && (
-          <p>
-            <a href={goliathUrl} target="_blank" rel="noopener noreferrer" className="asset-link">
-              View in Goliath ↗
-            </a>
-          </p>
-        )}
-        <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.goliathSyncedAt)}</p>
-      </div>
+          <div className="card">
+            <div className="card-header">Goliath segments</div>
+            <div style={{ marginBottom: 10 }}>
+              {segments.length > 0
+                ? segments.map((name) => <span key={name} className="segment-chip">{name}</span>)
+                : <p style={{ color: '#8890b4', fontSize: 13 }}>No segment membership synced.</p>}
+            </div>
+            {goliathUrl && (
+              <p style={{ marginBottom: 8 }}>
+                <a href={goliathUrl} target="_blank" rel="noopener noreferrer" className="asset-link">View in Goliath ↗</a>
+              </p>
+            )}
+            <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.goliathSyncedAt)}</p>
+          </div>
 
-      <div className="card">
-        <h2>Shopify</h2>
-        <p>
-          Lifetime spend:{' '}
-          {customer.shopifyLifetimeSpend != null ? `${customer.shopifyLifetimeSpend.toFixed(2)} DKK` : '—'}
-        </p>
-        <p>Orders: {customer.shopifyOrderCount ?? '—'}</p>
-        <p>
-          Last order:{' '}
-          {customer.shopifyLastOrderAt ? new Date(customer.shopifyLastOrderAt).toLocaleDateString() : '—'}
-        </p>
-        {shopifyUrl && (
-          <p>
-            <a href={shopifyUrl} target="_blank" rel="noopener noreferrer" className="asset-link">
-              View in Shopify ↗
-            </a>
-          </p>
-        )}
-        <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.shopifySyncedAt)}</p>
+          <div className="card">
+            <div className="card-header">Shopify</div>
+            <div className="field">
+              <label>Lifetime spend</label>
+              <div className="detail-value">{customer.shopifyLifetimeSpend != null ? `${customer.shopifyLifetimeSpend.toFixed(2)} DKK` : '—'}</div>
+            </div>
+            <div className="field">
+              <label>Orders</label>
+              <div className="detail-value">{customer.shopifyOrderCount ?? '—'}</div>
+            </div>
+            <div className="field">
+              <label>Last order</label>
+              <div className="detail-value">{customer.shopifyLastOrderAt ? new Date(customer.shopifyLastOrderAt).toLocaleDateString() : '—'}</div>
+            </div>
+            {shopifyUrl && (
+              <p style={{ marginBottom: 8 }}>
+                <a href={shopifyUrl} target="_blank" rel="noopener noreferrer" className="asset-link">View in Shopify ↗</a>
+              </p>
+            )}
+            <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.shopifySyncedAt)}</p>
+          </div>
+        </aside>
+
+        <div>
+          <div className="stat-row">
+            <div className="stat-card">
+              <div className="stat-label">Lifetime spend</div>
+              <div className="stat-value">{customer.shopifyLifetimeSpend != null ? `${customer.shopifyLifetimeSpend.toFixed(0)} DKK` : '—'}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Orders</div>
+              <div className="stat-value">{customer.shopifyOrderCount ?? '—'}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Days since login</div>
+              <div className="stat-value">{daysSinceLogin ?? '—'}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Segments</div>
+              <div className="stat-value">{segments.length}</div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header">Activity</div>
+            {activity.length === 0 ? (
+              <p style={{ color: '#8890b4', fontSize: 13 }}>
+                No activity recorded yet — this log only captures changes from here on, nothing retroactive.
+              </p>
+            ) : (
+              <div className="config-list">
+                {activity.map((a) => {
+                  const meta = ACTIVITY_META[a.type] ?? { label: a.type, className: 'activity-icon-login', icon: null };
+                  return (
+                    <div key={a.id} className="config-item">
+                      <span className={`activity-icon ${meta.className}`}>{meta.icon}</span>
+                      <div className="config-item-info">
+                        <div className="config-item-title">{a.detail || meta.label}</div>
+                        <div className="config-item-sub">{new Date(a.occurredAt).toLocaleString()}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {activity.length > 0 && activityPages > 1 && (
+            <div className="pagination">
+              <a
+                href={`/customers/${customer.id}?page=${page - 1}`}
+                className="btn-secondary"
+                style={{ pointerEvents: page <= 1 ? 'none' : 'auto', opacity: page <= 1 ? 0.4 : 1, textDecoration: 'none' }}
+              >
+                ← Prev
+              </a>
+              <span className="page-info">Page {page} of {activityPages} · {activityTotal} total</span>
+              <a
+                href={`/customers/${customer.id}?page=${page + 1}`}
+                className="btn-secondary"
+                style={{ pointerEvents: page >= activityPages ? 'none' : 'auto', opacity: page >= activityPages ? 0.4 : 1, textDecoration: 'none' }}
+              >
+                Next →
+              </a>
+            </div>
+          )}
+        </div>
       </div>
     </AppShell>
   );

@@ -4,34 +4,9 @@ import { prisma } from '../../../lib/db';
 import { getCachedStaffPreferences, resolvePageSize } from '../../../lib/staff-preferences';
 import AppShell from '../../../components/AppShell';
 import { buildCustomerWhere, topGoliathSegments } from '../../../lib/customer-query';
+import { avatarColor, avatarInitial, segmentNames } from '../../../lib/customer-ui';
 
 const DEFAULT_PER_PAGE = 50;
-const AVATAR_COLORS = [
-  'var(--avatar-color-1)', 'var(--avatar-color-2)', 'var(--avatar-color-3)',
-  'var(--avatar-color-4)', 'var(--avatar-color-5)', 'var(--avatar-color-6)',
-];
-
-function segmentNames(json: string | null): string[] {
-  if (!json) return [];
-  try {
-    return JSON.parse(json) as string[];
-  } catch {
-    return [];
-  }
-}
-
-// Deterministic per-customer color so the same row always gets the same avatar color across
-// page loads — not cryptographic, just needs to be stable and spread across the palette.
-function avatarColor(seed: string): string {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) | 0;
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
-
-function avatarInitial(name: string | null, email: string | null): string {
-  const source = name || email || '?';
-  return source.charAt(0).toUpperCase();
-}
 
 function consentBadge(marketingOptIn: boolean | null) {
   if (marketingOptIn === null) return <span className="consent-badge badge-opted-unknown">UNKNOWN</span>;

@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 
   const db = createPrismaClient();
   try {
-    const customer = await db.customer.findUnique({ where: { id: customerId }, select: { email: true } });
+    const customer = await db.customer.findUnique({ where: { id: customerId }, select: { email: true, shopifyOrderCount: true } });
     if (!customer) return NextResponse.json({ message: 'Customer not found' }, { status: 404 });
 
     if (customer.email) {
@@ -39,6 +39,18 @@ export async function POST(request: Request) {
             shopifySyncedAt: new Date(),
           },
         });
+
+        const newOrders = (shopify?.orderCount ?? 0) - (customer.shopifyOrderCount ?? 0);
+        if (shopify && newOrders > 0) {
+          await db.customerActivity.create({
+            data: {
+              customerId,
+              type: 'order_placed',
+              occurredAt: shopify.lastOrderAt ?? new Date(),
+              detail: `${newOrders} new order(s) · lifetime spend now ${shopify.lifetimeSpend.toFixed(2)} DKK`,
+            },
+          }).catch(() => {});
+        }
       } catch (err) {
         // Don't fail the whole job over a Shopify hiccup — the next sync-customers run will
         // re-enqueue this if the Descope-sourced fields change again, and the reconciliation

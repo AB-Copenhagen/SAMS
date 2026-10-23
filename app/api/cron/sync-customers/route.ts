@@ -84,6 +84,21 @@ export async function GET(request: Request) {
         await publishJob('/api/jobs/sync-customer-external', { customerId: customer.userId });
       }
 
+      // Only a real flip on an existing customer counts as a "change" worth logging — a brand
+      // new customer's initial value (no `existing` row) isn't one.
+      if (existing && existing.marketingOptIn !== customer.marketingOptIn) {
+        await db.customerActivity.create({
+          data: {
+            customerId: customer.userId,
+            type: 'consent_changed',
+            occurredAt: new Date(),
+            detail: customer.marketingOptIn === null
+              ? 'Marketing consent cleared'
+              : customer.marketingOptIn ? 'Opted in to marketing' : 'Opted out of marketing',
+          },
+        }).catch(() => {});
+      }
+
       if (processed % PROGRESS_UPDATE_INTERVAL === 0) {
         await db.customerSyncRun.update({ where: { id: run.id }, data: { processed } }).catch(() => {});
       }

@@ -53,12 +53,37 @@ export async function GET(request: Request) {
       }
     }
 
+    // Fetched up front so each customer's previous segments are known before they're
+    // overwritten below — needed to log a segments_changed activity only on a real diff, not
+    // every routine resync.
+    const previousByCustomer = new Map<string, string | null>();
+    if (segmentsByCustomer.size > 0) {
+      const existing = await db.customer.findMany({
+        where: { id: { in: [...segmentsByCustomer.keys()] } },
+        select: { id: true, goliathSegmentsJson: true },
+      });
+      for (const c of existing) previousByCustomer.set(c.id, c.goliathSegmentsJson);
+    }
+
     let processed = 0;
     for (const [customerId, { segmentNames, goliathUserId }] of segmentsByCustomer) {
       await db.customer.updateMany({
         where: { id: customerId },
         data: { goliathUserId, goliathSegmentsJson: JSON.stringify(segmentNames), goliathSyncedAt: new Date() },
       });
+
+      const previous = (() => {
+        try { return JSON.parse(previousByCustomer.get(customerId) ?? '[]') as string[]; } catch { return []; }
+      })();
+      const added = segmentNames.filter((n) => !previous.includes(n));
+      const removed = previous.filter((n) => !segmentNames.includes(n));
+      if (added.length > 0 || removed.length > 0) {
+        const parts = [added.length > 0 ? `+${added.join(', ')}` : null, removed.length > 0 ? `-${removed.join(', ')}` : null];
+        await db.customerActivity.create({
+          data: { customerId, type: 'segments_changed', occurredAt: new Date(), detail: parts.filter(Boolean).join(' · ') },
+        }).catch(() => {});
+      }
+
       processed++;
       if (processed % PROGRESS_UPDATE_INTERVAL === 0) {
         await db.customerSyncRun.update({ where: { id: run.id }, data: { processed } }).catch(() => {});
