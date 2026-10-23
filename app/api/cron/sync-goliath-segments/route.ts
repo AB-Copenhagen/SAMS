@@ -33,24 +33,24 @@ export async function GET(request: Request) {
 
   try {
     const segments = await listSegments();
-    const segmentsByCustomer = new Map<string, string[]>();
+    const segmentsByCustomer = new Map<string, { segmentNames: string[]; goliathUserId: string }>();
 
     for (const segment of segments) {
       const members = await getSegmentMembers(segment.id);
       for (const member of members) {
         const customerId = member.externalId ?? (await resolveByEmail(db, member.email));
         if (!customerId) continue;
-        const list = segmentsByCustomer.get(customerId) ?? [];
-        list.push(segment.name);
-        segmentsByCustomer.set(customerId, list);
+        const entry = segmentsByCustomer.get(customerId) ?? { segmentNames: [], goliathUserId: member.goliathUserId };
+        entry.segmentNames.push(segment.name);
+        segmentsByCustomer.set(customerId, entry);
       }
     }
 
     let processed = 0;
-    for (const [customerId, segmentNames] of segmentsByCustomer) {
+    for (const [customerId, { segmentNames, goliathUserId }] of segmentsByCustomer) {
       await db.customer.updateMany({
         where: { id: customerId },
-        data: { goliathSegmentsJson: JSON.stringify(segmentNames), goliathSyncedAt: new Date() },
+        data: { goliathUserId, goliathSegmentsJson: JSON.stringify(segmentNames), goliathSyncedAt: new Date() },
       });
       processed++;
     }

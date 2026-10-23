@@ -326,7 +326,11 @@ CREATE TABLE IF NOT EXISTS "Customer" (
     "name" TEXT,
     "phone" TEXT,
     "marketingOptIn" BOOLEAN,
+    "descopeCreatedAt" DATETIME,
     "descopeSyncedAt" DATETIME,
+    "lastLoginAt" DATETIME,
+    "lastLoginIp" TEXT,
+    "lastLoginCountry" TEXT,
     "goliathUserId" TEXT,
     "goliathSegmentsJson" TEXT,
     "goliathSyncedAt" DATETIME,
@@ -353,6 +357,11 @@ CREATE TABLE IF NOT EXISTS "CustomerSyncRun" (
 );
 
 CREATE INDEX IF NOT EXISTS "CustomerSyncRun_source_startedAt_idx" ON "CustomerSyncRun"("source", "startedAt");
+
+ALTER TABLE "Customer" ADD COLUMN "descopeCreatedAt" DATETIME;
+ALTER TABLE "Customer" ADD COLUMN "lastLoginAt" DATETIME;
+ALTER TABLE "Customer" ADD COLUMN "lastLoginIp" TEXT;
+ALTER TABLE "Customer" ADD COLUMN "lastLoginCountry" TEXT;
 `;
 
 const statements = sql

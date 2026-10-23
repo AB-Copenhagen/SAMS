@@ -79,3 +79,14 @@ export async function pushDataPoint(
   });
   return (await res.json()) as DataPointResult;
 }
+
+// Deep link to a fan's record in the Goliath dashboard (not the API docs host). Nothing fetched
+// from this codebase's Goliath docs names that dashboard's per-user URL — only SportsInnovation
+// or whoever uses the dashboard day to day would know it — so this is driven entirely by
+// GOLIATH_DASHBOARD_USER_URL_TEMPLATE (a full URL containing a literal "{id}" placeholder)
+// rather than a guessed path. Returns null, hiding the link, until that's set.
+export function userDashboardUrl(goliathUserId: string): string | null {
+  const template = process.env.GOLIATH_DASHBOARD_USER_URL_TEMPLATE;
+  if (!template) return null;
+  return template.replace('{id}', encodeURIComponent(goliathUserId));
+}

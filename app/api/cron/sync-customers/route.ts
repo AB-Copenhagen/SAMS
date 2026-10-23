@@ -53,6 +53,7 @@ export async function GET(request: Request) {
           name: customer.name,
           phone: customer.phone,
           marketingOptIn: customer.marketingOptIn,
+          descopeCreatedAt: customer.createdAt,
           descopeSyncedAt: new Date(),
         },
         update: {
@@ -61,6 +62,7 @@ export async function GET(request: Request) {
           phone: customer.phone,
           marketingOptIn: customer.marketingOptIn,
           descopeSyncedAt: new Date(),
+          // descopeCreatedAt is immutable upstream — set once on create, never overwritten
         },
       });
 

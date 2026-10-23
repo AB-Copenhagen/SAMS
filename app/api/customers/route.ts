@@ -12,9 +12,12 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1') || 1);
   const rawMarketingOptIn = searchParams.get('marketingOptIn');
+  const rawMinSpend = searchParams.get('minSpend');
   const where = buildCustomerWhere({
     q: searchParams.get('q') ?? undefined,
     marketingOptIn: rawMarketingOptIn === 'true' ? true : rawMarketingOptIn === 'false' ? false : undefined,
+    minSpend: rawMinSpend ? Number(rawMinSpend) : undefined,
+    segment: searchParams.get('segment') ?? undefined,
   });
 
   const [customers, total] = await Promise.all([

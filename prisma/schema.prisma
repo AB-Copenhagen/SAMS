@@ -304,7 +304,11 @@ model Customer {
   name                 String?
   phone                String?
   marketingOptIn       Boolean?
+  descopeCreatedAt     DateTime?
   descopeSyncedAt      DateTime?
+  lastLoginAt          DateTime?
+  lastLoginIp          String?
+  lastLoginCountry     String?
   goliathUserId        String?
   goliathSegmentsJson  String?
   goliathSyncedAt      DateTime?

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { getCurrentUser, isAdmin } from '../../lib/auth';
 import { prisma } from '../../lib/db';
 import AppShell from '../../components/AppShell';
-import { buildCustomerWhere } from '../../lib/customer-query';
+import { buildCustomerWhere, listDistinctGoliathSegments } from '../../lib/customer-query';
 
 const PER_PAGE = 50;
 
@@ -17,7 +17,15 @@ function segmentNames(json: string | null): string[] {
 }
 
 export default async function CustomersPage(
-  props: { searchParams: Promise<{ page?: string; q?: string; marketingOptIn?: string }> }
+  props: {
+    searchParams: Promise<{
+      page?: string;
+      q?: string;
+      marketingOptIn?: string;
+      minSpend?: string;
+      segment?: string;
+    }>;
+  }
 ) {
   const searchParams = await props.searchParams;
   const user = await getCurrentUser();
@@ -27,11 +35,14 @@ export default async function CustomersPage(
   const q = searchParams.q ?? '';
   const marketingOptIn =
     searchParams.marketingOptIn === 'true' ? true : searchParams.marketingOptIn === 'false' ? false : undefined;
-  const where = buildCustomerWhere({ q: q || undefined, marketingOptIn });
+  const minSpend = searchParams.minSpend ? Number(searchParams.minSpend) : undefined;
+  const segment = searchParams.segment || undefined;
+  const where = buildCustomerWhere({ q: q || undefined, marketingOptIn, minSpend, segment });
 
-  const [customers, total] = await Promise.all([
+  const [customers, total, segmentOptions] = await Promise.all([
     prisma.customer.findMany({ where, orderBy: { updatedAt: 'desc' }, take: PER_PAGE, skip: (page - 1) * PER_PAGE }),
     prisma.customer.count({ where }),
+    listDistinctGoliathSegments(),
   ]);
 
   const pages = Math.ceil(total / PER_PAGE) || 1;
@@ -40,6 +51,8 @@ export default async function CustomersPage(
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (marketingOptIn !== undefined) params.set('marketingOptIn', String(marketingOptIn));
+    if (minSpend !== undefined) params.set('minSpend', String(minSpend));
+    if (segment) params.set('segment', segment);
     if (p > 1) params.set('page', String(p));
     const qs = params.toString();
     return '/customers' + (qs ? `?${qs}` : '');
@@ -67,6 +80,19 @@ export default async function CustomersPage(
           <option value="true">Opted in</option>
           <option value="false">Opted out</option>
         </select>
+        <select name="segment" defaultValue={segment ?? ''}>
+          <option value="">All segments</option>
+          {segmentOptions.map((name) => (
+            <option key={name} value={name}>{name}</option>
+          ))}
+        </select>
+        <input
+          type="number"
+          name="minSpend"
+          placeholder="Min spend (DKK)"
+          defaultValue={minSpend ?? ''}
+          style={{ width: 150, padding: '8px 10px' }}
+        />
         <button className="btn-primary" type="submit">Search</button>
       </form>
 
@@ -85,6 +111,7 @@ export default async function CustomersPage(
                   <th>Consent</th>
                   <th>Goliath segments</th>
                   <th>Lifetime spend</th>
+                  <th>Last login</th>
                   <th>Last synced</th>
                 </tr>
               </thead>
@@ -105,6 +132,11 @@ export default async function CustomersPage(
                     </td>
                     <td>
                       {customer.shopifyLifetimeSpend != null ? `${customer.shopifyLifetimeSpend.toFixed(2)} DKK` : '—'}
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap', color: '#8890b4' }}>
+                      {customer.lastLoginAt
+                        ? `${new Date(customer.lastLoginAt).toLocaleString()}${customer.lastLoginCountry ? ` (${customer.lastLoginCountry})` : ''}`
+                        : '—'}
                     </td>
                     <td style={{ whiteSpace: 'nowrap', color: '#8890b4' }}>
                       {customer.updatedAt ? new Date(customer.updatedAt).toLocaleString() : '—'}
