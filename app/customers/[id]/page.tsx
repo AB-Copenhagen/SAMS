@@ -7,6 +7,7 @@ import { customerAdminUrl } from '../../../lib/shopify';
 import { userDashboardUrl } from '../../../lib/goliath';
 import { subscriberDashboardUrl } from '../../../lib/mailerlite';
 import { avatarColor, avatarInitial, segmentNames } from '../../../lib/customer-ui';
+import { isExternalDataStale, refreshCustomerExternalData } from '../../../lib/customer-enrichment';
 
 const ACTIVITY_PER_PAGE = 20;
 
@@ -57,6 +58,13 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
 
   const customer = await prisma.customer.findUnique({ where: { id: params.id } });
   if (!customer) notFound();
+
+  // Shopify/MailerLite are fetched lazily here rather than eagerly for every customer on every
+  // Descope sync (see lib/customer-enrichment.ts) — a 24h-stale view pays for a live refresh,
+  // everything within the window serves straight from the cached columns below.
+  if (isExternalDataStale(customer.shopifySyncedAt)) {
+    Object.assign(customer, await refreshCustomerExternalData(customer));
+  }
 
   const page = Math.max(1, parseInt(searchParams.page ?? '1') || 1);
   const [activity, activityTotal] = await Promise.all([

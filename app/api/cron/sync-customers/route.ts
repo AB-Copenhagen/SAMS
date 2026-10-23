@@ -1,14 +1,18 @@
 import { NextResponse } from 'next/server';
 import { createPrismaClient } from '../../../../lib/db';
 import { iterateAllCustomers } from '../../../../lib/descope-customers';
-import { publishJob } from '../../../../lib/qstash';
 import { supersedeStaleRun } from '../../../../lib/customer-sync-run';
 
 // 280s, not the platform's full 300s ceiling — leaves headroom to still hit the catch block and
 // record a clean "error" before a hard platform kill. Needed because this processes customers
-// sequentially (2 Turso round-trips each via findUnique+upsert, plus a QStash publish for
-// anything changed) — at a few hundred customers that routinely ran past the previous 60s cap,
-// leaving CustomerSyncRun rows stuck in "running" forever (see supersedeStaleRun below).
+// sequentially (2 Turso round-trips each via findUnique+upsert) — at a few hundred customers
+// that routinely ran past the previous 60s cap, leaving CustomerSyncRun rows stuck in "running"
+// forever (see supersedeStaleRun below). This used to also enqueue a QStash job per changed
+// customer for Shopify/MailerLite enrichment, which was a major contributor to the timeout,
+// especially during an initial backfill where most customers count as "changed" — that
+// enrichment is now fetched lazily on a customer's detail page view instead, with a TTL cache
+// (see lib/customer-enrichment.ts), since most fans never touch Shopify/MailerLite anyway and
+// syncing everyone eagerly bought no real completeness benefit.
 export const maxDuration = 280;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -26,12 +30,11 @@ function authorized(request: Request): boolean {
   return request.headers.get('authorization') === `Bearer ${secret}`;
 }
 
-// Pages through every fan profile in the MyAB Descope project (lib/descope-customers), upserts
-// the local Customer cache, and enqueues app/api/jobs/sync-customer-external for anything new
-// or changed so Shopify enrichment happens off this request path — mirrors
-// app/api/cron/process-ingest-jobs's cron + per-item QStash job split. Goliath segment
-// membership is refreshed separately by app/api/cron/sync-goliath-segments, since Goliath has
-// no per-user read endpoint to call per customer here (see lib/goliath.ts).
+// Pages through every fan profile in the MyAB Descope project (lib/descope-customers) and
+// upserts the local Customer cache. Shopify/MailerLite enrichment is fetched lazily per
+// customer on detail-page view instead of eagerly here (see lib/customer-enrichment.ts).
+// Goliath segment membership is refreshed separately by app/api/cron/sync-goliath-segments,
+// since Goliath has no per-user read endpoint to call per customer here (see lib/goliath.ts).
 export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
@@ -79,10 +82,7 @@ export async function GET(request: Request) {
       });
 
       processed++;
-      if (isChanged) {
-        changed++;
-        await publishJob('/api/jobs/sync-customer-external', { customerId: customer.userId });
-      }
+      if (isChanged) changed++;
 
       // Only a real flip on an existing customer counts as a "change" worth logging — a brand
       // new customer's initial value (no `existing` row) isn't one.
