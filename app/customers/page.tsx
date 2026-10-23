@@ -84,6 +84,10 @@ export default async function CustomersDashboardPage() {
           <div className="stat-label">Synced w/ Shopify</div>
           <div className="stat-value">{kpis.shopifySynced} <span style={{ fontSize: 14, color: '#8890b4' }}>({pct(kpis.shopifySynced, kpis.total)})</span></div>
         </div>
+        <div className="stat-card">
+          <div className="stat-label">Synced w/ MailerLite</div>
+          <div className="stat-value">{kpis.mailerliteSynced} <span style={{ fontSize: 14, color: '#8890b4' }}>({pct(kpis.mailerliteSynced, kpis.total)})</span></div>
+        </div>
       </div>
 
       <div className="card">
@@ -97,6 +101,17 @@ export default async function CustomersDashboardPage() {
                 {dashboard.shopify.mostRecentSyncedAt
                   ? `Most recent sync ${new Date(dashboard.shopify.mostRecentSyncedAt).toLocaleString()} · ${dashboard.shopify.syncedCount} customer(s) synced`
                   : 'No customer has synced Shopify data yet'}
+                {' · syncs per-customer, enqueued from the Descope sync (no single run to report)'}
+              </div>
+            </div>
+          </div>
+          <div className="config-item">
+            <div className="config-item-info">
+              <div className="config-item-title">MailerLite</div>
+              <div className="config-item-sub">
+                {kpis.mailerliteSynced > 0
+                  ? `${kpis.mailerliteSynced} customer(s) synced`
+                  : 'No customer has synced MailerLite data yet'}
                 {' · syncs per-customer, enqueued from the Descope sync (no single run to report)'}
               </div>
             </div>
@@ -148,19 +163,36 @@ export default async function CustomersDashboardPage() {
         </div>
       </div>
 
-      <div className="card">
-        <div className="card-header">Top Goliath segments</div>
-        {dashboard.topSegments.length === 0 ? (
-          <p style={{ color: '#8890b4', fontSize: 13 }}>No segment membership synced yet.</p>
-        ) : (
-          <div>
-            {dashboard.topSegments.map((s) => (
-              <Link key={s.name} href={`/customers/list?segment=${encodeURIComponent(s.name)}`} className="segment-chip" style={{ fontSize: 13, padding: '4px 10px' }}>
-                {s.name} · {s.count}
-              </Link>
-            ))}
-          </div>
-        )}
+      <div className="dashboard-row">
+        <div className="card">
+          <div className="card-header">Top Goliath segments</div>
+          {dashboard.topSegments.length === 0 ? (
+            <p style={{ color: '#8890b4', fontSize: 13 }}>No segment membership synced yet.</p>
+          ) : (
+            <div>
+              {dashboard.topSegments.map((s) => (
+                <Link key={s.name} href={`/customers/list?segment=${encodeURIComponent(s.name)}`} className="segment-chip" style={{ fontSize: 13, padding: '4px 10px' }}>
+                  {s.name} · {s.count}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <div className="card-header">Top MailerLite groups</div>
+          {dashboard.topMailerliteGroups.length === 0 ? (
+            <p style={{ color: '#8890b4', fontSize: 13 }}>No MailerLite data synced yet.</p>
+          ) : (
+            <div>
+              {dashboard.topMailerliteGroups.map((g) => (
+                <span key={g.name} className="segment-chip" style={{ fontSize: 13, padding: '4px 10px' }}>
+                  {g.name} · {g.count}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </AppShell>
   );
