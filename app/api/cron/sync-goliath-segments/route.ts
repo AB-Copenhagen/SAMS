@@ -2,10 +2,16 @@ import { NextResponse } from 'next/server';
 import type { PrismaClient } from '@prisma/client';
 import { createPrismaClient } from '../../../../lib/db';
 import { listSegments, getSegmentMembers } from '../../../../lib/goliath';
+import { supersedeStaleRun } from '../../../../lib/customer-sync-run';
 
-export const maxDuration = 60;
+// See app/api/cron/sync-customers' comment on the same constant — same risk (a platform kill
+// mid-run can't be caught, leaving the CustomerSyncRun stuck in "running") once this club has
+// enough segments/members for the per-segment API calls and matching below to take a while.
+export const maxDuration = 280;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
+
+const PROGRESS_UPDATE_INTERVAL = 50;
 
 function authorized(request: Request): boolean {
   const secret = process.env.CRON_SECRET;
@@ -28,6 +34,7 @@ export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const db = createPrismaClient();
+  await supersedeStaleRun(db, 'goliath');
   const startedAt = new Date();
   const run = await db.customerSyncRun.create({ data: { source: 'goliath', startedAt, status: 'running' } });
 
@@ -53,6 +60,9 @@ export async function GET(request: Request) {
         data: { goliathUserId, goliathSegmentsJson: JSON.stringify(segmentNames), goliathSyncedAt: new Date() },
       });
       processed++;
+      if (processed % PROGRESS_UPDATE_INTERVAL === 0) {
+        await db.customerSyncRun.update({ where: { id: run.id }, data: { processed } }).catch(() => {});
+      }
     }
 
     const finishedAt = new Date();

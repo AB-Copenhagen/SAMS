@@ -42,7 +42,9 @@ function SyncRunRow({ run }: { run: CustomerSyncRunSummary }) {
         <div className="config-item-sub">
           {run.status === 'error'
             ? run.errorMessage ?? 'Unknown error'
-            : `${run.finishedAt ? new Date(run.finishedAt).toLocaleString() : 'in progress'}${run.processed != null ? ` · ${run.processed} processed` : ''}`}
+            : run.finishedAt
+              ? `${new Date(run.finishedAt).toLocaleString()}${run.processed != null ? ` · ${run.processed} processed` : ''}`
+              : `Started ${run.startedAt ? new Date(run.startedAt).toLocaleString() : 'recently'}${run.processed ? ` · ${run.processed} processed so far` : ''}`}
         </div>
       </div>
     </div>

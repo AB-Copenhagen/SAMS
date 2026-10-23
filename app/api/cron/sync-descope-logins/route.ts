@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createPrismaClient } from '../../../../lib/db';
 import { fetchRecentLogins } from '../../../../lib/descope-customers';
+import { supersedeStaleRun } from '../../../../lib/customer-sync-run';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,7 @@ export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const db = createPrismaClient();
+  await supersedeStaleRun(db, 'descope-logins');
   const startedAt = new Date();
   const run = await db.customerSyncRun.create({ data: { source: 'descope-logins', startedAt, status: 'running' } });
 
