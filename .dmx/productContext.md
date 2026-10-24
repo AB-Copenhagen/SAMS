@@ -23,6 +23,10 @@ SAMS solves both by being the single system of record: a DAM that gets media tag
 - The fan detail page keeps a real append-only activity log (logins, consent changes, segment changes, orders, ticket purchases, match check-ins, MailerLite status changes) rather than just a snapshot of current state.
 - `/customers/reports` intentionally ships four fixed reports instead of a general query builder — covers what's been asked for, and a query builder's safety/permission surface wasn't worth building speculatively.
 
+**Shared admin shell (DAM + CRM):**
+- A persistent top header (name, role, profile link, sign-out) spans every authenticated staff page; it replaced an earlier sidebar-footer block. Global search lives in the header as an always-visible, instant-results input rather than a Cmd+K-triggered modal — the modal's keyboard shortcut was dropped after reports it was unreliable.
+- Public share views (`/s/[token]`) stay outside this shell entirely.
+
 ## Who uses it
 
 - **Club staff / media team** — the primary users of both the DAM (upload, tag-correction, review, editing) and the CRM (fan lookups, reports), gated by Descope role `ADMIN` or `STAFF`.

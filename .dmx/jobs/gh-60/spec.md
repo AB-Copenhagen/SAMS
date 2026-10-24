@@ -44,16 +44,16 @@ The admin back-office currently has no top header — all navigation, the Cmd+K 
 <!-- Answer each question before running /dmx/plan. -->
 
 1. The sidebar currently shows the user's name/role and sign-out in `.sidebar-footer`. Should the new top header's profile/settings menu **replace** that block entirely, or should the sidebar keep a trimmed version (e.g., sign-out only) for narrow/mobile layouts?
-   Answer:
+   Answer: The new top header should replace the profile/settings menu.
 
 2. "Improvements to global search" — which specific improvement(s) are wanted? e.g. recent/pinned searches, richer result previews, keyboard-navigation polish, new result types, or relocating the Cmd+K trigger itself into the new header.
-   Answer:
+   Answer: The ctrl+k overlap is buggy and doesn't work. I'd prefer a global search bar always available with instant results as you type.
 
 3. Should the new header coexist with the existing `.mobile-topbar` (used below the 860px breakpoint today), or replace it, so mobile doesn't end up with two stacked top bars?
-   Answer:
+   Answer: replace it, we don't want a stacked view for mobile.
 
 4. Does "settings" in "profile/settings" mean linking to the existing `/profile` page (Descope widget + `StaffPreference` display prefs), or does it also require a new settings surface distinct from `/configure`?
-   Answer:
+   Answer: yes, it means linking to the existing descope widget (which is broken and needs fixing)
 
 5. Should the header render on every authenticated route, or only within the main staff shell (excluding `/s/[token]` public share views, which sit outside `AppShell` today)?
-   Answer:
+   Answer: only within the main staff shell
