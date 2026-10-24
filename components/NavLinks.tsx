@@ -96,7 +96,7 @@ export const NAV_SECTIONS: NavSectionDef[] = [
       {
         href: '/customers',
         label: 'Customers',
-        isActive: (p) => p.startsWith('/customers'),
+        isActive: (p) => p.startsWith('/customers') && !p.startsWith('/customers/reports'),
         adminOnly: true,
         icon: (
           <Icon>
@@ -104,6 +104,19 @@ export const NAV_SECTIONS: NavSectionDef[] = [
             <circle cx="9" cy="7" r="4" />
             <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
             <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </Icon>
+        ),
+      },
+      {
+        href: '/customers/reports',
+        label: 'Reports',
+        isActive: (p) => p.startsWith('/customers/reports'),
+        adminOnly: true,
+        icon: (
+          <Icon>
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
           </Icon>
         ),
       },
