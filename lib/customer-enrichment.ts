@@ -38,6 +38,7 @@ export type ExternalDataFields = {
   vivenuLifetimeSpend: number | null;
   vivenuSeasonPassStatus: string | null;
   vivenuMatchesPurchasedCount: number | null;
+  vivenuPurchasedEventIdsJson: string | null;
   vivenuSyncedAt: Date;
 };
 
@@ -128,21 +129,23 @@ export async function refreshCustomerExternalData(customer: {
     const lifetimeSpend = transactions.reduce((sum, t) => sum + t.realPrice, 0);
 
     const distinctEventIds = [...new Set(transactions.map((t) => t.eventId))];
-    let matchesPurchased = 0;
+    const purchasedEventIds: string[] = [];
     let seasonPassStatus: string | null = null;
     for (const eventId of distinctEventIds) {
       const eventType = await getEventType(eventId);
-      if (eventType === 'SINGLE') matchesPurchased++;
+      if (eventType === 'SINGLE') purchasedEventIds.push(eventId);
       else if (eventType === 'GROUP') {
         const event = await prisma.vivenuEvent.findUnique({ where: { id: eventId } });
         seasonPassStatus = event?.name ?? eventId;
       }
     }
+    const matchesPurchased = purchasedEventIds.length;
 
     const vivenuFields: Partial<ExternalDataFields> = {
       vivenuLifetimeSpend: lifetimeSpend,
       vivenuSeasonPassStatus: seasonPassStatus,
       vivenuMatchesPurchasedCount: matchesPurchased,
+      vivenuPurchasedEventIdsJson: JSON.stringify(purchasedEventIds),
       vivenuSyncedAt: new Date(),
     };
     await prisma.customer.update({ where: { id: customer.id }, data: vivenuFields });

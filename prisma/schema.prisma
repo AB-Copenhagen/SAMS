@@ -330,6 +330,10 @@ model Customer {
   vivenuLifetimeSpend         Float?
   vivenuSeasonPassStatus      String?   // the GROUP event's name (e.g. "Sæsonkort 2026/27"), or null
   vivenuMatchesPurchasedCount Int?      // recomputed in full on every refresh from transaction history
+  // The SINGLE-type event IDs backing vivenuMatchesPurchasedCount, kept (not just the count) so
+  // the customer detail page can list which matches were purchased, same shape/purpose as
+  // vivenuAttendedEventIdsJson below. Recomputed in full on every refresh, same as the count.
+  vivenuPurchasedEventIdsJson String?
   // Accrues via the scan.created webhook, which is the only realistic source for this (Vivenu's
   // Scans API has no customerId filter — see lib/vivenu.ts) — not re-derivable from a fresh pull,
   // so the actual event-id set is kept (for dedup against repeat webhook deliveries) alongside
