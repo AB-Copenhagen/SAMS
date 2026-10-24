@@ -31,6 +31,10 @@ export async function generateVideoThumbnail(objectKey: string): Promise<VideoTh
   const sandbox = await Sandbox.create({
     timeout: SANDBOX_TIMEOUT_MS,
     source: { type: 'snapshot', snapshotId: SNAPSHOT_ID },
+    // Each call is one-off and unnamed, so it's never resumed — without this, Sandbox's default
+    // persistence auto-snapshots the full 400MB+ filesystem on every stop() and bills it for 30
+    // days, which is how this accumulated 400+ orphaned snapshots (~180GB of Snapshot Storage).
+    persistent: false,
   });
 
   try {

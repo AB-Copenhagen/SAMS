@@ -120,6 +120,18 @@ export const NAV_SECTIONS: NavSectionDef[] = [
           </Icon>
         ),
       },
+      {
+        href: '/customers/match-activity',
+        label: 'Match activity',
+        isActive: (p) => p.startsWith('/customers/match-activity'),
+        adminOnly: true,
+        icon: (
+          <Icon>
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 6v6l4 2" />
+          </Icon>
+        ),
+      },
     ],
   },
   {
