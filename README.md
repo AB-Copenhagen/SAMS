@@ -1,6 +1,11 @@
 # SAMS — Sports Asset Management System
 
-A Digital Asset Manager (DAM) built for professional soccer teams. SAMS centralises all club photography, video, and visual assets — organised by season, game, and event — with role-based access for staff, players, media partners, and sponsors.
+A platform built for professional soccer teams, combining a Digital Asset Manager (DAM) for
+club photography and video with a Customer CRM that unifies the fan record across identity,
+ticketing, ecommerce, and email platforms. SAMS centralises club media — organised by season,
+game, and event — and gives staff one place to see a fan's consent, CDP segments, spend,
+tickets, and engagement, with role-based access for staff, players, media partners, and
+sponsors.
 
 ## Features
 
@@ -62,24 +67,55 @@ A Digital Asset Manager (DAM) built for professional soccer teams. SAMS centrali
 - **Stadiums** — venue list used for autocomplete across the app
 - **Devices** — mint/revoke API keys for unattended ingest tools (the CLI, future integrations)
 
-### Customers (CRM, Phase 1)
-- `/customers` — searchable, paginated unified fan record: Descope identity + marketing
-  consent, Goliath CDP segment membership, and Shopify lifetime spend/order history, each
-  shown with its own "last synced" timestamp. Admin-only, read-only for now.
-- Populated entirely by background sync, not manual entry: `/api/cron/sync-customers` (every
-  30 min) pages through the AB mobile app's own Descope project and upserts the local
-  `Customer` cache, enqueueing a QStash job (`/api/jobs/sync-customer-external`) per new/changed
-  fan to pull their Shopify spend; `/api/cron/sync-goliath-segments` (every 6h) separately walks
-  Goliath's segments API to attach segment membership, since Goliath has no per-user read
-  endpoint (see `lib/goliath.ts`).
-- The join key across all three systems is the fan's Descope `userId` — Goliath already logs
-  users in through Descope, so its `externalId` for a fan is the same ID.
-- Future phases: pushing a segment built here back into Goliath for in-app targeting, and
-  syncing opted-in fans to MailerLite for campaign sending.
+### Customer CRM
+A unified fan record spanning five external systems, built around one stable join key: the
+fan's Descope `userId` from the consumer-facing "MyAB" mobile app project (a different Descope
+project from this app's own staff-login project). Admin-only.
+
+- **`/customers`** — a CRM dashboard: KPIs (total/opted-in/opted-out, per-platform sync
+  coverage), sync-run health per source, top Goliath segments and MailerLite groups, top
+  spenders, and recent logins.
+- **`/customers/list`** — the searchable, filterable, paginated fan table: name/email search,
+  minimum-spend and Goliath-segment filters, consent status.
+- **`/customers/[id]`** — a per-fan detail page with collapsible, color-coded sections:
+  - **Profile** — Descope identity, marketing consent, account-created date, last login + geo
+    (IP/country) — sourced from Descope's Search Audit API, since Descope's user object itself
+    has no last-login field
+  - **Goliath** — CDP segment membership. Goliath has no per-user read endpoint, so this is
+    built by walking every segment and matching members back to a local fan by externalId/email
+  - **Shopify** — lifetime spend, order count, last order date, with a "View in Shopify" link
+  - **MailerLite** — subscriber status, group membership, send/open stats, with a "View in
+    MailerLite" link
+  - **Vivenu (EventBilletten)** — season-pass status, lifetime ticket spend, and matches
+    purchased/attended. The identity link here is Vivenu's own `Customer._id`, sourced directly
+    from a Descope custom attribute (`eventbillettenUuid`), not an email match. Match attendance
+    arrives via a `scan.created` webhook — Vivenu's API has no way to query check-ins by
+    customer, so polling isn't an option here
+  - A real, append-only **activity log** (logins, consent changes, segment changes, orders,
+    ticket purchases, match check-ins, MailerLite status changes) — not a snapshot of current
+    state, a timeline
+- **`/customers/reports`** — four fixed reports: customers by Shopify spend, match-attendance
+  cohorts, customer growth over time, and season-pass holder rate. A general-purpose reporting
+  engine (query builder, saved custom reports) was considered and deliberately deferred — these
+  four cover everything asked for so far, and a query builder's safety/permission surface isn't
+  worth building speculatively.
+
+**Sync architecture**: a `CustomerSyncRun` row tracks each cron's health per source
+(`sync-customers`, `sync-goliath-segments`, `sync-descope-logins`), including recovering a run
+that got killed mid-execution by a platform timeout instead of leaving it stuck `running`
+forever. Shopify/MailerLite/Vivenu enrichment is fetched lazily on a fan's detail-page view
+(TTL-cached) rather than fanned out eagerly to every fan on every sync — most fans never touch
+any one of those three platforms, so eager enrichment bought no real completeness and was a
+real contributor to sync timeouts once the fan base grew past a few hundred.
 
 ### Authentication & Access Control
 - Powered by [Descope](https://descope.com) — passwordless, SSO, and social login out of the box
-- Four roles: `ADMIN`, `PLAYER`, `MEDIA`, `SPONSOR`
+- Login access is gated by Descope role (`ADMIN` or `STAFF`, assigned in the Descope console) —
+  anyone without one of those two roles is rejected at sign-in (see `resolveAppRole` in
+  `lib/descope.ts`). `PLAYER`/`MEDIA`/`SPONSOR` exist as labels elsewhere in the schema (e.g.
+  device-credential ownership) but don't gate staff login.
+- Per-staff display preferences (theme, default page size, default landing page) via
+  `StaffPreference`
 - User profile management via embedded Descope profile widget (`/profile`)
 
 ## Tech Stack
@@ -94,7 +130,12 @@ A Digital Asset Manager (DAM) built for professional soccer teams. SAMS centrali
 | Job Queue | [Upstash QStash](https://upstash.com/docs/qstash) |
 | Auth | [Descope](https://descope.com) |
 | Face ID / Jersey OCR / Sponsor OCR | [AWS Rekognition](https://aws.amazon.com/rekognition/) (Collections) |
-| Scheduled Processing | Vercel Cron (reconciliation sweep only) |
+| CDP | [Goliath](https://goliath.si-ab.com/docs/integration) — fan segments |
+| Ecommerce | [Shopify](https://shopify.dev) Admin API — spend/orders |
+| Email | [MailerLite](https://developers.mailerlite.com) Connect API — subscriber status/engagement |
+| Ticketing | [Vivenu](https://docs.vivenu.dev) (AB's EventBilletten platform) — season passes, tickets, match attendance |
+| Command palette | [cmdk](https://cmdk.paco.me) |
+| Scheduled Processing | Vercel Cron (ingest reconciliation sweep + the customer sync crons) |
 | Deployment | [Vercel](https://vercel.com) |
 
 ## Getting Started
@@ -107,6 +148,10 @@ A Digital Asset Manager (DAM) built for professional soccer teams. SAMS centrali
 - An [Upstash Redis](https://upstash.com) database
 - A [Descope](https://descope.com) project
 - An AWS account with Rekognition access (optional — only needed for player face/jersey/sponsor tagging)
+- For the Customer CRM (optional — the DAM side works without these): a second Descope
+  Management Key on the consumer-facing "MyAB" project, a [Goliath](https://goliath.si-ab.com/docs/integration)
+  API key, a Shopify Admin API access token, a [MailerLite](https://developers.mailerlite.com)
+  API key, and a [Vivenu](https://docs.vivenu.dev) API key
 
 ### Environment Variables
 
@@ -165,6 +210,17 @@ SHOPIFY_APP_CLIENT_ID=
 SHOPIFY_APP_CLIENT_SECRET=
 SHOPIFY_STORE_DOMAIN=
 SHOPIFY_ADMIN_API_ACCESS_TOKEN=
+
+# MailerLite Connect API (not the legacy Classic API)
+MAILERLITE_API_KEY=
+
+# Vivenu (AB's EventBilletten ticketing platform). The customer link isn't by email —
+# DESCOPE_VIVENU_ATTRIBUTE_KEY overrides which Descope custom attribute holds Vivenu's own
+# Customer._id if it's ever renamed from "eventbillettenUuid".
+VIVENU_API_KEY=
+VIVENU_API_BASE_URL=
+VIVENU_WEBHOOK_HMAC_KEY=
+# DESCOPE_VIVENU_ATTRIBUTE_KEY=eventbillettenUuid
 
 # Session signing — generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 SESSION_SECRET=
