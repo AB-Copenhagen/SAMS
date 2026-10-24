@@ -3,7 +3,15 @@ import { createPrismaClient } from '../../../../lib/db';
 import { fetchRecentLogins } from '../../../../lib/descope-customers';
 import { supersedeStaleRun } from '../../../../lib/customer-sync-run';
 
-export const maxDuration = 60;
+// Same per-item-loop shape as sync-customers (one or two Turso round-trips per login event,
+// up to 500 events per run — see fetchRecentLogins), so it carries the identical timeout risk
+// despite usually processing far fewer rows: a login burst (e.g. fans checking in around a
+// match) can plausibly exceed the old 60s cap. 800s is the Pro-plan's generally-available
+// ceiling (see app/api/cron/sync-customers for the full writeup on why this is the real kill
+// point, not a value with headroom below some higher one). No resume cursor needed here, unlike
+// sync-customers — this only ever looks at a fixed recent time window, not a growing population,
+// so a timeout just means the next run's own window re-covers anything missed via the overlap.
+export const maxDuration = 800;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
