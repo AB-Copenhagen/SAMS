@@ -7,6 +7,7 @@
 
 import { unstable_cache } from 'next/cache';
 import { prisma } from './db';
+import { listMatches, getTicketsSoldCount } from './vivenu';
 
 export type Bucket = { label: string; count: number };
 
@@ -94,8 +95,53 @@ async function getSeasonPassRateUncached(): Promise<SeasonPassRate> {
   return { holders, total, rate: total > 0 ? holders / total : 0 };
 }
 
+export type MatchAttendance = { label: string; ticketsSold: number; checkedIn: number; noShow: number };
+
+// Tickets sold come live from Vivenu per match (works for every match, past or future —
+// see lib/vivenu.ts's listMatches/getTicketsSoldCount). Checked-in can only come from our own
+// accumulated scan.created webhook data — Vivenu's check-in/scan service rejects our API key
+// outright, so there's no equivalent live query to fall back on (see lib/vivenu.ts's note on
+// getTicket). That half of this report is only as complete as what the webhook has delivered
+// since it went live — 0 for matches before that, including ones that already happened.
+async function getMatchAttendanceUncached(): Promise<MatchAttendance[]> {
+  const [matches, customers] = await Promise.all([
+    listMatches(),
+    prisma.customer.findMany({
+      where: { vivenuAttendedEventIdsJson: { not: null } },
+      select: { vivenuAttendedEventIdsJson: true },
+    }),
+  ]);
+
+  const checkedInByEvent = new Map<string, number>();
+  for (const c of customers) {
+    try {
+      for (const eventId of JSON.parse(c.vivenuAttendedEventIdsJson ?? '[]') as string[]) {
+        checkedInByEvent.set(eventId, (checkedInByEvent.get(eventId) ?? 0) + 1);
+      }
+    } catch {
+      // malformed JSON from a prior sync — skip rather than fail the whole report
+    }
+  }
+
+  const recentMatches = [...matches].sort((a, b) => a.start.localeCompare(b.start)).slice(-10);
+
+  const results: MatchAttendance[] = [];
+  for (const match of recentMatches) {
+    const ticketsSold = await getTicketsSoldCount(match.id).catch(() => 0);
+    const checkedIn = checkedInByEvent.get(match.id) ?? 0;
+    results.push({
+      label: new Date(match.start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+      ticketsSold,
+      checkedIn,
+      noShow: Math.max(0, ticketsSold - checkedIn),
+    });
+  }
+  return results;
+}
+
 // 300s TTL, same as getCachedCustomerDashboard — these are report views, not live counters.
 export const getCachedSpendDistribution = unstable_cache(getSpendDistributionUncached, ['report-spend-distribution'], { revalidate: 300 });
+export const getCachedMatchAttendance = unstable_cache(getMatchAttendanceUncached, ['report-match-attendance'], { revalidate: 300 });
 export const getCachedAttendanceCohorts = unstable_cache(getAttendanceCohortsUncached, ['report-attendance-cohorts'], { revalidate: 300 });
 export const getCachedCustomerGrowth = unstable_cache(getCustomerGrowthByMonthUncached, ['report-customer-growth'], { revalidate: 300 });
 export const getCachedSeasonPassRate = unstable_cache(getSeasonPassRateUncached, ['report-season-pass-rate'], { revalidate: 300 });
