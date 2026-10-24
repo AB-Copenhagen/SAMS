@@ -7,6 +7,7 @@ import CollapsibleCard from '../../../components/CollapsibleCard';
 import { customerAdminUrl } from '../../../lib/shopify';
 import { userDashboardUrl } from '../../../lib/goliath';
 import { subscriberDashboardUrl } from '../../../lib/mailerlite';
+import { customerDashboardUrl as vivenuDashboardUrl } from '../../../lib/vivenu';
 import { avatarColor, avatarInitial, segmentNames, formatSpend } from '../../../lib/customer-ui';
 import { isExternalDataStale, refreshCustomerExternalData } from '../../../lib/customer-enrichment';
 
@@ -50,6 +51,11 @@ const ACTIVITY_META: Record<string, { label: string; className: string; icon: Re
     className: 'activity-icon-mailerlite',
     icon: <Icon><path d="M4 4h16v16H4z" /><polyline points="22 6 12 13 2 6" /></Icon>,
   },
+  match_attended: {
+    label: 'Match attended',
+    className: 'activity-icon-order',
+    icon: <Icon><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></Icon>,
+  },
 };
 
 export default async function CustomerDetailPage(props: { params: Promise<{ id: string }>; searchParams: Promise<{ page?: string }> }) {
@@ -83,6 +89,7 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
   const shopifyUrl = customer.shopifyCustomerId ? customerAdminUrl(customer.shopifyCustomerId) : null;
   const goliathUrl = customer.goliathUserId ? userDashboardUrl(customer.goliathUserId) : null;
   const mailerliteUrl = customer.mailerliteSubscriberId ? subscriberDashboardUrl(customer.mailerliteSubscriberId) : null;
+  const vivenuUrl = customer.vivenuCustomerId ? vivenuDashboardUrl(customer.vivenuCustomerId) : null;
   const daysSinceLogin = customer.lastLoginAt
     ? Math.floor((Date.now() - new Date(customer.lastLoginAt).getTime()) / 86_400_000)
     : null;
@@ -101,6 +108,13 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
   const mailerliteSummary = customer.mailerliteStatus
     ? `${customer.mailerliteStatus.toUpperCase()}${customer.mailerliteOpenRate != null ? ` · ${Math.round(customer.mailerliteOpenRate * 100)}% opens` : ''}`
     : 'Not subscribed';
+
+  const vivenuSummary = customer.vivenuCustomerId
+    ? [
+        customer.vivenuSeasonPassStatus ? 'Season pass' : null,
+        `${customer.vivenuMatchesAttendedCount ?? 0}/${customer.vivenuMatchesPurchasedCount ?? 0} attended`,
+      ].filter(Boolean).join(' · ')
+    : 'No EventBilletten account linked';
 
   return (
     <AppShell user={user} wide>
@@ -213,6 +227,31 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
               </p>
             )}
             <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.mailerliteSyncedAt)}</p>
+          </CollapsibleCard>
+
+          <CollapsibleCard title="EventBilletten (Vivenu)" summary={vivenuSummary}>
+            <div className="field">
+              <label>Season pass</label>
+              <div className="detail-value">{customer.vivenuSeasonPassStatus || '—'}</div>
+            </div>
+            <div className="field">
+              <label>Lifetime ticket spend</label>
+              <div className="detail-value">{customer.vivenuLifetimeSpend != null ? formatSpend(customer.vivenuLifetimeSpend) : '—'}</div>
+            </div>
+            <div className="field">
+              <label>Matches purchased</label>
+              <div className="detail-value">{customer.vivenuMatchesPurchasedCount ?? '—'}</div>
+            </div>
+            <div className="field">
+              <label>Matches attended</label>
+              <div className="detail-value">{customer.vivenuMatchesAttendedCount ?? '—'}</div>
+            </div>
+            {vivenuUrl && (
+              <p style={{ marginBottom: 8 }}>
+                <a href={vivenuUrl} target="_blank" rel="noopener noreferrer" className="asset-link">View in Vivenu ↗</a>
+              </p>
+            )}
+            <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.vivenuSyncedAt)}</p>
           </CollapsibleCard>
         </aside>
 

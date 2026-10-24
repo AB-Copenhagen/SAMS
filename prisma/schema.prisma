@@ -324,6 +324,19 @@ model Customer {
   mailerliteOpensCount   Int?
   mailerliteOpenRate     Float?    // 0-1
   mailerliteSyncedAt     DateTime?
+  // Sourced from Descope's "eventbillettenUuid" custom attribute (confirmed live) — this IS
+  // Vivenu's own Customer._id, so every Vivenu call is a direct lookup, never an email search.
+  vivenuCustomerId            String?
+  vivenuLifetimeSpend         Float?
+  vivenuSeasonPassStatus      String?   // the GROUP event's name (e.g. "Sæsonkort 2026/27"), or null
+  vivenuMatchesPurchasedCount Int?      // recomputed in full on every refresh from transaction history
+  // Accrues via the scan.created webhook, which is the only realistic source for this (Vivenu's
+  // Scans API has no customerId filter — see lib/vivenu.ts) — not re-derivable from a fresh pull,
+  // so the actual event-id set is kept (for dedup against repeat webhook deliveries) alongside
+  // the count lib/customer-ui.ts/pages read.
+  vivenuAttendedEventIdsJson  String?
+  vivenuMatchesAttendedCount  Int?
+  vivenuSyncedAt              DateTime?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
@@ -360,7 +373,7 @@ model StaffPreference {
 model CustomerActivity {
   id         String   @id @default(cuid())
   customerId String
-  type       String   // "login" | "consent_changed" | "segments_changed" | "order_placed"
+  type       String   // "login" | "consent_changed" | "segments_changed" | "order_placed" | "match_attended"
   occurredAt DateTime
   detail     String?
   createdAt  DateTime @default(now())
@@ -369,4 +382,15 @@ model CustomerActivity {
   // double-logging on a re-run or an overlapping sync window.
   @@unique([customerId, type, occurredAt])
   @@index([customerId, occurredAt])
+}
+
+// Cache of Vivenu Event._id -> eventType (SINGLE vs GROUP, see lib/vivenu.ts), so classifying a
+// customer's transaction history as season-pass-vs-single-match doesn't mean one Vivenu API call
+// per distinct event per customer enrichment — a club's event count is small and stable within a
+// season, so this is reused across every customer instead.
+model VivenuEvent {
+  id        String   @id // Vivenu's own Event._id
+  name      String?
+  eventType String   // "SINGLE" | "GROUP" | "RECURRENCE" | "ROOT"
+  syncedAt  DateTime @default(now())
 }

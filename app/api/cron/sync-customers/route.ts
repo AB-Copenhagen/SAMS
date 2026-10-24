@@ -68,6 +68,7 @@ export async function GET(request: Request) {
           name: customer.name,
           phone: customer.phone,
           marketingOptIn: customer.marketingOptIn,
+          vivenuCustomerId: customer.vivenuCustomerId,
           descopeCreatedAt: customer.createdAt,
           descopeSyncedAt: new Date(),
         },
@@ -76,6 +77,7 @@ export async function GET(request: Request) {
           name: customer.name,
           phone: customer.phone,
           marketingOptIn: customer.marketingOptIn,
+          vivenuCustomerId: customer.vivenuCustomerId,
           descopeSyncedAt: new Date(),
           // descopeCreatedAt is immutable upstream — set once on create, never overwritten
         },

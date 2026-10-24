@@ -12,6 +12,7 @@
 import { prisma } from './db';
 import { findCustomerByEmail } from './shopify';
 import { findSubscriberByEmail } from './mailerlite';
+import { listCompleteTransactions, getEventType } from './vivenu';
 import { formatSpend } from './customer-ui';
 
 const EXTERNAL_DATA_TTL_MS = 24 * 60 * 60 * 1000; // 24h
@@ -34,6 +35,10 @@ export type ExternalDataFields = {
   mailerliteOpensCount: number | null;
   mailerliteOpenRate: number | null;
   mailerliteSyncedAt: Date;
+  vivenuLifetimeSpend: number | null;
+  vivenuSeasonPassStatus: string | null;
+  vivenuMatchesPurchasedCount: number | null;
+  vivenuSyncedAt: Date;
 };
 
 // Fetches fresh Shopify + MailerLite data, writes it to the Customer row, logs an activity
@@ -51,6 +56,10 @@ export async function refreshCustomerExternalData(customer: {
   shopifySyncedAt: Date | null;
   mailerliteStatus: string | null;
   mailerliteSyncedAt: Date | null;
+  vivenuCustomerId: string | null;
+  vivenuMatchesPurchasedCount: number | null;
+  vivenuSeasonPassStatus: string | null;
+  vivenuSyncedAt: Date | null;
 }): Promise<Partial<ExternalDataFields>> {
   if (!customer.email) return {};
   const updates: Partial<ExternalDataFields> = {};
@@ -109,6 +118,59 @@ export async function refreshCustomerExternalData(customer: {
     }
   } catch (err) {
     console.error(`[customer-enrichment] MailerLite refresh failed for ${customer.id}:`, err);
+  }
+
+  // Unlike Shopify/MailerLite, this is keyed off vivenuCustomerId (sourced from Descope's
+  // eventbillettenUuid attribute — see lib/descope-customers.ts), not email, and there's nothing
+  // to refresh if a fan has never linked an EventBilletten account.
+  if (customer.vivenuCustomerId && isExternalDataStale(customer.vivenuSyncedAt)) try {
+    const transactions = await listCompleteTransactions(customer.vivenuCustomerId);
+    const lifetimeSpend = transactions.reduce((sum, t) => sum + t.realPrice, 0);
+
+    const distinctEventIds = [...new Set(transactions.map((t) => t.eventId))];
+    let matchesPurchased = 0;
+    let seasonPassStatus: string | null = null;
+    for (const eventId of distinctEventIds) {
+      const eventType = await getEventType(eventId);
+      if (eventType === 'SINGLE') matchesPurchased++;
+      else if (eventType === 'GROUP') {
+        const event = await prisma.vivenuEvent.findUnique({ where: { id: eventId } });
+        seasonPassStatus = event?.name ?? eventId;
+      }
+    }
+
+    const vivenuFields: Partial<ExternalDataFields> = {
+      vivenuLifetimeSpend: lifetimeSpend,
+      vivenuSeasonPassStatus: seasonPassStatus,
+      vivenuMatchesPurchasedCount: matchesPurchased,
+      vivenuSyncedAt: new Date(),
+    };
+    await prisma.customer.update({ where: { id: customer.id }, data: vivenuFields });
+    Object.assign(updates, vivenuFields);
+
+    if (!customer.vivenuSeasonPassStatus && seasonPassStatus) {
+      await prisma.customerActivity.create({
+        data: {
+          customerId: customer.id,
+          type: 'order_placed',
+          occurredAt: new Date(),
+          detail: `Purchased season pass: ${seasonPassStatus}`,
+        },
+      }).catch(() => {});
+    }
+    const newMatches = matchesPurchased - (customer.vivenuMatchesPurchasedCount ?? 0);
+    if (newMatches > 0) {
+      await prisma.customerActivity.create({
+        data: {
+          customerId: customer.id,
+          type: 'order_placed',
+          occurredAt: new Date(),
+          detail: `${newMatches} new match ticket(s) purchased · lifetime ticket spend now ${formatSpend(lifetimeSpend)}`,
+        },
+      }).catch(() => {});
+    }
+  } catch (err) {
+    console.error(`[customer-enrichment] Vivenu refresh failed for ${customer.id}:`, err);
   }
 
   return updates;

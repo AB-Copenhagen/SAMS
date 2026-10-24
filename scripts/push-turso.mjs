@@ -362,6 +362,26 @@ ALTER TABLE "Customer" ADD COLUMN "descopeCreatedAt" DATETIME;
 ALTER TABLE "Customer" ADD COLUMN "lastLoginAt" DATETIME;
 ALTER TABLE "Customer" ADD COLUMN "lastLoginIp" TEXT;
 ALTER TABLE "Customer" ADD COLUMN "lastLoginCountry" TEXT;
+
+-- Note: this script fell behind the mailerlite*/CustomerActivity/StaffPreference additions,
+-- which were applied to production via their own one-shot admin routes instead (see
+-- app/api/system/migrate-mailerlite-fields, migrate-customer-activity, migrate-staff-preferences)
+-- and never backfilled here. Only this session's own additions are appended below.
+
+ALTER TABLE "Customer" ADD COLUMN "vivenuCustomerId" TEXT;
+ALTER TABLE "Customer" ADD COLUMN "vivenuLifetimeSpend" REAL;
+ALTER TABLE "Customer" ADD COLUMN "vivenuSeasonPassStatus" TEXT;
+ALTER TABLE "Customer" ADD COLUMN "vivenuMatchesPurchasedCount" INTEGER;
+ALTER TABLE "Customer" ADD COLUMN "vivenuAttendedEventIdsJson" TEXT;
+ALTER TABLE "Customer" ADD COLUMN "vivenuMatchesAttendedCount" INTEGER;
+ALTER TABLE "Customer" ADD COLUMN "vivenuSyncedAt" DATETIME;
+
+CREATE TABLE IF NOT EXISTS "VivenuEvent" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT,
+    "eventType" TEXT NOT NULL,
+    "syncedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 `;
 
 const statements = sql
