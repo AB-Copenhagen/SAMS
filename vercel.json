@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/sync-descope-logins",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-customer-enrichment",
+      "schedule": "*/15 * * * *"
     }
   ]
 }
