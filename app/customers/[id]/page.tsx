@@ -61,11 +61,10 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
   if (!customer) notFound();
 
   // Shopify/MailerLite are fetched lazily here rather than eagerly for every customer on every
-  // Descope sync (see lib/customer-enrichment.ts) — a 24h-stale view pays for a live refresh,
-  // everything within the window serves straight from the cached columns below.
-  if (isExternalDataStale(customer.shopifySyncedAt)) {
-    Object.assign(customer, await refreshCustomerExternalData(customer));
-  }
+  // Descope sync (see lib/customer-enrichment.ts). Each platform is gated on its own syncedAt
+  // inside refreshCustomerExternalData — not a single combined check here — so one platform
+  // succeeding can never mask the other having failed and never gotten a chance to retry.
+  Object.assign(customer, await refreshCustomerExternalData(customer));
 
   const page = Math.max(1, parseInt(searchParams.page ?? '1') || 1);
   const [activity, activityTotal] = await Promise.all([
