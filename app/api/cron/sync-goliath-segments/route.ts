@@ -7,7 +7,8 @@ import { supersedeStaleRun } from '../../../../lib/customer-sync-run';
 // See app/api/cron/sync-customers' comment on the same constant — same risk (a platform kill
 // mid-run can't be caught, leaving the CustomerSyncRun stuck in "running") once this club has
 // enough segments/members for the per-segment API calls and matching below to take a while.
-export const maxDuration = 280;
+// 800s is the Pro-plan generally-available ceiling, not a guess with headroom under it.
+export const maxDuration = 800;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 

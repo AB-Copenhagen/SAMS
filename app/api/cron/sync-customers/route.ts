@@ -5,17 +5,19 @@ import { supersedeStaleRun } from '../../../../lib/customer-sync-run';
 
 const RESUME_CURSOR_KEY = 'descope-customers-resume-page';
 
-// 280s, not the platform's full 300s ceiling — leaves headroom to still hit the catch block and
-// record a clean "error" before a hard platform kill. Needed because this processes customers
-// sequentially (2 Turso round-trips each via findUnique+upsert) — at a few hundred customers
-// that routinely ran past the previous 60s cap, leaving CustomerSyncRun rows stuck in "running"
-// forever (see supersedeStaleRun below). This used to also enqueue a QStash job per changed
-// customer for Shopify/MailerLite enrichment, which was a major contributor to the timeout,
-// especially during an initial backfill where most customers count as "changed" — that
-// enrichment is now fetched lazily on a customer's detail page view instead, with a TTL cache
-// (see lib/customer-enrichment.ts), since most fans never touch Shopify/MailerLite anyway and
-// syncing everyone eagerly bought no real completeness benefit.
-export const maxDuration = 280;
+// 800s — the Pro-plan generally-available ceiling (confirmed via a real 504 at exactly the old
+// 280s: maxDuration IS the platform's kill point, not a buffer below some higher ceiling — a
+// hard timeout kill can't be caught, so the catch block below never actually runs on a timeout
+// regardless of how much headroom is left under it; supersedeStaleRun (below) is what recovers
+// a run stuck "running" from a kill, not this). This processes customers sequentially (2 Turso
+// round-trips each via findUnique+upsert) — at ~170ms/customer and ~4,100 users in the MyAB
+// project, a full sweep needs ~700s, which fits in one run at 800s instead of requiring several
+// laps via the resume cursor below (still in place as the safety net if the population or
+// per-customer latency grows past what one run can finish). This used to also enqueue a QStash
+// job per changed customer for Shopify/MailerLite enrichment, which was a major contributor to
+// the timeout before this — that enrichment is now fetched lazily on a customer's detail page
+// view instead, with a TTL cache (see lib/customer-enrichment.ts).
+export const maxDuration = 800;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
