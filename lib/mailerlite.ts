@@ -55,7 +55,10 @@ export async function findSubscriberByEmail(email: string): Promise<MailerLiteSu
     status: data.status,
     sentCount: data.sent ?? 0,
     opensCount: data.opens_count ?? 0,
-    openRate: data.open_rate ?? 0,
+    // MailerLite returns this as a whole-number percentage (e.g. 100 for 17/17 opens), not the
+    // 0-1 fraction this field's type documents — normalize here so every consumer (the Customer
+    // record, the detail page's `* 100` display) can keep treating it as a true fraction.
+    openRate: (data.open_rate ?? 0) / 100,
     groupNames: (data.groups ?? []).map((g) => g.name),
   };
 }

@@ -316,6 +316,37 @@ button, input, textarea, select { font: inherit; }
   border-bottom: 1px solid #f0f2f7;
 }
 
+.collapsible-card-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.collapsible-card-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  color: #8890b4;
+}
+
+.collapsible-card-summary {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
 /* ─── Form elements ──────────────────────────────────────── */
 label {
   display: block;

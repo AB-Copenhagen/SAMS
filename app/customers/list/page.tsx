@@ -4,7 +4,7 @@ import { prisma } from '../../../lib/db';
 import { getCachedStaffPreferences, resolvePageSize } from '../../../lib/staff-preferences';
 import AppShell from '../../../components/AppShell';
 import { buildCustomerWhere, topGoliathSegments } from '../../../lib/customer-query';
-import { avatarColor, avatarInitial, segmentNames } from '../../../lib/customer-ui';
+import { avatarColor, avatarInitial, segmentNames, formatSpend } from '../../../lib/customer-ui';
 
 const DEFAULT_PER_PAGE = 50;
 
@@ -182,7 +182,7 @@ export default async function CustomersListPage(
                             : <span style={{ color: '#8890b4', fontSize: 12 }}>—</span>}
                         </td>
                         <td>
-                          {customer.shopifyLifetimeSpend != null ? `${customer.shopifyLifetimeSpend.toFixed(2)} DKK` : '—'}
+                          {customer.shopifyLifetimeSpend != null ? formatSpend(customer.shopifyLifetimeSpend) : '—'}
                         </td>
                         <td style={{ whiteSpace: 'nowrap', color: '#8890b4' }}>
                           {customer.lastLoginAt

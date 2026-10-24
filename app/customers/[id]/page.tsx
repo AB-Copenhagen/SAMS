@@ -3,10 +3,11 @@ import Link from 'next/link';
 import { getCurrentUser, requireAdmin } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
 import AppShell from '../../../components/AppShell';
+import CollapsibleCard from '../../../components/CollapsibleCard';
 import { customerAdminUrl } from '../../../lib/shopify';
 import { userDashboardUrl } from '../../../lib/goliath';
 import { subscriberDashboardUrl } from '../../../lib/mailerlite';
-import { avatarColor, avatarInitial, segmentNames } from '../../../lib/customer-ui';
+import { avatarColor, avatarInitial, segmentNames, formatSpend } from '../../../lib/customer-ui';
 import { isExternalDataStale, refreshCustomerExternalData } from '../../../lib/customer-enrichment';
 
 const ACTIVITY_PER_PAGE = 20;
@@ -87,6 +88,21 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
     ? Math.floor((Date.now() - new Date(customer.lastLoginAt).getTime()) / 86_400_000)
     : null;
 
+  const identitySummary = [
+    customer.marketingOptIn === null ? null : customer.marketingOptIn ? 'Opted in' : 'Opted out',
+    daysSinceLogin === null ? 'Never logged in' : daysSinceLogin === 0 ? 'Logged in today' : `Last login ${daysSinceLogin}d ago`,
+  ].filter(Boolean).join(' · ') || 'No identity data';
+
+  const goliathSummary = segments.length > 0 ? `${segments.length} segment${segments.length === 1 ? '' : 's'}` : 'No segments';
+
+  const shopifySummary = customer.shopifyLifetimeSpend != null
+    ? `${formatSpend(customer.shopifyLifetimeSpend)} · ${customer.shopifyOrderCount ?? 0} order${customer.shopifyOrderCount === 1 ? '' : 's'}`
+    : 'No Shopify data';
+
+  const mailerliteSummary = customer.mailerliteStatus
+    ? `${customer.mailerliteStatus.toUpperCase()}${customer.mailerliteOpenRate != null ? ` · ${Math.round(customer.mailerliteOpenRate * 100)}% opens` : ''}`
+    : 'Not subscribed';
+
   return (
     <AppShell user={user} wide>
       <div className="page-header">
@@ -104,8 +120,7 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
 
       <div className="customer-layout">
         <aside className="sticky-sidebar">
-          <div className="card">
-            <div className="card-header">Identity &amp; consent</div>
+          <CollapsibleCard title="Identity & consent" summary={identitySummary}>
             <div className="field">
               <label>Phone</label>
               <div className="detail-value">{customer.phone || '—'}</div>
@@ -132,10 +147,9 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
               </div>
             </div>
             <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.descopeSyncedAt)}</p>
-          </div>
+          </CollapsibleCard>
 
-          <div className="card">
-            <div className="card-header">Goliath segments</div>
+          <CollapsibleCard title="Goliath segments" summary={goliathSummary}>
             <div style={{ marginBottom: 10 }}>
               {segments.length > 0
                 ? segments.map((name) => <span key={name} className="segment-chip">{name}</span>)
@@ -147,13 +161,12 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
               </p>
             )}
             <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.goliathSyncedAt)}</p>
-          </div>
+          </CollapsibleCard>
 
-          <div className="card">
-            <div className="card-header">Shopify</div>
+          <CollapsibleCard title="Shopify" summary={shopifySummary}>
             <div className="field">
               <label>Lifetime spend</label>
-              <div className="detail-value">{customer.shopifyLifetimeSpend != null ? `${customer.shopifyLifetimeSpend.toFixed(2)} DKK` : '—'}</div>
+              <div className="detail-value">{customer.shopifyLifetimeSpend != null ? formatSpend(customer.shopifyLifetimeSpend) : '—'}</div>
             </div>
             <div className="field">
               <label>Orders</label>
@@ -169,10 +182,9 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
               </p>
             )}
             <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.shopifySyncedAt)}</p>
-          </div>
+          </CollapsibleCard>
 
-          <div className="card">
-            <div className="card-header">MailerLite</div>
+          <CollapsibleCard title="MailerLite" summary={mailerliteSummary}>
             <div className="field">
               <label>Status</label>
               <div className="detail-value">
@@ -202,14 +214,14 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
               </p>
             )}
             <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.mailerliteSyncedAt)}</p>
-          </div>
+          </CollapsibleCard>
         </aside>
 
         <div>
           <div className="stat-row">
             <div className="stat-card">
               <div className="stat-label">Lifetime spend</div>
-              <div className="stat-value">{customer.shopifyLifetimeSpend != null ? `${customer.shopifyLifetimeSpend.toFixed(0)} DKK` : '—'}</div>
+              <div className="stat-value">{customer.shopifyLifetimeSpend != null ? formatSpend(customer.shopifyLifetimeSpend) : '—'}</div>
             </div>
             <div className="stat-card">
               <div className="stat-label">Orders</div>
