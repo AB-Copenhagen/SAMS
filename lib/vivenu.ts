@@ -11,8 +11,15 @@
 
 import { createHmac, timingSafeEqual } from 'crypto';
 import { prisma } from './db';
+import { throttle } from './api-throttle';
 
 const BASE_URL = (process.env.VIVENU_API_BASE_URL ?? 'https://vivenu.com/api').replace(/\/$/, '');
+
+// Vivenu's docs don't publish a rate limit number — this is a precaution, not a confirmed
+// threshold, picked to match the same spacing used for MailerLite/Shopify (which do have
+// documented limits) now that app/api/cron/sync-customer-enrichment calls this for every
+// customer in a tight sequential loop. Tighten or relax once Vivenu's actual limit is known.
+const MIN_INTERVAL_MS = 400;
 
 function apiKey(): string {
   const key = process.env.VIVENU_API_KEY;
@@ -21,6 +28,7 @@ function apiKey(): string {
 }
 
 async function vivenuFetch(path: string): Promise<Response> {
+  await throttle('vivenu', MIN_INTERVAL_MS);
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: { Authorization: `Bearer ${apiKey()}` },
   });

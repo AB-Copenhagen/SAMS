@@ -1,7 +1,16 @@
 // Thin client for Shopify's Admin REST API — used to enrich a Customer record with spend data.
 // Needs a custom-app Admin API access token scoped to read_customers + read_orders.
 
+import { throttle } from './api-throttle';
+
 const API_VERSION = '2024-10';
+
+// Shopify's standard REST Admin API throttle: a 40-request leaky bucket that drains at 2
+// requests/second. 550ms spacing keeps sustained use under that drain rate; a few sequential
+// calls per customer (search + orders) don't come close to the 40-request burst allowance.
+// Needed once app/api/cron/sync-customer-enrichment started calling this for every customer in
+// a tight sequential loop, same as lib/mailerlite.ts.
+const MIN_INTERVAL_MS = 550;
 
 function storeDomain(): string {
   const domain = process.env.SHOPIFY_STORE_DOMAIN;
@@ -16,6 +25,7 @@ function accessToken(): string {
 }
 
 async function shopifyFetch(path: string): Promise<Response> {
+  await throttle('shopify', MIN_INTERVAL_MS);
   const res = await fetch(`https://${storeDomain()}/admin/api/${API_VERSION}${path}`, {
     headers: { 'X-Shopify-Access-Token': accessToken() },
   });

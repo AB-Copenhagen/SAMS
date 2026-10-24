@@ -8,7 +8,16 @@
 // endpoint needed for this — MailerLite's docs page on campaigns suggested per-campaign
 // iteration would be required, but the subscriber resource itself already has the aggregate.
 
+import { throttle } from './api-throttle';
+
 const BASE_URL = 'https://connect.mailerlite.com/api';
+
+// Confirmed via MailerLite's docs: 120 requests/minute, global. 550ms spacing caps this client
+// at ~109/min — enough margin for clock jitter without needing to also parse Retry-After.
+// Needed once app/api/cron/sync-customer-enrichment started calling this for every customer in
+// a tight sequential loop; the old lazy, one-customer-per-admin-page-view call pattern never
+// came close to the limit on its own.
+const MIN_INTERVAL_MS = 550;
 
 function apiKey(): string {
   const key = process.env.MAILERLITE_API_KEY;
@@ -17,6 +26,7 @@ function apiKey(): string {
 }
 
 async function mailerliteFetch(path: string): Promise<Response> {
+  await throttle('mailerlite', MIN_INTERVAL_MS);
   return fetch(`${BASE_URL}${path}`, {
     headers: {
       Authorization: `Bearer ${apiKey()}`,
