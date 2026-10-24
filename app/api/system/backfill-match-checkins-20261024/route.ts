@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isAdmin } from '../../../../lib/auth';
-import { prisma } from '../../../../lib/db';
+import { createPrismaClient } from '../../../../lib/db';
 import { getTicket, getEventType } from '../../../../lib/vivenu';
 import tickets from './tickets.json';
 
@@ -25,72 +25,83 @@ export async function POST() {
   const user = await getCurrentUser();
   if (!isAdmin(user)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
+  // Disposable client, not the shared `prisma` singleton — see lib/db.ts's comment. This route
+  // runs ~565 tickets x up to 4 sequential queries each through it; the shared singleton is
+  // exactly the "many sequential queries on one warm client" pattern that comment warns degrades
+  // the libSQL adapter (confirmed in production: this caused SocketError "other side closed"
+  // failures on unrelated pages during gh-68's backfill run, since they all shared the same
+  // degraded connection).
+  const db = createPrismaClient();
   let attendedUpdated = 0;
   let alreadyCounted = 0;
   let guestRecorded = 0;
   let skippedNonSingleEvent = 0;
   const errors: { ticketId: string; message: string }[] = [];
 
-  for (const { ticketId, eventId, scannedAt } of tickets as { ticketId: string; eventId: string; scannedAt: string }[]) {
-    try {
-      const eventType = await getEventType(eventId);
-      if (eventType !== 'SINGLE') {
-        skippedNonSingleEvent++;
-        continue;
-      }
-
-      const ticket = await getTicket(ticketId);
-      const customer = ticket.customerId
-        ? await prisma.customer.findFirst({
-            where: { vivenuCustomerId: ticket.customerId },
-            select: { id: true, vivenuAttendedEventIdsJson: true },
-          })
-        : null;
-
-      if (!customer) {
-        const existing = await prisma.guestCheckin.findUnique({ where: { ticketId } });
-        if (!existing) {
-          await prisma.guestCheckin.create({ data: { eventId, ticketId, scannedAt: new Date(scannedAt) } });
-          guestRecorded++;
-        }
-        continue;
-      }
-
-      let attendedEventIds: string[] = [];
+  try {
+    for (const { ticketId, eventId, scannedAt } of tickets as { ticketId: string; eventId: string; scannedAt: string }[]) {
       try {
-        attendedEventIds = JSON.parse(customer.vivenuAttendedEventIdsJson ?? '[]') as string[];
-      } catch {
-        attendedEventIds = [];
+        const eventType = await getEventType(eventId);
+        if (eventType !== 'SINGLE') {
+          skippedNonSingleEvent++;
+          continue;
+        }
+
+        const ticket = await getTicket(ticketId);
+        const customer = ticket.customerId
+          ? await db.customer.findFirst({
+              where: { vivenuCustomerId: ticket.customerId },
+              select: { id: true, vivenuAttendedEventIdsJson: true },
+            })
+          : null;
+
+        if (!customer) {
+          const existing = await db.guestCheckin.findUnique({ where: { ticketId } });
+          if (!existing) {
+            await db.guestCheckin.create({ data: { eventId, ticketId, scannedAt: new Date(scannedAt) } });
+            guestRecorded++;
+          }
+          continue;
+        }
+
+        let attendedEventIds: string[] = [];
+        try {
+          attendedEventIds = JSON.parse(customer.vivenuAttendedEventIdsJson ?? '[]') as string[];
+        } catch {
+          attendedEventIds = [];
+        }
+
+        if (attendedEventIds.includes(eventId)) {
+          alreadyCounted++;
+          continue;
+        }
+
+        attendedEventIds.push(eventId);
+        await db.customer.update({
+          where: { id: customer.id },
+          data: {
+            vivenuAttendedEventIdsJson: JSON.stringify(attendedEventIds),
+            vivenuMatchesAttendedCount: attendedEventIds.length,
+          },
+        });
+
+        const event = await db.vivenuEvent.findUnique({ where: { id: eventId } });
+        await db.customerActivity.create({
+          data: {
+            customerId: customer.id,
+            type: 'match_attended',
+            occurredAt: new Date(scannedAt),
+            detail: event?.name ? `Checked in at ${event.name}` : 'Checked in',
+          },
+        }).catch(() => {});
+
+        attendedUpdated++;
+      } catch (err) {
+        errors.push({ ticketId, message: err instanceof Error ? err.message : String(err) });
       }
-
-      if (attendedEventIds.includes(eventId)) {
-        alreadyCounted++;
-        continue;
-      }
-
-      attendedEventIds.push(eventId);
-      await prisma.customer.update({
-        where: { id: customer.id },
-        data: {
-          vivenuAttendedEventIdsJson: JSON.stringify(attendedEventIds),
-          vivenuMatchesAttendedCount: attendedEventIds.length,
-        },
-      });
-
-      const event = await prisma.vivenuEvent.findUnique({ where: { id: eventId } });
-      await prisma.customerActivity.create({
-        data: {
-          customerId: customer.id,
-          type: 'match_attended',
-          occurredAt: new Date(scannedAt),
-          detail: event?.name ? `Checked in at ${event.name}` : 'Checked in',
-        },
-      }).catch(() => {});
-
-      attendedUpdated++;
-    } catch (err) {
-      errors.push({ ticketId, message: err instanceof Error ? err.message : String(err) });
     }
+  } finally {
+    await db.$disconnect();
   }
 
   return NextResponse.json({
