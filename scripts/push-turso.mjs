@@ -382,6 +382,12 @@ CREATE TABLE IF NOT EXISTS "VivenuEvent" (
     "eventType" TEXT NOT NULL,
     "syncedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS "SyncState" (
+    "key" TEXT NOT NULL PRIMARY KEY,
+    "value" TEXT NOT NULL,
+    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 `;
 
 const statements = sql

@@ -72,12 +72,21 @@ function toCustomer(raw: RawDescopeUser): DescopeCustomer {
   };
 }
 
+// Page size for iterateAllCustomers — exported so the caller (app/api/cron/sync-customers) can
+// convert its own "customers processed this run" counter into a resume page number without
+// duplicating this constant.
+export const CUSTOMER_PAGE_SIZE = PAGE_SIZE;
+
 // Pages through every user in the MyAB project via the Search Users Management API
-// (POST /v2/mgmt/user/search — an empty-ish payload matches everyone). This runs on a cron
-// schedule rather than in a request path, so a full sweep each run is acceptable for Phase 1;
-// revisit with an incremental filter if the fan base grows large enough to make that slow.
-export async function* iterateAllCustomers(): AsyncGenerator<DescopeCustomer> {
-  let page = 0;
+// (POST /v2/mgmt/user/search — an empty-ish payload matches everyone), starting at `startPage`
+// rather than always 0. At ~4,100 users and ~170ms per customer in the caller's processing loop,
+// a single 280s cron invocation only gets through ~1,650 before timing out — without a resume
+// cursor, every run restarted at page 0 and died at the same point, so the Customer table's
+// coverage was permanently capped there rather than ever reaching the rest. The caller persists
+// its resume page across runs (see CustomerSyncRun-adjacent SyncState) so a few consecutive runs
+// sweep the full population before it laps back to 0 for a fresh pass.
+export async function* iterateAllCustomers(startPage = 0): AsyncGenerator<DescopeCustomer> {
+  let page = startPage;
   for (;;) {
     const res = await fetch('https://api.descope.com/v2/mgmt/user/search', {
       method: 'POST',

@@ -32,6 +32,10 @@ export async function POST(request: Request) {
   }
 
   const envelope = JSON.parse(rawBody) as { type: string; data: Record<string, unknown> };
+  // Logged unconditionally (not just on a parse failure) since the data.scan shape below is an
+  // assumption, not confirmed against a real delivery — this is the only way to check it once
+  // vivenu actually sends one. Safe to remove once that's verified.
+  console.log('[webhooks/vivenu] received', envelope.type, JSON.stringify(envelope.data));
   if (envelope.type !== 'scan.created') {
     return NextResponse.json({ status: 'ignored', type: envelope.type });
   }
