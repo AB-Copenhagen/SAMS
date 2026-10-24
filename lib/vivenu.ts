@@ -106,10 +106,47 @@ export function customerDashboardUrl(vivenuCustomerId: string): string | null {
   return template.replace('{id}', encodeURIComponent(vivenuCustomerId));
 }
 
+export type VivenuMatch = { id: string; name: string; start: string };
+
+// Confirmed live: GET /events (no id) is a real list endpoint — {rows, total} — distinct from
+// GET /events/{id} used by getEventType above. AB's whole account only has 19 events total, so
+// this is one cheap call, not something that needs its own cache table like VivenuEvent does.
+//
+// Vivenu has no event "category" distinguishing an actual match from other SINGLE-type ticketed
+// products on the same account (confirmed live: "MyAB Membership" and a non-match "SOCIAL OWLS
+// KICK OFF" event are both eventType SINGLE too) — this filters by the name pattern every real
+// match in the sample follows ("AB vs X" / "AB mod X"), which is a heuristic, not a real field.
+// Revisit if a differently-named match ever gets miscategorized.
+const MATCH_NAME_PATTERN = /\bAB\s+(vs|mod)\b/i;
+
+export async function listMatches(): Promise<VivenuMatch[]> {
+  const res = await vivenuFetch('/events?top=100');
+  const data = (await res.json()) as { rows: { _id: string; name: string; eventType: VivenuEventType; start: string }[] };
+  return data.rows
+    .filter((e) => e.eventType === 'SINGLE' && MATCH_NAME_PATTERN.test(e.name))
+    .map((e) => ({ id: e._id, name: e.name, start: e.start }));
+}
+
+// Ticket sales are queryable per event directly (confirmed live), unlike check-ins — see the
+// module comment on getTicket below for why attendance can't be read the same way.
+export async function getTicketsSoldCount(eventId: string): Promise<number> {
+  const res = await vivenuFetch(`/tickets?event=${encodeURIComponent(eventId)}&status=VALID&top=1`);
+  const data = (await res.json()) as { total: number };
+  return data.total;
+}
+
 export type VivenuTicket = { customerId: string | null; eventId: string };
 
 // Used by the scan.created webhook handler to resolve which customer a check-in belongs to —
 // scans carry ticketId/barcode, not customerId (see app/api/webhooks/vivenu/route.ts).
+//
+// There's no equivalent "query check-ins directly" option to fall back on if the webhook isn't
+// enough: confirmed live that GET /scans (portier.vivenu.com) rejects the main account API key
+// outright ("Missing authentication", not just a 403) — it appears to need a separate
+// device/scanner-scoped credential that isn't documented and that we don't have. So aggregate
+// attendance (e.g. per-match check-in counts) can only ever be as complete as what scan.created
+// has delivered since the webhook went live — there's no way to backfill or spot-check it
+// against Vivenu's own historical scan data with what we have today.
 export async function getTicket(ticketId: string): Promise<VivenuTicket> {
   const res = await vivenuFetch(`/tickets/${encodeURIComponent(ticketId)}`);
   const data = (await res.json()) as { customerId?: string; eventId: string };
