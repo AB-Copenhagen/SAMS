@@ -18,17 +18,18 @@ one task in 30 seconds on a phone.
 - Nav is grouped into Library / CRM / Operations sections in `components/NavLinks.tsx`, using
   `.nav-section`/`.nav-divider` — the same `NAV_SECTIONS` array also feeds the command
   palette's "Go to" results (`components/CommandPalette.tsx`).
-- Global search exists: `Cmd+K`/`Ctrl+K` opens `CommandPalette`, which hits
-  `app/api/search/route.ts` for cross-entity results (assets/players/sponsors/collections for
-  any logged-in role; customers only when `isAdmin(user)` — never queried otherwise). Page-local
-  filters still exist too: `/customers/list` (name/email + consent/segment/minSpend, now a
-  left-side filter rail, not a top bar), `/media` (`MediaFilterBar`: q/type/season/category/
-  collection/players/sponsors/rating).
-- Roles: `ADMIN | STAFF | PLAYER | MEDIA | SPONSOR` (`lib/auth.ts`), helper `isAdmin(user)`.
-  `requireAdmin(user)` is the standard gate for a whole ADMIN-only route — redirects a
-  logged-in non-admin to `/home`, no session at all to `/login`, consistently. Hard
-  `ADMIN`-only routes: `/admin`, `/customers`, `/customers/list`, `/customers/[id]`,
-  `/analytics`, `/jobs`. Everything else is open to any logged-in role.
+- Global search hits `app/api/search/route.ts` for cross-entity results
+  (assets/players/sponsors/collections for any logged-in role; customers only when
+  `isStaffOrAdmin(user)` — never queried otherwise). Page-local filters still exist too:
+  `/customers/list` (name/email + consent/segment/minSpend, now a left-side filter rail, not a
+  top bar), `/media` (`MediaFilterBar`: q/type/season/category/collection/players/sponsors/rating).
+- Roles: `ADMIN | STAFF | PLAYER | MEDIA | SPONSOR` (`lib/auth.ts`), helpers `isAdmin(user)` and
+  `isStaffOrAdmin(user)` (PLAYER/MEDIA/SPONSOR come from a separate device-key session path, not
+  Descope login, and can't satisfy either). `requireAdmin(user)`/`requireStaff(user)` are the
+  standard gates for a whole route — redirect a logged-in-but-under-role user to `/home`, no
+  session at all to `/login`, consistently. Hard `ADMIN`-only routes: `/admin`, `/analytics`,
+  `/jobs`. The CRM (`/customers`, `/customers/list`, `/customers/[id]`, `/customers/reports`,
+  `/customers/match-activity`) is `STAFF`-or-`ADMIN`. Everything else is open to any logged-in role.
 - `/profile` has both Descope's `UserProfile` widget (account/security) and app-level display
   preferences (theme, default page size, default landing page — `lib/staff-preferences.ts`,
   `StaffPreference` table). `/configure` is where Players/Sponsors/Seasons/Stadiums/Devices get

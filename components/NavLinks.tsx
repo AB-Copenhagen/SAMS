@@ -17,7 +17,8 @@ export type NavItemDef = {
   icon: React.ReactNode;
   /** Whether this item's href matches the given pathname (handles nested routes). */
   isActive: (pathname: string) => boolean;
-  adminOnly?: boolean;
+  /** Omitted = visible to any logged-in role. */
+  minRole?: 'STAFF' | 'ADMIN';
 };
 
 export type NavSectionDef = {
@@ -97,7 +98,7 @@ export const NAV_SECTIONS: NavSectionDef[] = [
         href: '/customers',
         label: 'Customers',
         isActive: (p) => p.startsWith('/customers') && !p.startsWith('/customers/reports'),
-        adminOnly: true,
+        minRole: 'STAFF',
         icon: (
           <Icon>
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -111,7 +112,7 @@ export const NAV_SECTIONS: NavSectionDef[] = [
         href: '/customers/reports',
         label: 'Reports',
         isActive: (p) => p.startsWith('/customers/reports'),
-        adminOnly: true,
+        minRole: 'STAFF',
         icon: (
           <Icon>
             <line x1="18" y1="20" x2="18" y2="10" />
@@ -124,7 +125,7 @@ export const NAV_SECTIONS: NavSectionDef[] = [
         href: '/customers/match-activity',
         label: 'Match activity',
         isActive: (p) => p.startsWith('/customers/match-activity'),
-        adminOnly: true,
+        minRole: 'STAFF',
         icon: (
           <Icon>
             <circle cx="12" cy="12" r="10" />
@@ -141,7 +142,7 @@ export const NAV_SECTIONS: NavSectionDef[] = [
         href: '/jobs',
         label: 'Jobs',
         isActive: (p) => p.startsWith('/jobs'),
-        adminOnly: true,
+        minRole: 'ADMIN',
         icon: (
           <Icon>
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
@@ -152,7 +153,7 @@ export const NAV_SECTIONS: NavSectionDef[] = [
         href: '/analytics',
         label: 'Analytics',
         isActive: (p) => p.startsWith('/analytics'),
-        adminOnly: true,
+        minRole: 'ADMIN',
         icon: (
           <Icon>
             <line x1="18" y1="20" x2="18" y2="10" />
@@ -176,9 +177,15 @@ export const NAV_SECTIONS: NavSectionDef[] = [
   },
 ];
 
+// ADMIN implies STAFF-level access and up — see isStaffOrAdmin in lib/auth.ts.
+const ROLE_RANK: Record<string, number> = { ADMIN: 2, STAFF: 1 };
+
 export function visibleNavSections(role: string): NavSectionDef[] {
   return NAV_SECTIONS
-    .map((section) => ({ ...section, items: section.items.filter((item) => !item.adminOnly || role === 'ADMIN') }))
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => !item.minRole || (ROLE_RANK[role] ?? 0) >= ROLE_RANK[item.minRole]),
+    }))
     .filter((section) => section.items.length > 0);
 }
 

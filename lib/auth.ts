@@ -79,6 +79,14 @@ export function isAdmin(user: User | null): user is User {
   return Boolean(user && user.role === 'ADMIN');
 }
 
+// STAFF and ADMIN are the two roles the Descope login gate can ever issue (resolveAppRole in
+// lib/descope.ts) — PLAYER/MEDIA/SPONSOR sessions come from a separate device-key auth path
+// (app/api/devices/route.ts) and must not gain access just by having *a* session cookie, hence
+// the explicit role check rather than "any logged-in user."
+export function isStaffOrAdmin(user: User | null): user is User {
+  return Boolean(user && (user.role === 'ADMIN' || user.role === 'STAFF'));
+}
+
 /**
  * Call at the top of an ADMIN-only server component page. Sends a request with no session at
  * all to /login, and a logged-in request that just lacks the role to /home — centralized so
@@ -89,5 +97,12 @@ export function isAdmin(user: User | null): user is User {
 export function requireAdmin(user: User | null): User {
   if (!user) redirect('/login');
   if (!isAdmin(user)) redirect('/home');
+  return user;
+}
+
+/** Same as requireAdmin, but for a STAFF-or-ADMIN-only page — see isStaffOrAdmin. */
+export function requireStaff(user: User | null): User {
+  if (!user) redirect('/login');
+  if (!isStaffOrAdmin(user)) redirect('/home');
   return user;
 }

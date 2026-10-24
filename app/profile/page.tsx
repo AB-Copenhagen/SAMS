@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '../../lib/auth';
-import { getCachedStaffPreferences, LANDING_PAGE_CHOICES, PAGE_SIZE_OPTIONS } from '../../lib/staff-preferences';
+import { getCachedStaffPreferences, LANDING_PAGE_CHOICES, PAGE_SIZE_OPTIONS, roleAllowsLandingChoice } from '../../lib/staff-preferences';
 import AppShell from '../../components/AppShell';
 import ProfileClient from '../../components/ProfileClient';
 
@@ -9,7 +9,7 @@ export default async function ProfilePage() {
   if (!user) redirect('/login');
 
   const preferences = await getCachedStaffPreferences(user.id);
-  const landingPageChoices = LANDING_PAGE_CHOICES.filter((c) => !c.adminOnly || user.role === 'ADMIN');
+  const landingPageChoices = LANDING_PAGE_CHOICES.filter((c) => roleAllowsLandingChoice(user.role, c.minRole));
 
   return (
     <AppShell user={user}>

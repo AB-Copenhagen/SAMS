@@ -52,19 +52,27 @@ export function resolvePageSize(pref: StaffPreferences, fallback: number): numbe
 // redirect() call, so an unvalidated value would be an open-redirect risk (see security-checklist
 // skill). Validated again here at read time (not just on save) in case a role changed after the
 // preference was set.
-export const LANDING_PAGE_CHOICES: { value: string; label: string; adminOnly?: boolean }[] = [
+// minRole omitted = any logged-in role. Mirrors components/NavLinks.tsx's ROLE_RANK (duplicated
+// rather than shared since that one's a client component and this is server-only, like lib/auth.ts).
+const ROLE_RANK: Record<string, number> = { ADMIN: 2, STAFF: 1 };
+
+export const LANDING_PAGE_CHOICES: { value: string; label: string; minRole?: 'STAFF' | 'ADMIN' }[] = [
   { value: '/home', label: 'Home' },
   { value: '/upload', label: 'Upload' },
   { value: '/media', label: 'Media library' },
   { value: '/collections', label: 'Collections' },
-  { value: '/customers', label: 'Customers', adminOnly: true },
-  { value: '/jobs', label: 'Jobs', adminOnly: true },
-  { value: '/analytics', label: 'Analytics', adminOnly: true },
+  { value: '/customers', label: 'Customers', minRole: 'STAFF' },
+  { value: '/jobs', label: 'Jobs', minRole: 'ADMIN' },
+  { value: '/analytics', label: 'Analytics', minRole: 'ADMIN' },
 ];
+
+export function roleAllowsLandingChoice(role: string, minRole?: 'STAFF' | 'ADMIN'): boolean {
+  return !minRole || (ROLE_RANK[role] ?? 0) >= ROLE_RANK[minRole];
+}
 
 export function resolveLandingPage(pref: StaffPreferences, role: string, fallback: string): string {
   const choice = LANDING_PAGE_CHOICES.find((c) => c.value === pref.defaultLandingPage);
   if (!choice) return fallback;
-  if (choice.adminOnly && role !== 'ADMIN') return fallback;
+  if (!roleAllowsLandingChoice(role, choice.minRole)) return fallback;
   return choice.value;
 }

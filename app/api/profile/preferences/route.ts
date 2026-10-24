@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
-import { invalidateStaffPreference, PAGE_SIZE_OPTIONS, LANDING_PAGE_CHOICES } from '../../../../lib/staff-preferences';
+import { invalidateStaffPreference, PAGE_SIZE_OPTIONS, LANDING_PAGE_CHOICES, roleAllowsLandingChoice } from '../../../../lib/staff-preferences';
 
 export async function PATCH(request: Request) {
   const user = await getCurrentUser();
@@ -25,7 +25,7 @@ export async function PATCH(request: Request) {
   if (defaultLandingPage !== undefined && defaultLandingPage !== null && !landingChoice) {
     return NextResponse.json({ message: 'Invalid defaultLandingPage' }, { status: 400 });
   }
-  if (landingChoice?.adminOnly && user.role !== 'ADMIN') {
+  if (landingChoice && !roleAllowsLandingChoice(user.role, landingChoice.minRole)) {
     return NextResponse.json({ message: 'Invalid defaultLandingPage' }, { status: 400 });
   }
 
