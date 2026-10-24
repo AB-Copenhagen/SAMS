@@ -155,9 +155,8 @@ export default async function CustomersListPage(
                       <th>Name</th>
                       <th>Email</th>
                       <th>Consent</th>
-                      <th>Lifetime spend</th>
-                      <th>Last login</th>
-                      <th className="customer-table-hide-narrow">Last synced</th>
+                      <th>Shopify Spend</th>
+                      <th># of Tickets</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -176,14 +175,7 @@ export default async function CustomersListPage(
                         <td>
                           {customer.shopifyLifetimeSpend != null ? formatSpend(customer.shopifyLifetimeSpend) : '—'}
                         </td>
-                        <td style={{ whiteSpace: 'nowrap', color: '#8890b4' }}>
-                          {customer.lastLoginAt
-                            ? `${new Date(customer.lastLoginAt).toLocaleString()}${customer.lastLoginCountry ? ` (${customer.lastLoginCountry})` : ''}`
-                            : '—'}
-                        </td>
-                        <td className="customer-table-hide-narrow" style={{ whiteSpace: 'nowrap', color: '#8890b4' }}>
-                          {customer.updatedAt ? new Date(customer.updatedAt).toLocaleString() : '—'}
-                        </td>
+                        <td>{customer.vivenuMatchesPurchasedCount ?? '—'}</td>
                       </tr>
                     ))}
                   </tbody>
