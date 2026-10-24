@@ -9,7 +9,7 @@ const MAX_BAR_WIDTH = 48;
 const CORNER_RADIUS = 4;
 const SEGMENT_GAP = 2;
 
-export type StackedBarDatum = { label: string; segments: { name: string; value: number; color: string }[] };
+export type StackedBarDatum = { label: string; sublabel?: string; segments: { name: string; value: number; color: string }[] };
 
 function topRoundedRectPath(x: number, width: number, top: number, bottom: number): string {
   const r = Math.min(CORNER_RADIUS, (bottom - top) / 2, width / 2);
@@ -70,7 +70,7 @@ export default function StackedBarChart({ data }: { data: StackedBarDatum[] }) {
 
           return (
             <g key={d.label}>
-              <title>{`${d.label}: ${d.segments.map((s) => `${s.name} ${s.value}`).join(', ')}`}</title>
+              <title>{`${d.label}${d.sublabel ? ` (${d.sublabel})` : ''}: ${d.segments.map((s) => `${s.name} ${s.value}`).join(', ')}`}</title>
               {boundaries.map(({ seg, top, bottom }, segIdx) => {
                 if (bottom - top <= 0) return null;
                 const isTopmost = segIdx === boundaries.length - 1;
