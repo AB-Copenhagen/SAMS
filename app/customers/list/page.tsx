@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getCurrentUser, requireAdmin } from '../../../lib/auth';
+import { getCurrentUser, requireStaff } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
 import { getCachedStaffPreferences, resolvePageSize } from '../../../lib/staff-preferences';
 import AppShell from '../../../components/AppShell';
@@ -36,7 +36,7 @@ export default async function CustomersListPage(
   }
 ) {
   const searchParams = await props.searchParams;
-  const user = requireAdmin(await getCurrentUser());
+  const user = requireStaff(await getCurrentUser());
   const pref = await getCachedStaffPreferences(user.id);
   const PER_PAGE = resolvePageSize(pref, DEFAULT_PER_PAGE);
 

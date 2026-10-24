@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getCurrentUser, requireAdmin } from '../../../lib/auth';
+import { getCurrentUser, requireStaff } from '../../../lib/auth';
 import AppShell from '../../../components/AppShell';
 import BarChart from '../../../components/charts/BarChart';
 import { getCachedMatches, mergeMatchesByDay, opponentName, type MergedMatch } from '../../../lib/vivenu';
@@ -19,7 +19,7 @@ function pickDefaultMatch(merged: MergedMatch[], todayStr: string): MergedMatch 
 }
 
 export default async function MatchActivityPage(props: { searchParams: Promise<{ date?: string }> }) {
-  const user = requireAdmin(await getCurrentUser());
+  const user = requireStaff(await getCurrentUser());
   const searchParams = await props.searchParams;
 
   const merged = mergeMatchesByDay(await getCachedMatches());

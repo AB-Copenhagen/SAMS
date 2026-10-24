@@ -16,7 +16,7 @@ const UserProfile = dynamic(
   { ssr: false, loading: () => <p>Loading profile…</p> }
 );
 
-type LandingPageChoice = { value: string; label: string; adminOnly?: boolean };
+type LandingPageChoice = { value: string; label: string; minRole?: 'STAFF' | 'ADMIN' };
 
 export default function ProfileClient({
   preferences,

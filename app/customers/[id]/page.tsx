@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getCurrentUser, requireAdmin } from '../../../lib/auth';
+import { getCurrentUser, requireStaff } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
 import AppShell from '../../../components/AppShell';
 import CollapsibleCard from '../../../components/CollapsibleCard';
@@ -61,7 +61,7 @@ const ACTIVITY_META: Record<string, { label: string; className: string; icon: Re
 export default async function CustomerDetailPage(props: { params: Promise<{ id: string }>; searchParams: Promise<{ page?: string }> }) {
   const params = await props.params;
   const searchParams = await props.searchParams;
-  const user = requireAdmin(await getCurrentUser());
+  const user = requireStaff(await getCurrentUser());
 
   const customer = await prisma.customer.findUnique({ where: { id: params.id } });
   if (!customer) notFound();

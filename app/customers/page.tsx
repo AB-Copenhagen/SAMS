@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getCurrentUser, requireAdmin } from '../../lib/auth';
+import { getCurrentUser, requireStaff } from '../../lib/auth';
 import AppShell from '../../components/AppShell';
 import { getCustomerKpis, getCachedCustomerDashboard, type CustomerSyncRunSummary } from '../../lib/customer-query';
 import { formatSpend } from '../../lib/customer-ui';
@@ -53,7 +53,7 @@ function SyncRunRow({ run }: { run: CustomerSyncRunSummary }) {
 }
 
 export default async function CustomersDashboardPage() {
-  const user = requireAdmin(await getCurrentUser());
+  const user = requireStaff(await getCurrentUser());
   const [kpis, dashboard] = await Promise.all([getCustomerKpis(), getCachedCustomerDashboard()]);
 
   return (
