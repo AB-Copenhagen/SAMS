@@ -41,11 +41,28 @@ export async function verifyDescopeSession(sessionToken: string): Promise<Descop
   try {
     const { ok, data } = await getSdk().me(sessionToken);
     if (!ok || !data) return null;
+
+    // Descope assigns a role either directly on the user (data.roleNames) or, in a project with
+    // tenants, within a tenant membership (data.userTenants[].roleNames) — these are two
+    // independent lists in the SDK's own types, not one nesting inside the other. AB's project
+    // apparently uses the tenant-scoped form: reading only the top-level roleNames resolved to
+    // nothing for every user, including ones that do hold Admin (gh-66). Combine both so either
+    // assignment style works.
+    const tenantRoles = (data.userTenants ?? []).flatMap((t) => t.roleNames ?? []);
+    const roles = [...(data.roleNames ?? []), ...tenantRoles];
+
+    // Temporary: confirms the real shape for any account that still resolves to zero roles after
+    // the fix above (a genuine Descope-console assignment gap, as opposed to the tenant-shape
+    // issue this fixes) — remove once gh-66 is confirmed resolved.
+    if (roles.length === 0) {
+      console.warn('[descope] no roles resolved', JSON.stringify({ userId: data.userId, roleNames: data.roleNames, userTenants: data.userTenants }));
+    }
+
     return {
       id: data.userId,
       email: data.email ?? data.loginIds?.[0] ?? '',
       name: data.name,
-      roles: data.roleNames ?? [],
+      roles,
     };
   } catch {
     return null;
