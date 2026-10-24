@@ -614,6 +614,35 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   margin: 0 4px 4px 0;
 }
 
+/* Match-day selector pills on /customers/match-activity — same family as .segment-chip but
+   bigger (a clickable nav control, not a passive label) and stacks a date under the opponent
+   name so the active match is identifiable without opening it. */
+.match-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: #f8f9fc;
+  border: 1px solid #edf0f9;
+  color: #2d3154;
+  text-decoration: none;
+}
+.match-pill-active {
+  background: var(--color-primary-tint);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.match-pill-date {
+  font-size: 11px;
+  font-weight: 400;
+  color: #8890b4;
+}
+.match-pill-active .match-pill-date { color: var(--color-primary); opacity: 0.75; }
+
 .asset-link {
   color: var(--color-primary);
   text-decoration: none;

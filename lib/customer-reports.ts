@@ -147,6 +147,88 @@ async function getMatchAttendanceUncached(): Promise<MatchAttendance[]> {
   return results;
 }
 
+export type MatchActivitySummary = {
+  ticketsSold: number;
+  checkedIn: number;
+  noShow: number;
+  newFans: number;
+  returningFans: number;
+};
+
+export type TopFan = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  matchesAttended: number;
+  seasonPass: boolean;
+};
+
+export type MatchActivity = { summary: MatchActivitySummary; topFans: TopFan[] };
+
+const TOP_FANS_LIMIT = 15;
+
+// Per-match drill-down for the live match-day view (app/customers/match-activity), as opposed to
+// the cross-match trend above. "New" vs "returning" is approximated from
+// vivenuMatchesAttendedCount alone (<=1 means this is the only match in their attended set) since
+// that set doesn't record attendance order — good enough to answer "did we convert a first-timer"
+// without needing per-match timestamps we don't have.
+async function getMatchActivityUncached(eventIds: string[]): Promise<MatchActivity> {
+  const [ticketsSold, attendedCustomers] = await Promise.all([
+    Promise.all(eventIds.map((id) => getTicketsSoldCount(id).catch(() => 0))).then((counts) =>
+      counts.reduce((a, b) => a + b, 0)
+    ),
+    prisma.customer.findMany({
+      where: { vivenuAttendedEventIdsJson: { not: null } },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        vivenuAttendedEventIdsJson: true,
+        vivenuMatchesAttendedCount: true,
+        vivenuSeasonPassStatus: true,
+      },
+    }),
+  ]);
+
+  const idSet = new Set(eventIds);
+  const checkedInCustomers = attendedCustomers.filter((c) => {
+    try {
+      return (JSON.parse(c.vivenuAttendedEventIdsJson ?? '[]') as string[]).some((id) => idSet.has(id));
+    } catch {
+      return false; // malformed JSON from a prior sync — exclude rather than fail the whole report
+    }
+  });
+
+  const newFans = checkedInCustomers.filter((c) => (c.vivenuMatchesAttendedCount ?? 0) <= 1).length;
+
+  const topFans = [...checkedInCustomers]
+    .sort((a, b) => (b.vivenuMatchesAttendedCount ?? 0) - (a.vivenuMatchesAttendedCount ?? 0))
+    .slice(0, TOP_FANS_LIMIT)
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      email: c.email,
+      matchesAttended: c.vivenuMatchesAttendedCount ?? 0,
+      seasonPass: !!c.vivenuSeasonPassStatus,
+    }));
+
+  return {
+    summary: {
+      ticketsSold,
+      checkedIn: checkedInCustomers.length,
+      noShow: Math.max(0, ticketsSold - checkedInCustomers.length),
+      newFans,
+      returningFans: checkedInCustomers.length - newFans,
+    },
+    topFans,
+  };
+}
+
+// 30s TTL, not 300s like the reports above — this view is for monitoring check-ins while a match
+// is actually in progress, where a 5-minute-stale count is too slow to be useful. Keyed by
+// eventIds, so each match (and the merged-duplicate-event id set behind it) gets its own entry.
+export const getCachedMatchActivity = unstable_cache(getMatchActivityUncached, ['match-activity'], { revalidate: 30 });
+
 // 300s TTL, same as getCachedCustomerDashboard — these are report views, not live counters.
 export const getCachedSpendDistribution = unstable_cache(getSpendDistributionUncached, ['report-spend-distribution'], { revalidate: 300 });
 export const getCachedMatchAttendance = unstable_cache(getMatchAttendanceUncached, ['report-match-attendance'], { revalidate: 300 });
