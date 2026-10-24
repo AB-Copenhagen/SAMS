@@ -335,7 +335,7 @@ button, input, textarea, select { font: inherit; }
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-shrink: 0;
+  min-width: 0; /* lets this side actually shrink/ellipsize instead of overflowing the card */
   color: #8890b4;
 }
 
@@ -344,7 +344,8 @@ button, input, textarea, select { font: inherit; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 220px;
+  min-width: 0;
+  max-width: 140px;
 }
 
 /* ─── Form elements ──────────────────────────────────────── */
@@ -1423,7 +1424,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Customer detail sidebar: a small color-coded icon badge next to each CollapsibleCard's title
    (Profile/Goliath/Shopify/MailerLite/Vivenu) — same soft-tint/saturated-fg shape as
    .activity-icon above, just smaller, so the sidebar reads by color at a glance. */
-.collapsible-card-title { display: flex; align-items: center; gap: 10px; }
+.collapsible-card-title { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .section-icon {
   width: 26px;
   height: 26px;

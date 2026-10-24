@@ -96,7 +96,7 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
 
   const identitySummary = [
     customer.marketingOptIn === null ? null : customer.marketingOptIn ? 'Opted in' : 'Opted out',
-    daysSinceLogin === null ? 'Never logged in' : daysSinceLogin === 0 ? 'Logged in today' : `Last login ${daysSinceLogin}d ago`,
+    daysSinceLogin === null ? 'No logins' : daysSinceLogin === 0 ? 'Today' : `${daysSinceLogin}d ago`,
   ].filter(Boolean).join(' · ') || 'No identity data';
 
   const goliathSummary = segments.length > 0 ? `${segments.length} segment${segments.length === 1 ? '' : 's'}` : 'No segments';
@@ -109,12 +109,10 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
     ? `${customer.mailerliteStatus.toUpperCase()}${customer.mailerliteOpenRate != null ? ` · ${Math.round(customer.mailerliteOpenRate * 100)}% opens` : ''}`
     : 'Not subscribed';
 
+  // Season pass status already shows as the header badge, so no need to repeat it here.
   const vivenuSummary = customer.vivenuCustomerId
-    ? [
-        customer.vivenuSeasonPassStatus ? 'Season pass' : null,
-        `${customer.vivenuMatchesAttendedCount ?? 0}/${customer.vivenuMatchesPurchasedCount ?? 0} attended`,
-      ].filter(Boolean).join(' · ')
-    : 'No EventBilletten account linked';
+    ? `${customer.vivenuMatchesPurchasedCount ?? 0} tickets`
+    : 'Not linked';
 
   return (
     <AppShell user={user} wide>
@@ -303,8 +301,8 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
               <div className="stat-value">{customer.shopifyOrderCount ?? '—'}</div>
             </div>
             <div className="stat-card">
-              <div className="stat-label">Matches attended</div>
-              <div className="stat-value">{customer.vivenuMatchesAttendedCount ?? '—'}</div>
+              <div className="stat-label">Tickets</div>
+              <div className="stat-value">{customer.vivenuMatchesPurchasedCount ?? '—'}</div>
             </div>
             <div className="stat-card">
               <div className="stat-label">Segments</div>
