@@ -12,6 +12,7 @@
 import { prisma } from './db';
 import { findCustomerByEmail } from './shopify';
 import { findSubscriberByEmail } from './mailerlite';
+import { formatSpend } from './customer-ui';
 
 const EXTERNAL_DATA_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 
@@ -73,7 +74,7 @@ export async function refreshCustomerExternalData(customer: {
           customerId: customer.id,
           type: 'order_placed',
           occurredAt: shopify.lastOrderAt ?? new Date(),
-          detail: `${newOrders} new order(s) · lifetime spend now ${shopify.lifetimeSpend.toFixed(2)} DKK`,
+          detail: `${newOrders} new order(s) · lifetime spend now ${formatSpend(shopify.lifetimeSpend)}`,
         },
       }).catch(() => {});
     }

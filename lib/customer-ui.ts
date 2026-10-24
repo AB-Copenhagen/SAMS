@@ -26,3 +26,9 @@ export function segmentNames(json: string | null): string[] {
     return [];
   }
 }
+
+// Shopify spend is tracked to the cent (lib/shopify.ts), but nothing here needs that precision —
+// rounds up to the nearest whole DKK, formatted with Danish thousands separators.
+export function formatSpend(amount: number): string {
+  return `${new Intl.NumberFormat('da-DK').format(Math.ceil(amount))} DKK`;
+}

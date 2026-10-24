@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getCurrentUser, requireAdmin } from '../../lib/auth';
 import AppShell from '../../components/AppShell';
 import { getCustomerKpis, getCachedCustomerDashboard, type CustomerSyncRunSummary } from '../../lib/customer-query';
+import { formatSpend } from '../../lib/customer-ui';
 
 const SOURCE_LABELS: Record<string, string> = {
   descope: 'Descope profiles',
@@ -132,7 +133,7 @@ export default async function CustomersDashboardPage() {
                     <Link href={`/customers/${c.id}`} className="config-item-title asset-link" style={{ display: 'block' }}>
                       {c.name || c.email || c.id}
                     </Link>
-                    <div className="config-item-sub">{c.shopifyLifetimeSpend!.toFixed(2)} DKK</div>
+                    <div className="config-item-sub">{formatSpend(c.shopifyLifetimeSpend!)}</div>
                   </div>
                 </div>
               ))}
