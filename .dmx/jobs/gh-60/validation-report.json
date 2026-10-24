@@ -1,0 +1,59 @@
+{
+  "commit": "59077a9fd72254aa9de1ce1fd56f078a58c2164c",
+  "scope_items": [
+    {
+      "item": "Add a top header bar with a right-aligned profile/settings menu, replacing .sidebar-footer",
+      "verdict": "covered",
+      "evidence": "components/TopHeader.tsx:1-45, components/AppShell.tsx, components/SidebarShell.tsx"
+    },
+    {
+      "item": "Improve the existing global search",
+      "verdict": "covered",
+      "evidence": "components/HeaderSearch.tsx:1-108"
+    },
+    {
+      "item": "Preserve the Cmd+K/Ctrl+K shortcut and permission-aware search behavior",
+      "verdict": "partial",
+      "evidence": "components/CommandPalette.tsx (deleted) — Cmd+K itself was deliberately removed per the answered Question 2 (.dmx/jobs/gh-60/spec.md:50), which supersedes this scope bullet's literal text; the permission-aware half (isAdmin gating) is untouched and fully preserved in app/api/search/route.ts"
+    },
+    {
+      "item": "Replace .mobile-topbar, keep the 860px drawer breakpoint",
+      "verdict": "covered",
+      "evidence": "app/globals.css (mobile-topbar rules removed), components/SidebarShell.tsx"
+    },
+    {
+      "item": "Reuse existing CSS conventions rather than a parallel class set",
+      "verdict": "covered",
+      "evidence": "app/globals.css — new .top-header-*/.header-search-* rules added alongside existing conventions, same BEM-ish naming and file organization"
+    },
+    {
+      "item": "Fix the broken Descope profile widget (Question 4)",
+      "verdict": "partial",
+      "evidence": "components/ProfileClient.tsx — fix applied (ssr:false dynamic import matching DescopeLoginForm.tsx's precedent) but unverified against a real logged-in session; tasks.md Phase 3's third task is explicitly left unchecked"
+    }
+  ],
+  "scope_creep": [],
+  "regressions": [],
+  "edge_cases": [
+    {
+      "description": "Sticky elements (.sidebar, .bulk-action-bar, .sticky-sidebar) colliding with the new persistent top header",
+      "addressed": true,
+      "evidence": "app/globals.css — --top-header-height offsets applied to all three"
+    },
+    {
+      "description": "Header overflow on narrow phones (drawer toggle + logo + search + user menu in one row)",
+      "addressed": true,
+      "evidence": "app/globals.css — 640px media query hides wordmark/role, tightens name column"
+    },
+    {
+      "description": "LogoutButton's hardcoded width:100% inline style breaking the new horizontal header layout",
+      "addressed": true,
+      "evidence": "components/LogoutButton.tsx"
+    },
+    {
+      "description": "Live-session verification that the Descope UserProfile widget actually renders post-fix",
+      "addressed": false,
+      "evidence": "tasks.md Phase 3, task 3 — deferred at the developer's explicit request, no live browser/credentials available in this environment"
+    }
+  ]
+}

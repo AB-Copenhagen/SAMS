@@ -34,6 +34,7 @@ tools/sams-ingest/ ← standalone CLI package, separate from the deployed app
 - **Schema changes via one-shot admin routes/scripts, not Prisma migrations.** There is no `prisma migrate` history in this repo — `prisma/schema.prisma` is the source of truth, and changes are pushed directly via `scripts/push-turso.mjs` or shipped as one-shot `/api/system/*` admin routes (see `app/api/system/migrate-*`). See memory `schema_changes_via_admin_endpoint` in the auto-memory system for more on this convention.
 - **Device-key auth for unattended clients.** Non-browser ingest clients (the CLI, future integrations) authenticate with per-device API keys minted/revoked from Configure → Devices, not a browser session.
 - **Public share links.** `/s/[token]` serves public, token-gated views of assets/collections outside the staff-only auth gate — see the `security-checklist` skill for conventions on share-token links, device keys, and cron/webhook secrets.
+- **Persistent top header.** `components/TopHeader.tsx`, rendered by `AppShell.tsx` above a flex row of sidebar + main content, is sticky at every breakpoint (not just mobile). Its height is `--top-header-height` in `app/globals.css`; any other sticky-positioned element in the page (`.sidebar`, `.bulk-action-bar`, `.sticky-sidebar`) must offset its own `top`/`max-height` against that variable or it will visually collide with the header. Check for this when adding a new sticky element.
 
 ## Component relationships
 

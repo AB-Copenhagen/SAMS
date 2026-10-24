@@ -2,8 +2,19 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { UserProfile } from '@descope/react-sdk';
+import dynamic from 'next/dynamic';
 import type { StaffPreferences } from '../lib/staff-preferences';
+
+// Same as the Descope flow component in DescopeLoginForm.tsx: UserProfile wraps a custom element
+// (customElements.define(), browser-only). Rendering it directly — as this previously did — lets
+// Next.js SSR a placeholder for it, and the client then hydrates into the real custom element,
+// which React can't reconcile; the resulting hydration error left the widget in a broken state
+// that then raced the Descope SDK's own session rehydration and crashed. ssr:false defers mounting
+// until after hydration, avoiding both.
+const UserProfile = dynamic(
+  () => import('@descope/react-sdk').then((mod) => mod.UserProfile),
+  { ssr: false, loading: () => <p>Loading profile…</p> }
+);
 
 type LandingPageChoice = { value: string; label: string; adminOnly?: boolean };
 
