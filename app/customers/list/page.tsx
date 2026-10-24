@@ -15,6 +15,13 @@ function consentBadge(marketingOptIn: boolean | null) {
     : <span className="consent-badge badge-opted-out">OPTED OUT</span>;
 }
 
+type SortField = 'consent' | 'spend' | 'tickets';
+const SORT_COLUMNS: Record<SortField, string> = {
+  consent: 'marketingOptIn',
+  spend: 'shopifyLifetimeSpend',
+  tickets: 'vivenuMatchesPurchasedCount',
+};
+
 export default async function CustomersListPage(
   props: {
     searchParams: Promise<{
@@ -23,6 +30,8 @@ export default async function CustomersListPage(
       marketingOptIn?: string;
       minSpend?: string;
       segment?: string;
+      sort?: string;
+      dir?: string;
     }>;
   }
 ) {
@@ -39,21 +48,34 @@ export default async function CustomersListPage(
   const segment = searchParams.segment || undefined;
   const where = buildCustomerWhere({ q: q || undefined, marketingOptIn, minSpend, segment });
 
+  const sortField = (Object.keys(SORT_COLUMNS) as SortField[]).includes(searchParams.sort as SortField)
+    ? (searchParams.sort as SortField)
+    : undefined;
+  const sortDir: 'asc' | 'desc' = searchParams.dir === 'asc' ? 'asc' : 'desc';
+  // Nulls (never-synced customers) always sort last regardless of direction — otherwise "desc"
+  // on Shopify Spend would put every unenriched customer above actual top spenders, since
+  // SQLite/Prisma's default null ordering isn't what a staff member sorting by spend expects.
+  const orderBy = sortField
+    ? [{ [SORT_COLUMNS[sortField]]: { sort: sortDir, nulls: 'last' as const } }]
+    : [{ updatedAt: 'desc' as const }];
+
   const [customers, total, segments] = await Promise.all([
-    prisma.customer.findMany({ where, orderBy: { updatedAt: 'desc' }, take: PER_PAGE, skip: (page - 1) * PER_PAGE }),
+    prisma.customer.findMany({ where, orderBy, take: PER_PAGE, skip: (page - 1) * PER_PAGE }),
     prisma.customer.count({ where }),
     topGoliathSegments(50),
   ]);
 
   const pages = Math.ceil(total / PER_PAGE) || 1;
 
-  function urlWith(overrides: Partial<{ q: string; marketingOptIn: string; minSpend: string; segment: string; page: string }>) {
+  function urlWith(overrides: Partial<{ q: string; marketingOptIn: string; minSpend: string; segment: string; page: string; sort: string; dir: string }>) {
     const next = {
       q,
       marketingOptIn: marketingOptIn === undefined ? '' : String(marketingOptIn),
       minSpend: minSpend !== undefined ? String(minSpend) : '',
       segment: segment ?? '',
       page: '',
+      sort: sortField ?? '',
+      dir: sortDir,
       ...overrides,
     };
     const params = new URLSearchParams();
@@ -62,8 +84,29 @@ export default async function CustomersListPage(
     if (next.minSpend) params.set('minSpend', next.minSpend);
     if (next.segment) params.set('segment', next.segment);
     if (next.page && next.page !== '1') params.set('page', next.page);
+    if (next.sort) params.set('sort', next.sort);
+    if (next.sort && next.dir) params.set('dir', next.dir);
     const qs = params.toString();
     return '/customers/list' + (qs ? `?${qs}` : '');
+  }
+
+  // Clicking an unsorted column defaults to descending (biggest spend / opted-in first reads
+  // more usefully than ascending on a first click); clicking the active column flips direction.
+  function sortHeader(field: SortField, label: string) {
+    const isActive = sortField === field;
+    const nextDir = isActive && sortDir === 'desc' ? 'asc' : 'desc';
+    return (
+      <th>
+        <Link
+          href={urlWith({ sort: field, dir: nextDir, page: '' })}
+          className="sortable-column-header"
+          style={{ color: 'inherit', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+        >
+          {label}
+          {isActive && <span aria-hidden>{sortDir === 'desc' ? '↓' : '↑'}</span>}
+        </Link>
+      </th>
+    );
   }
 
   const consentFilters: { label: string; value: string }[] = [
@@ -89,6 +132,8 @@ export default async function CustomersListPage(
             <form method="get">
               <input type="hidden" name="marketingOptIn" value={currentConsent} />
               <input type="hidden" name="segment" value={segment ?? ''} />
+              {sortField && <input type="hidden" name="sort" value={sortField} />}
+              {sortField && <input type="hidden" name="dir" value={sortDir} />}
               <div className="field">
                 <label htmlFor="q">Search</label>
                 <input type="text" id="q" name="q" placeholder="Name or email" defaultValue={q} />
@@ -154,9 +199,9 @@ export default async function CustomersListPage(
                     <tr>
                       <th>Name</th>
                       <th>Email</th>
-                      <th>Consent</th>
-                      <th>Shopify Spend</th>
-                      <th># of Tickets</th>
+                      {sortHeader('consent', 'Consent')}
+                      {sortHeader('spend', 'Shopify Spend')}
+                      {sortHeader('tickets', '# of Tickets')}
                     </tr>
                   </thead>
                   <tbody>
