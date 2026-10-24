@@ -42,7 +42,7 @@ const res = await fetch(`${baseUrl}/webhooks`, {
   method: 'POST',
   headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    name: 'SAMS customer attendance tracking',
+    name: 'SAMS attendance sync', // vivenu caps webhook names at 30 chars
     url: webhookUrl,
     enabled: true,
     hmacKey,
