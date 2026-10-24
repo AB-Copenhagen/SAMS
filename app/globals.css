@@ -545,6 +545,18 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* ─── Asset table ────────────────────────────────────────── */
 .asset-table-wrap { overflow-x: auto; }
 
+/* /customers/list only (a modifier alongside .asset-table, not a change to the shared base
+   class — the /admin asset table reuses .asset-table too and has different column needs).
+   A min-width keeps columns from squishing into illegible slivers at in-between widths; past
+   that, .asset-table-wrap's overflow-x:auto takes over with a real horizontal scroll instead.
+   The least essential column (Last synced — internal sync freshness, not fan-facing info) is
+   dropped entirely below 640px so the core columns (name/email/consent/spend/login) stay
+   readable on a phone without needing that scroll at all. */
+.customer-table { min-width: 640px; }
+@media (max-width: 640px) {
+  .customer-table-hide-narrow { display: none; }
+}
+
 .asset-table {
   width: 100%;
   border-collapse: collapse;

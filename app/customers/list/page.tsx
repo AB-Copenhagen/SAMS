@@ -4,7 +4,7 @@ import { prisma } from '../../../lib/db';
 import { getCachedStaffPreferences, resolvePageSize } from '../../../lib/staff-preferences';
 import AppShell from '../../../components/AppShell';
 import { buildCustomerWhere, topGoliathSegments } from '../../../lib/customer-query';
-import { avatarColor, avatarInitial, segmentNames, formatSpend } from '../../../lib/customer-ui';
+import { avatarColor, avatarInitial, formatSpend } from '../../../lib/customer-ui';
 
 const DEFAULT_PER_PAGE = 50;
 
@@ -149,16 +149,15 @@ export default async function CustomersListPage(
               </div>
             ) : (
               <div className="asset-table-wrap">
-                <table className="asset-table">
+                <table className="asset-table customer-table">
                   <thead>
                     <tr>
                       <th>Name</th>
                       <th>Email</th>
                       <th>Consent</th>
-                      <th>Goliath segments</th>
                       <th>Lifetime spend</th>
                       <th>Last login</th>
-                      <th>Last synced</th>
+                      <th className="customer-table-hide-narrow">Last synced</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -175,13 +174,6 @@ export default async function CustomersListPage(
                         <td>{customer.email || '—'}</td>
                         <td>{consentBadge(customer.marketingOptIn)}</td>
                         <td>
-                          {segmentNames(customer.goliathSegmentsJson).length > 0
-                            ? segmentNames(customer.goliathSegmentsJson).map((name) => (
-                                <span key={name} className="segment-chip">{name}</span>
-                              ))
-                            : <span style={{ color: '#8890b4', fontSize: 12 }}>—</span>}
-                        </td>
-                        <td>
                           {customer.shopifyLifetimeSpend != null ? formatSpend(customer.shopifyLifetimeSpend) : '—'}
                         </td>
                         <td style={{ whiteSpace: 'nowrap', color: '#8890b4' }}>
@@ -189,7 +181,7 @@ export default async function CustomersListPage(
                             ? `${new Date(customer.lastLoginAt).toLocaleString()}${customer.lastLoginCountry ? ` (${customer.lastLoginCountry})` : ''}`
                             : '—'}
                         </td>
-                        <td style={{ whiteSpace: 'nowrap', color: '#8890b4' }}>
+                        <td className="customer-table-hide-narrow" style={{ whiteSpace: 'nowrap', color: '#8890b4' }}>
                           {customer.updatedAt ? new Date(customer.updatedAt).toLocaleString() : '—'}
                         </td>
                       </tr>
