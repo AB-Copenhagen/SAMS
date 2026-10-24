@@ -10,6 +10,7 @@
 //    means resolving its eventId's type — see getEventType()'s DB-backed cache in this file.
 
 import { createHmac, timingSafeEqual } from 'crypto';
+import { unstable_cache } from 'next/cache';
 import { prisma } from './db';
 import { throttle } from './api-throttle';
 
@@ -133,6 +134,69 @@ export async function listMatches(): Promise<VivenuMatch[]> {
   return data.rows
     .filter((e) => e.eventType === 'SINGLE' && MATCH_NAME_PATTERN.test(e.name))
     .map((e) => ({ id: e._id, name: e.name, start: e.start }));
+}
+
+// Cached wrapper for listMatches — AB's whole account is only 19 events so each call is cheap,
+// but this now also runs on every customer detail page view (getCustomerMatchHistory below), not
+// just the once-per-5-minutes reports page, so it's worth not hitting Vivenu on every single
+// staff click. Same 300s TTL as the report caches in lib/customer-reports.ts.
+export const getCachedMatches = unstable_cache(listMatches, ['vivenu-matches'], { revalidate: 300 });
+
+export type MergedMatch = { name: string; start: string; ids: string[] };
+
+// AB's Vivenu account has duplicate Event records for the same real match — confirmed live,
+// e.g. "AB vs EfB" and "AB vs Esbjerg fB" at the identical start timestamp, "AB vs Aarhus
+// Fremad!" vs "AB vs Aarhus Fremad". AB never plays twice in one calendar day, so grouping by
+// UTC date is a safe real-world merge key. Shared by lib/customer-reports.ts's match-attendance
+// report and getCustomerMatchHistory below, so the two never disagree about what counts as "one
+// match."
+export function mergeMatchesByDay(matches: VivenuMatch[]): MergedMatch[] {
+  const groups = new Map<string, MergedMatch>();
+  for (const match of matches) {
+    const day = match.start.slice(0, 10);
+    const group = groups.get(day);
+    if (!group) {
+      groups.set(day, { name: match.name, start: match.start, ids: [match.id] });
+    } else {
+      group.ids.push(match.id);
+      // Prefer a "vs" name over a "mod" one when merging duplicates — purely cosmetic, both
+      // refer to the same real match either way.
+      if (/\bmod\b/i.test(group.name) && /\bvs\b/i.test(match.name)) group.name = match.name;
+    }
+  }
+  return [...groups.values()].sort((a, b) => a.start.localeCompare(b.start));
+}
+
+// Strips the "AB vs "/"AB mod " prefix every match name shares (confirmed live) so a UI can show
+// just the opponent, which is both more compact and more informative than a bare date.
+export function opponentName(matchName: string): string {
+  return matchName.replace(/^AB\s+(vs|mod)\s+/i, '').trim();
+}
+
+export type CustomerMatchHistoryRow = { opponent: string; start: string; purchased: boolean; attended: boolean };
+
+// Builds a customer's match-by-match history for the detail page: every real match AB has ever
+// listed, cross-referenced against which event IDs appear in that customer's purchased/attended
+// sets (both already SINGLE-type event-ID sets — see lib/customer-enrichment.ts's
+// vivenuPurchasedEventIdsJson and the scan.created webhook's vivenuAttendedEventIdsJson). Matches
+// that are neither purchased nor attended by this customer are left out, rather than listing all
+// ~19 events for every customer regardless of relevance.
+export async function getCustomerMatchHistory(purchasedEventIds: string[], attendedEventIds: string[]): Promise<CustomerMatchHistoryRow[]> {
+  if (purchasedEventIds.length === 0 && attendedEventIds.length === 0) return [];
+  const purchasedSet = new Set(purchasedEventIds);
+  const attendedSet = new Set(attendedEventIds);
+
+  const merged = mergeMatchesByDay(await getCachedMatches());
+
+  return merged
+    .filter((m) => m.ids.some((id) => purchasedSet.has(id) || attendedSet.has(id)))
+    .map((m) => ({
+      opponent: opponentName(m.name),
+      start: m.start,
+      purchased: m.ids.some((id) => purchasedSet.has(id)),
+      attended: m.ids.some((id) => attendedSet.has(id)),
+    }))
+    .sort((a, b) => b.start.localeCompare(a.start));
 }
 
 // Ticket sales are queryable per event directly (confirmed live), unlike check-ins — see the

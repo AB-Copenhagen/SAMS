@@ -7,7 +7,7 @@ import CollapsibleCard from '../../../components/CollapsibleCard';
 import { customerAdminUrl } from '../../../lib/shopify';
 import { userDashboardUrl } from '../../../lib/goliath';
 import { subscriberDashboardUrl } from '../../../lib/mailerlite';
-import { customerDashboardUrl as vivenuDashboardUrl } from '../../../lib/vivenu';
+import { customerDashboardUrl as vivenuDashboardUrl, getCustomerMatchHistory } from '../../../lib/vivenu';
 import { avatarColor, avatarInitial, segmentNames, formatSpend } from '../../../lib/customer-ui';
 import { isExternalDataStale, refreshCustomerExternalData } from '../../../lib/customer-enrichment';
 
@@ -71,6 +71,10 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
   // inside refreshCustomerExternalData — not a single combined check here — so one platform
   // succeeding can never mask the other having failed and never gotten a chance to retry.
   Object.assign(customer, await refreshCustomerExternalData(customer));
+
+  const matchHistory = customer.vivenuCustomerId
+    ? await getCustomerMatchHistory(segmentNames(customer.vivenuPurchasedEventIdsJson), segmentNames(customer.vivenuAttendedEventIdsJson))
+    : [];
 
   const page = Math.max(1, parseInt(searchParams.page ?? '1') || 1);
   const [activity, activityTotal] = await Promise.all([
@@ -309,6 +313,34 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
               <div className="stat-value">{segments.length}</div>
             </div>
           </div>
+
+          {matchHistory.length > 0 && (
+            <div className="card">
+              <div className="card-header">Matches</div>
+              <div className="asset-table-wrap">
+                <table className="asset-table">
+                  <thead>
+                    <tr>
+                      <th>Opponent</th>
+                      <th>Date</th>
+                      <th>Purchased</th>
+                      <th>Attended</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {matchHistory.map((m) => (
+                      <tr key={`${m.start}-${m.opponent}`}>
+                        <td style={{ fontWeight: 500 }}>{m.opponent}</td>
+                        <td>{new Date(m.start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                        <td>{m.purchased ? '✓' : '—'}</td>
+                        <td>{m.attended ? '✓' : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           <div className="card">
             <div className="card-header">Activity</div>
