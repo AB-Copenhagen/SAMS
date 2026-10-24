@@ -193,6 +193,7 @@ node scripts/push-turso.mjs          # apply/update the database schema
 node scripts/setup-wasabi-cors.mjs   # allow browser presigned-URL uploads
 node scripts/setup-rekognition-collection.mjs   # create the player face collection (run once)
 node scripts/shopify-oauth-install.mjs <shop>.myshopify.com   # mint a Shopify Admin API token
+node scripts/vivenu-register-webhook.mjs   # register the scan.created webhook, mint its HMAC key
 ```
 
 After the Rekognition collection exists, enroll your squad's faces from Configure → Players → "Enroll all faces".

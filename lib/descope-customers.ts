@@ -10,11 +10,17 @@ export type DescopeCustomer = {
   phone: string | null;
   marketingOptIn: boolean | null;
   createdAt: Date | null;
+  vivenuCustomerId: string | null;
 };
 
 // Custom attribute key (MyAB project console → Custom attributes) that holds marketing
 // consent. Confirmed live against the MyAB project — overridable in case it's renamed later.
 const MARKETING_ATTRIBUTE_KEY = process.env.DESCOPE_MARKETING_ATTRIBUTE_KEY ?? 'marketingOptIn';
+
+// Confirmed live against the MyAB project: this attribute's value (e.g.
+// "6a71e5e01a515f55d25bd0bd") IS Vivenu's own Customer._id, not just an opaque reference — so
+// every lib/vivenu.ts call is a direct GET by id, never an email search.
+const VIVENU_ATTRIBUTE_KEY = process.env.DESCOPE_VIVENU_ATTRIBUTE_KEY ?? 'eventbillettenUuid';
 
 const PAGE_SIZE = 100;
 
@@ -54,6 +60,7 @@ function resolveName(raw: RawDescopeUser): string | null {
 
 function toCustomer(raw: RawDescopeUser): DescopeCustomer {
   const marketingValue = raw.customAttributes?.[MARKETING_ATTRIBUTE_KEY];
+  const vivenuValue = raw.customAttributes?.[VIVENU_ATTRIBUTE_KEY];
   return {
     userId: raw.userId,
     email: raw.email ?? raw.loginIds?.[0] ?? null,
@@ -61,6 +68,7 @@ function toCustomer(raw: RawDescopeUser): DescopeCustomer {
     phone: raw.phone ?? null,
     marketingOptIn: typeof marketingValue === 'boolean' ? marketingValue : null,
     createdAt: typeof raw.createdTime === 'number' ? new Date(raw.createdTime * 1000) : null,
+    vivenuCustomerId: typeof vivenuValue === 'string' && vivenuValue ? vivenuValue : null,
   };
 }
 
