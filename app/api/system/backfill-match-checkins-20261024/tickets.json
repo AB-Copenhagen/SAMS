@@ -22,7 +22,7 @@
   {
     "ticketId": "6ad8d8c8298e5313226f2be1",
     "eventId": "6a9ab12d5db87f26931bc8e4",
-    "scannedAt": "2026-10-24T13:03:12.635Z"
+    "scannedAt": "2026-10-24T11:19:36.895Z"
   },
   {
     "ticketId": "6adbc71ba9f8ab5c419ce136",
@@ -32,7 +32,7 @@
   {
     "ticketId": "6adb51a92707e66c9a052fb9",
     "eventId": "6a9ab12d5db87f26931bc8e4",
-    "scannedAt": "2026-10-24T13:02:56.949Z"
+    "scannedAt": "2026-10-24T11:19:34.891Z"
   },
   {
     "ticketId": "6ace749c60912df4cec687c9",
@@ -317,7 +317,7 @@
   {
     "ticketId": "6ac37161ef8481e4f229e794",
     "eventId": "6a9ab12d5db87f26931bc8e4",
-    "scannedAt": "2026-10-24T12:04:55.504Z"
+    "scannedAt": "2026-10-24T11:38:24.811Z"
   },
   {
     "ticketId": "6adc9d6886f443e449f02f78",
@@ -1168,5 +1168,1660 @@
     "ticketId": "6adb51d952d71dda2609fea6",
     "eventId": "6a9ab12d5db87f26931bc8e4",
     "scannedAt": "2026-10-24T11:49:55.457Z"
+  },
+  {
+    "ticketId": "6adb4dcfdeda1f4ac4f8ee1e",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:49:38.083Z"
+  },
+  {
+    "ticketId": "6adc9ad34221b10422366e34",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:49:33.897Z"
+  },
+  {
+    "ticketId": "6adc9ad34221b10422366e32",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:49:32.136Z"
+  },
+  {
+    "ticketId": "6adc9aa71ad22b5bd9d2c188",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:49:44.441Z"
+  },
+  {
+    "ticketId": "6adb4dcfdeda1f4ac4f8ee20",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:49:40.161Z"
+  },
+  {
+    "ticketId": "6a6cc8cdf3dcee300f351553",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:49:08.922Z"
+  },
+  {
+    "ticketId": "6a6cb51d46511e355f368e53",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:49:16.506Z"
+  },
+  {
+    "ticketId": "6adc70dea2bf0ae997a51462",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:48:59.669Z"
+  },
+  {
+    "ticketId": "6adc9a5189b5c55b30994213",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:49:13.968Z"
+  },
+  {
+    "ticketId": "6a6cc8cdf3dcee300f351555",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:49:10.483Z"
+  },
+  {
+    "ticketId": "6adc800cf3ecde168a70a926",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:49:06.208Z"
+  },
+  {
+    "ticketId": "6adc981cf67056e872e9fd4a",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:49:21.352Z"
+  },
+  {
+    "ticketId": "6a6bb64f83e167cfc07a9eaa",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:49:17.975Z"
+  },
+  {
+    "ticketId": "6adc981cf67056e872e9fd4c",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:49:19.954Z"
+  },
+  {
+    "ticketId": "6adc3c4c815a9cd9061fa15a",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:49:03.762Z"
+  },
+  {
+    "ticketId": "6adc9a5189b5c55b30994211",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:49:11.766Z"
+  },
+  {
+    "ticketId": "6adbd085880ef1b746e0378b",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:48:54.900Z"
+  },
+  {
+    "ticketId": "6adc92c095d75b6b100d73af",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:48:39.533Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e848",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:48:41.949Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e84a",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:48:48.316Z"
+  },
+  {
+    "ticketId": "6adc92c095d75b6b100d73b1",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:48:41.335Z"
+  },
+  {
+    "ticketId": "6adc92c095d75b6b100d73b3",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:48:42.485Z"
+  },
+  {
+    "ticketId": "6ada06271472ed46ef10913d",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:48:45.631Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e798",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:47:55.665Z"
+  },
+  {
+    "ticketId": "6ada7223fd8e5003227a56a5",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:48:24.908Z"
+  },
+  {
+    "ticketId": "6adc929631e4c35cb833f3f5",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:48:08.376Z"
+  },
+  {
+    "ticketId": "6adc7246365bba98b808743a",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:48:30.418Z"
+  },
+  {
+    "ticketId": "6adc823ac2e9e6faf47db83f",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:47:46.991Z"
+  },
+  {
+    "ticketId": "6adc9a514aa3fe060369fc01",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:47:21.449Z"
+  },
+  {
+    "ticketId": "6adc974d386bc3ea6ce356aa",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:48:12.248Z"
+  },
+  {
+    "ticketId": "6adc9a5bd709412f066e4868",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:48:32.653Z"
+  },
+  {
+    "ticketId": "6adc731b2a802f30defc6e81",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:48:17.490Z"
+  },
+  {
+    "ticketId": "6a8859d85f6e0dc9eeeb6c0c",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:48:10.719Z"
+  },
+  {
+    "ticketId": "6adc9a4cf0da89bc7d6cbd08",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:48:02.520Z"
+  },
+  {
+    "ticketId": "6adc9a514aa3fe060369fc05",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:47:12.979Z"
+  },
+  {
+    "ticketId": "6adc83d771265dc85f2b2eca",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:48:27.117Z"
+  },
+  {
+    "ticketId": "6adc823ac2e9e6faf47db839",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:47:51.136Z"
+  },
+  {
+    "ticketId": "6adc731b2a802f30defc6e7f",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:48:22.070Z"
+  },
+  {
+    "ticketId": "6adb5a9b3222c10d3a8eabdc",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:48:05.952Z"
+  },
+  {
+    "ticketId": "6adc9a514aa3fe060369fc03",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:47:17.619Z"
+  },
+  {
+    "ticketId": "6adc823ac2e9e6faf47db83d",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:47:42.958Z"
+  },
+  {
+    "ticketId": "6adc8381e7c6dc82f4c3c95e",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:46:53.324Z"
+  },
+  {
+    "ticketId": "6adc90becadacfc0a040c013",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:46:45.083Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7bc",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:47:16.568Z"
+  },
+  {
+    "ticketId": "6adc5f96b9c108755b619b03",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:46:55.701Z"
+  },
+  {
+    "ticketId": "6adc5f96b9c108755b619b0a",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:47:09.816Z"
+  },
+  {
+    "ticketId": "6adc5f96b9c108755b619b06",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:47:01.938Z"
+  },
+  {
+    "ticketId": "6adc90becadacfc0a040c011",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:46:48.342Z"
+  },
+  {
+    "ticketId": "6adb8e9c71db431f0724609c",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:47:11.163Z"
+  },
+  {
+    "ticketId": "6adc99ed2a802f30de45dfe8",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:45:21.072Z"
+  },
+  {
+    "ticketId": "6ad4af5bc115673e7d83d8d6",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:46:06.696Z"
+  },
+  {
+    "ticketId": "6adc4fba88910139f6290495",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:46:14.803Z"
+  },
+  {
+    "ticketId": "6a4cbe5fe104006b14c251ea",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:45:59.923Z"
+  },
+  {
+    "ticketId": "6ad4af5bc115673e7d83d8dc",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:46:09.950Z"
+  },
+  {
+    "ticketId": "6adc6dfcc8b72d7895727cbf",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:45:17.072Z"
+  },
+  {
+    "ticketId": "6adc8dcf2461b8271ecaf820",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:46:26.188Z"
+  },
+  {
+    "ticketId": "6ad3bd2b2b077fdaae700ade",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:46:21.776Z"
+  },
+  {
+    "ticketId": "6adc95699d55c1fc17df7870",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:45:44.514Z"
+  },
+  {
+    "ticketId": "6ad8b9332938cfc6adfcb127",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:45:19.565Z"
+  },
+  {
+    "ticketId": "6a6c985a7999d8a876c31025",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:46:33.723Z"
+  },
+  {
+    "ticketId": "6ad925813900b4f5ea52093b",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:46:18.303Z"
+  },
+  {
+    "ticketId": "6a89727ccc5c033636b4ef22",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:45:49.239Z"
+  },
+  {
+    "ticketId": "6adc97b78f076b82ec5710dc",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:46:31.482Z"
+  },
+  {
+    "ticketId": "6adaed08892bfaf62156ed11",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:45:12.283Z"
+  },
+  {
+    "ticketId": "6ad4af5bc115673e7d83d8da",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:46:08.518Z"
+  },
+  {
+    "ticketId": "6ad925813900b4f5ea52093d",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:46:19.417Z"
+  },
+  {
+    "ticketId": "6ab3cffb26cde5fe637a6365",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:45:39.076Z"
+  },
+  {
+    "ticketId": "6ad6399930603c3bee3d7b1d",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:45:23.868Z"
+  },
+  {
+    "ticketId": "6a8973c607bd7221a7daa12d",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:45:37.430Z"
+  },
+  {
+    "ticketId": "6ad63f74450a5afd8df1cdd5",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:45:20.881Z"
+  },
+  {
+    "ticketId": "6a9d1320aeabf27e50633d17",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:45:25.709Z"
+  },
+  {
+    "ticketId": "6adc98f5069a052fb44ed171",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:45:07.392Z"
+  },
+  {
+    "ticketId": "6adaed08892bfaf62156ed13",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:45:10.035Z"
+  },
+  {
+    "ticketId": "6a674472ae713b657eaf71cf",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:45:07.294Z"
+  },
+  {
+    "ticketId": "6ad63f74450a5afd8df1cdd7",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:45:15.330Z"
+  },
+  {
+    "ticketId": "6adbac0a753af3ce3daa2351",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:45:00.709Z"
+  },
+  {
+    "ticketId": "6adc98f5069a052fb44ed173",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:45:05.807Z"
+  },
+  {
+    "ticketId": "6a6e5fe1f9a4384da2702231",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:44:51.343Z"
+  },
+  {
+    "ticketId": "6adc7e5494042f4a29f10102",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:44:31.121Z"
+  },
+  {
+    "ticketId": "6adb5a9b3222c10d3a8eabf6",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:44:22.917Z"
+  },
+  {
+    "ticketId": "6adb5a9b3222c10d3a8eabe8",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:44:24.294Z"
+  },
+  {
+    "ticketId": "6ab4099484659b6bc4bd15c9",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:44:46.589Z"
+  },
+  {
+    "ticketId": "6a6b5be21fbd53b5c12dd5b3",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:44:16.673Z"
+  },
+  {
+    "ticketId": "6ad9add217033ede3a28fa1f",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:43:51.945Z"
+  },
+  {
+    "ticketId": "6adb5a9b3222c10d3a8eabee",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:44:15.352Z"
+  },
+  {
+    "ticketId": "6ad9c96b2dc4516d286830a9",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:44:41.304Z"
+  },
+  {
+    "ticketId": "6adb5a9b3222c10d3a8eabec",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:44:16.938Z"
+  },
+  {
+    "ticketId": "6ab4099484659b6bc4bd15cb",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:44:34.590Z"
+  },
+  {
+    "ticketId": "6ad9add217033ede3a28fa1d",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:44:09.301Z"
+  },
+  {
+    "ticketId": "6adb5a9b3222c10d3a8eabf2",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:44:00.831Z"
+  },
+  {
+    "ticketId": "6adc948095d75b6b101005e2",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:44:27.004Z"
+  },
+  {
+    "ticketId": "6adb5a9b3222c10d3a8eabf8",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:43:58.901Z"
+  },
+  {
+    "ticketId": "6adc9599216936cd53a3c1a1",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:44:23.060Z"
+  },
+  {
+    "ticketId": "6adb5a9b3222c10d3a8eabea",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:44:10.155Z"
+  },
+  {
+    "ticketId": "6adb5a9b3222c10d3a8eabfa",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:44:13.711Z"
+  },
+  {
+    "ticketId": "6adb472d41d6f3e7640ddf31",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:44:31.201Z"
+  },
+  {
+    "ticketId": "6ad8b7babea9528f0c0e6e20",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:43:46.928Z"
+  },
+  {
+    "ticketId": "6adc95942913a7d7fbf74b34",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:43:09.068Z"
+  },
+  {
+    "ticketId": "6adb78432645d01adc2c930e",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:43:27.268Z"
+  },
+  {
+    "ticketId": "6a6c66941fbd53b5c17628d5",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:43:24.885Z"
+  },
+  {
+    "ticketId": "6a4a52577317c65d5d280f47",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:43:31.847Z"
+  },
+  {
+    "ticketId": "6ad8b7babea9528f0c0e6e1e",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:43:45.785Z"
+  },
+  {
+    "ticketId": "6adc73a7d4346ce030099159",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:43:22.499Z"
+  },
+  {
+    "ticketId": "6adc75ca923eb53b0d2a427b",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:43:30.420Z"
+  },
+  {
+    "ticketId": "6a6cc3f12700ab8e229f2593",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:43:44.876Z"
+  },
+  {
+    "ticketId": "6adc7be5f67056e872afb40b",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:43:20.103Z"
+  },
+  {
+    "ticketId": "6adc95942913a7d7fbf74b36",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:43:06.263Z"
+  },
+  {
+    "ticketId": "6adc7be5f67056e872afb409",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:43:12.561Z"
+  },
+  {
+    "ticketId": "6adc95942913a7d7fbf74b38",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:43:08.037Z"
+  },
+  {
+    "ticketId": "6adc96c8ffb722fd0a8f122a",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:42:19.404Z"
+  },
+  {
+    "ticketId": "6ab055b4bd1d9985d9605884",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:42:39.814Z"
+  },
+  {
+    "ticketId": "6adc9331945013bf06251b81",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:43:00.247Z"
+  },
+  {
+    "ticketId": "6adc988383779b99e099f080",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:42:11.742Z"
+  },
+  {
+    "ticketId": "6adc74ce855ae033607a7943",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:43:03.934Z"
+  },
+  {
+    "ticketId": "6ad9e3d489692d4168b7f97d",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:42:45.610Z"
+  },
+  {
+    "ticketId": "6adc88050deb8d119a59124d",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:42:23.497Z"
+  },
+  {
+    "ticketId": "6adc8e1093e9a38acfd1aa9c",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:42:57.684Z"
+  },
+  {
+    "ticketId": "6adc848b28fe450bf4a1f6f3",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:42:14.580Z"
+  },
+  {
+    "ticketId": "6adc4a0c89b5c55b3005b8d0",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:42:57.610Z"
+  },
+  {
+    "ticketId": "6adc988383779b99e099f082",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:42:22.798Z"
+  },
+  {
+    "ticketId": "6ab27c3bda6b101b48a5eb0d",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:41:59.253Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7a2",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:41:40.061Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e79e",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:41:36.208Z"
+  },
+  {
+    "ticketId": "6adc72690deb8d119a2f6df8",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:39:12.347Z"
+  },
+  {
+    "ticketId": "6adc72690deb8d119a2f6dec",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:39:10.218Z"
+  },
+  {
+    "ticketId": "6adc72690deb8d119a2f6df4",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:39:13.352Z"
+  },
+  {
+    "ticketId": "6adc72690deb8d119a2f6df2",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:39:14.451Z"
+  },
+  {
+    "ticketId": "6adc72690deb8d119a2f6df0",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:39:08.988Z"
+  },
+  {
+    "ticketId": "6adc3ab2b654192ef5e5390f",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:39:18.185Z"
+  },
+  {
+    "ticketId": "6adb546d188f1df0dd1c55b8",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:38:38.660Z"
+  },
+  {
+    "ticketId": "6adc72690deb8d119a2f6df6",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:39:11.294Z"
+  },
+  {
+    "ticketId": "6adb546d188f1df0dd1c55b4",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:38:36.582Z"
+  },
+  {
+    "ticketId": "6adc72690deb8d119a2f6dfc",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:39:16.513Z"
+  },
+  {
+    "ticketId": "6ad8ba408d1d989da057e8d7",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:36:12.106Z"
+  },
+  {
+    "ticketId": "6a622333ca784e177e5d867e",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:35:29.428Z"
+  },
+  {
+    "ticketId": "6adc6540dc388d311054c77f",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:35:23.859Z"
+  },
+  {
+    "ticketId": "6a68fa4f678d3f7806c68ec0",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:35:14.164Z"
+  },
+  {
+    "ticketId": "6adb546d188f1df0dd1c55ce",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:39:01.319Z"
+  },
+  {
+    "ticketId": "6adbcb10b0bfe75a9281252c",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:38:23.186Z"
+  },
+  {
+    "ticketId": "6ad8b82247e0d11fb98ab34f",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:36:04.285Z"
+  },
+  {
+    "ticketId": "6ab3f51d4fe4b88cf3ad3a70",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:36:18.933Z"
+  },
+  {
+    "ticketId": "6ad8bc8e09cece92bd12763d",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:35:19.842Z"
+  },
+  {
+    "ticketId": "6adb546d188f1df0dd1c55be",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:38:44.667Z"
+  },
+  {
+    "ticketId": "6adc72690deb8d119a2f6dfa",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:39:07.690Z"
+  },
+  {
+    "ticketId": "6a62123cde104032c1f3c6b2",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:35:31.636Z"
+  },
+  {
+    "ticketId": "6adb546d188f1df0dd1c55d0",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:39:04.482Z"
+  },
+  {
+    "ticketId": "6ad901cb08bb6ee042cc1398",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:35:40.132Z"
+  },
+  {
+    "ticketId": "6ab3f51d4fe4b88cf3ad3a6e",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:36:17.483Z"
+  },
+  {
+    "ticketId": "6ada4c72e63803f946aa5ae0",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:36:24.118Z"
+  },
+  {
+    "ticketId": "6ad90244c1a8fc2fbd44fd0f",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:36:09.853Z"
+  },
+  {
+    "ticketId": "6ad8ffc06715616e3e489763",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:36:51.184Z"
+  },
+  {
+    "ticketId": "6adb546d188f1df0dd1c55ca",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:38:58.106Z"
+  },
+  {
+    "ticketId": "6adc688c22f61c87e1e7dba7",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:37:36.264Z"
+  },
+  {
+    "ticketId": "6ad876d1fd96da7e7ca59af5",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:37:22.881Z"
+  },
+  {
+    "ticketId": "6a71d5cd4a8bf5e1efb00ba1",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:35:37.464Z"
+  },
+  {
+    "ticketId": "6adbcb10b0bfe75a92812526",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:38:17.697Z"
+  },
+  {
+    "ticketId": "6adc8c19cc05152b6e24e6c4",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:37:18.305Z"
+  },
+  {
+    "ticketId": "6a96f987d4f9ce6f35bf704b",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:34:33.668Z"
+  },
+  {
+    "ticketId": "6adb76e094e8e28c9560e45e",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:38:01.632Z"
+  },
+  {
+    "ticketId": "6ad412af8eada6cfebca4e2d",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:37:28.847Z"
+  },
+  {
+    "ticketId": "6adbcb10b0bfe75a92812528",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:38:25.746Z"
+  },
+  {
+    "ticketId": "6adb546d188f1df0dd1c55c4",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:38:51.671Z"
+  },
+  {
+    "ticketId": "6ad876d1fd96da7e7ca59af3",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:37:21.543Z"
+  },
+  {
+    "ticketId": "6adb76e094e8e28c9560e45c",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:38:07.066Z"
+  },
+  {
+    "ticketId": "6ad8ffc06715616e3e489761",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:36:50.076Z"
+  },
+  {
+    "ticketId": "6a4fe193c6dd64196e33e2b8",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:37:13.770Z"
+  },
+  {
+    "ticketId": "6adb546d188f1df0dd1c55c0",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:38:46.019Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e796",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:38:26.879Z"
+  },
+  {
+    "ticketId": "6adc97c49d55c1fc17e3b7c5",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:38:02.441Z"
+  },
+  {
+    "ticketId": "6adc97c49d55c1fc17e3b7c1",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:37:51.426Z"
+  },
+  {
+    "ticketId": "6adc97c49d55c1fc17e3b7c3",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:38:16.455Z"
+  },
+  {
+    "ticketId": "6adc97c49d55c1fc17e3b7bf",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:38:08.818Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e79c",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:37:23.286Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e792",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:37:19.079Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e844",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:36:45.600Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e846",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:36:52.821Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7d2",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:36:11.812Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7d4",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:36:15.909Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7d6",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:36:18.920Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7d0",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:36:05.836Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e842",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:35:28.033Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e840",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:35:11.774Z"
+  },
+  {
+    "ticketId": "6adc937e2913a7d7fbf3a0f6",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:34:14.911Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7f2",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:34:10.964Z"
+  },
+  {
+    "ticketId": "6adbc2d3aac9d0fc5ae01d97",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:34:11.201Z"
+  },
+  {
+    "ticketId": "6adc71ae1c9934312ba570c5",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:34:14.734Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7f0",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:34:08.017Z"
+  },
+  {
+    "ticketId": "6adbc2d3aac9d0fc5ae01d93",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:34:01.841Z"
+  },
+  {
+    "ticketId": "6adb91b23f5e0f592802f038",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:34:21.134Z"
+  },
+  {
+    "ticketId": "6adc83852913a7d7fbd5b9f6",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:34:27.872Z"
+  },
+  {
+    "ticketId": "6adc937e2913a7d7fbf3a0f8",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:34:16.056Z"
+  },
+  {
+    "ticketId": "6adbc2d3aac9d0fc5ae01d95",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:34:07.667Z"
+  },
+  {
+    "ticketId": "6adc91bf8791f372927a796b",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:33:50.865Z"
+  },
+  {
+    "ticketId": "6adc8b86b0bfe75a92dbab3a",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:33:53.863Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7f4",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:33:56.476Z"
+  },
+  {
+    "ticketId": "6adb6c385b25b2cc3df7f62f",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:33:39.585Z"
+  },
+  {
+    "ticketId": "6a6ccca8a22aa4c721b5b6b7",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:33:32.219Z"
+  },
+  {
+    "ticketId": "6adbc82ff63fb50d94af008d",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:33:30.272Z"
+  },
+  {
+    "ticketId": "6ac78edb95d413c4c3358f64",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:33:22.850Z"
+  },
+  {
+    "ticketId": "6ac78edb95d413c4c3358f60",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:33:24.059Z"
+  },
+  {
+    "ticketId": "6a6ca3791886642739fc3b62",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:33:19.980Z"
+  },
+  {
+    "ticketId": "6adb6c385b25b2cc3df7f62d",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:33:37.097Z"
+  },
+  {
+    "ticketId": "6ac78edb95d413c4c3358f62",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:33:25.121Z"
+  },
+  {
+    "ticketId": "6adc78a6b9c108755b8fce70",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:33:34.143Z"
+  },
+  {
+    "ticketId": "6ad873e8434276b63ed360e5",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:33:17.173Z"
+  },
+  {
+    "ticketId": "6adb011603b048fee9549ea1",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:33:12.152Z"
+  },
+  {
+    "ticketId": "6ad8bc8d6157de9628914dbc",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:33:06.060Z"
+  },
+  {
+    "ticketId": "6adb011603b048fee9549ea3",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:33:07.750Z"
+  },
+  {
+    "ticketId": "6adc92224a72e56ac34b03f6",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:32:09.314Z"
+  },
+  {
+    "ticketId": "6a9a81a3cb450d6d5e54da6f",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:31:40.516Z"
+  },
+  {
+    "ticketId": "6adb011603b048fee9549ea5",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:32:43.394Z"
+  },
+  {
+    "ticketId": "6adc834a64da78328b8b606e",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:32:37.014Z"
+  },
+  {
+    "ticketId": "6adc819cde9cf697f58e1916",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:32:28.668Z"
+  },
+  {
+    "ticketId": "6adc92224a72e56ac34b03f4",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:32:23.878Z"
+  },
+  {
+    "ticketId": "6adb87de8615c5fcc37f1841",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:31:21.838Z"
+  },
+  {
+    "ticketId": "6adc6219d709412f0600eaf3",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:31:31.225Z"
+  },
+  {
+    "ticketId": "6adc6219d709412f0600eaf1",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:31:35.258Z"
+  },
+  {
+    "ticketId": "6adc91225b9ff2d8d185f09e",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:30:09.836Z"
+  },
+  {
+    "ticketId": "6adb87de8615c5fcc37f183f",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:31:08.950Z"
+  },
+  {
+    "ticketId": "6ada25998c6de4769fcf0745",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:30:45.781Z"
+  },
+  {
+    "ticketId": "6ada1e75f211ee57e778b2a8",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:29:16.708Z"
+  },
+  {
+    "ticketId": "6ada1e75f211ee57e778b2aa",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:29:20.358Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e826",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:29:24.697Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e828",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:29:23.595Z"
+  },
+  {
+    "ticketId": "6ad79de287491db37ac797ee",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:29:11.773Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e82c",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:28:24.219Z"
+  },
+  {
+    "ticketId": "6adc8c490e7858cbfa478b68",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:28:31.344Z"
+  },
+  {
+    "ticketId": "6ad9d722e65bed7e0d1293e1",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:28:27.471Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7cc",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:28:34.523Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e82a",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:28:22.022Z"
+  },
+  {
+    "ticketId": "6ad9aaab174270072c8567f1",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:27:56.185Z"
+  },
+  {
+    "ticketId": "6a69f7413ada03cc243e40cb",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:26:26.619Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e82e",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:26:19.483Z"
+  },
+  {
+    "ticketId": "6adc8d7f25cf6c2dc32c1edc",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:26:22.919Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e83a",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:26:24.548Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e830",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:26:22.913Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e838",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:26:11.492Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e83e",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:26:04.049Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e836",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:26:14.065Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e83c",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:25:50.421Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e80e",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:25:32.665Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e820",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:25:27.330Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e802",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:24:47.446Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e804",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:25:16.782Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7f8",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:25:55.528Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7fc",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:24:51.979Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e816",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:25:19.877Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e824",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:25:24.764Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e81c",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:25:06.040Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e81e",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:25:29.954Z"
+  },
+  {
+    "ticketId": "6ad01a82755fa5addb94e1fb",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:24:36.303Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e822",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:26:02.285Z"
+  },
+  {
+    "ticketId": "6adc686295e30501828dca39",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:24:28.034Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e800",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:24:58.689Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e832",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:25:47.844Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e806",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:25:10.806Z"
+  },
+  {
+    "ticketId": "6adc686295e30501828dca3b",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:24:34.060Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e812",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:25:51.942Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e80a",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:24:44.867Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e81a",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:25:04.421Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e808",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:25:15.081Z"
+  },
+  {
+    "ticketId": "6ad37f32788e387abfcca935",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:25:15.702Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7f6",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:25:09.097Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7fe",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:25:53.860Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e834",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:26:00.095Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7fa",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:24:49.682Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e810",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:25:35.263Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e80c",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:25:18.094Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e818",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:25:46.152Z"
+  },
+  {
+    "ticketId": "6ad01a82755fa5addb94e1fd",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:24:34.664Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e814",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:24:30.132Z"
+  },
+  {
+    "ticketId": "6adb1a14fc39445d12f77f27",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:24:14.877Z"
+  },
+  {
+    "ticketId": "6adb1a14fc39445d12f77f29",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:24:19.343Z"
+  },
+  {
+    "ticketId": "6adc9436468eec28a8fd2c59",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:23:35.357Z"
+  },
+  {
+    "ticketId": "6a69f67e9cac21664ceca6ad",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:23:04.449Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7aa",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:23:01.812Z"
+  },
+  {
+    "ticketId": "6a69c31226cb1466d3293b4b",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:22:55.792Z"
+  },
+  {
+    "ticketId": "6ad61b205eab8e4f007a59e6",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:22:56.849Z"
+  },
+  {
+    "ticketId": "6adb5a469df4741bdddd45f9",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:21:42.698Z"
+  },
+  {
+    "ticketId": "6adb5a469df4741bdddd45f7",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:21:39.400Z"
+  },
+  {
+    "ticketId": "6ad8785e4cd051db9b1d9557",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:21:50.962Z"
+  },
+  {
+    "ticketId": "6a6b6f8e69de7e772b58b1c8",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:21:52.166Z"
+  },
+  {
+    "ticketId": "6ad9d6b17e11194b67eaf41f",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:21:02.035Z"
+  },
+  {
+    "ticketId": "6ad9d6dcd93dddc2492115f1",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:21:04.264Z"
+  },
+  {
+    "ticketId": "6adc846c3b6ab1c3a2b576cd",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:21:10.274Z"
+  },
+  {
+    "ticketId": "6adb93477021a001399c295d",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:19:29.068Z"
+  },
+  {
+    "ticketId": "6adb476a46e46b08c9abb8da",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:19:40.299Z"
+  },
+  {
+    "ticketId": "6adb93477021a001399c295b",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:19:30.373Z"
+  },
+  {
+    "ticketId": "6adb4a747edbbd473eae0a79",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:18:08.924Z"
+  },
+  {
+    "ticketId": "6adb4a747edbbd473eae0a7b",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:18:06.483Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7ee",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:16:52.852Z"
+  },
+  {
+    "ticketId": "6adc87b7b9feac56dd37ac0e",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:15:08.045Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7ec",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:16:51.142Z"
+  },
+  {
+    "ticketId": "6ad60486d02da5142b58474d",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:15:02.428Z"
+  },
+  {
+    "ticketId": "6a6b6ad06b57f4a2d452c353",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:15:49.628Z"
+  },
+  {
+    "ticketId": "6adc7cbce88cc739203e0a27",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:14:52.107Z"
+  },
+  {
+    "ticketId": "6adc836522f61c87e1193aa3",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:14:23.138Z"
+  },
+  {
+    "ticketId": "6adc836522f61c87e1193aa5",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:14:27.121Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7ba",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:13:06.957Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7b8",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:13:01.569Z"
+  },
+  {
+    "ticketId": "6a95e7365ec83ea294506c1d",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:12:06.878Z"
+  },
+  {
+    "ticketId": "6adc91648af98d443d0dc83c",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:10:35.489Z"
+  },
+  {
+    "ticketId": "6adc91648af98d443d0dc83e",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:10:34.343Z"
+  },
+  {
+    "ticketId": "6adc91648af98d443d0dc83a",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:10:37.263Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7b4",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:09:37.081Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7b6",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:09:40.607Z"
+  },
+  {
+    "ticketId": "6adb8adfe1ef15275ce586e4",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:08:38.447Z"
+  },
+  {
+    "ticketId": "6adb8b803783baccdd46ce1f",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:08:40.682Z"
+  },
+  {
+    "ticketId": "6adc5549393e5e1f6af8144c",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:08:41.881Z"
+  },
+  {
+    "ticketId": "6ada2bbb4b4c7a57d23f1dd9",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:07:43.833Z"
+  },
+  {
+    "ticketId": "6ad8bcdc310aa8b3c21130ba",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:07:23.265Z"
+  },
+  {
+    "ticketId": "6adc745f793540f86672a150",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:04:22.013Z"
+  },
+  {
+    "ticketId": "6aad947ad227674a667683de",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:04:16.302Z"
+  },
+  {
+    "ticketId": "6a43eef9535a9c78faff3eb5",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:04:10.263Z"
+  },
+  {
+    "ticketId": "6ad098997d8a441a0301c772",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:03:37.915Z"
+  },
+  {
+    "ticketId": "6a6d0c6d9acea76ba7cc5d03",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:02:09.304Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7c0",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:01:09.713Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7be",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:01:15.756Z"
+  },
+  {
+    "ticketId": "6ac37161ef8481e4f229e7c2",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T11:01:13.605Z"
+  },
+  {
+    "ticketId": "6adb58e2757d0b9e9f6db520",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T10:59:58.737Z"
+  },
+  {
+    "ticketId": "6adb58e2757d0b9e9f6db51e",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T10:59:59.825Z"
+  },
+  {
+    "ticketId": "6adb56052427d0693ed1c928",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T10:59:33.092Z"
+  },
+  {
+    "ticketId": "6adb008a3ada124d8f2f1a71",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T10:57:21.747Z"
+  },
+  {
+    "ticketId": "6adb008a3ada124d8f2f1a75",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T10:57:20.178Z"
+  },
+  {
+    "ticketId": "6adb008a3ada124d8f2f1a73",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T10:57:18.646Z"
+  },
+  {
+    "ticketId": "6adb008a3ada124d8f2f1a77",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T10:57:15.865Z"
+  },
+  {
+    "ticketId": "6adba4fb67d1ae924c8346f3",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T10:50:56.788Z"
+  },
+  {
+    "ticketId": "6adba4154bfdbd1800d1c498",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T10:50:55.278Z"
+  },
+  {
+    "ticketId": "6adb228cac195ccf7c2b567e",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T10:43:34.688Z"
+  },
+  {
+    "ticketId": "6accfa9b7ef729a75688c877",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T10:42:51.191Z"
+  },
+  {
+    "ticketId": "6a82d7b9bc68aeaf2f0e585b",
+    "eventId": "6a9ab12d5db87f26931bc8e4",
+    "scannedAt": "2026-10-24T08:40:33.188Z"
   }
 ]
