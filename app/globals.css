@@ -548,14 +548,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* /customers/list only (a modifier alongside .asset-table, not a change to the shared base
    class — the /admin asset table reuses .asset-table too and has different column needs).
    A min-width keeps columns from squishing into illegible slivers at in-between widths; past
-   that, .asset-table-wrap's overflow-x:auto takes over with a real horizontal scroll instead.
-   The least essential column (Last synced — internal sync freshness, not fan-facing info) is
-   dropped entirely below 640px so the core columns (name/email/consent/spend/login) stay
-   readable on a phone without needing that scroll at all. */
-.customer-table { min-width: 640px; }
-@media (max-width: 640px) {
-  .customer-table-hide-narrow { display: none; }
-}
+   that, .asset-table-wrap's overflow-x:auto takes over with a real horizontal scroll instead. */
+.customer-table { min-width: 560px; }
 
 .asset-table {
   width: 100%;
@@ -1375,7 +1369,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
    the attribute labels on the detail page are the tighter fit of the two. */
 .customer-layout {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 280px minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
