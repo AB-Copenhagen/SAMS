@@ -20,6 +20,11 @@ type ScanPayload = {
 // vivenuAttendedEventIdsJson (deduped by event, so entry/exit/re-entry scans at the same match
 // only count once) and logs a CustomerActivity row.
 //
+// A ticket with no customerId (guest/unlinked purchase) or no matching local Customer — common
+// for away-team, comp, and internal tickets — still gets recorded as a GuestCheckin row rather
+// than silently dropped (see gh-62): the scan was a real, approved check-in, just not one that
+// can be attributed to a CRM customer.
+//
 // NOTE: vivenu's docs show the envelope ({id, type, mode, data}) and confirm transaction.complete
 // nests its payload under data.transaction, but never showed scan.created's actual data shape.
 // This assumes the same data.scan convention and falls back to a flat payload — verify against a
@@ -48,23 +53,32 @@ export async function POST(request: Request) {
   const db = createPrismaClient();
   try {
     const ticket = await getTicket(scan.ticketId);
-    if (!ticket.customerId) {
-      return NextResponse.json({ status: 'ignored', reason: 'ticket has no linked customer' });
-    }
-
-    const customer = await db.customer.findFirst({
-      where: { vivenuCustomerId: ticket.customerId },
-      select: { id: true, vivenuAttendedEventIdsJson: true },
-    });
-    if (!customer) {
-      return NextResponse.json({ status: 'ignored', reason: 'no local customer for this vivenuCustomerId' });
-    }
 
     // Only an individual match counts as "attended" — a scan against the season-pass GROUP
     // event itself isn't expected to happen, but ignore rather than miscount if it ever does.
+    // Checked before customer resolution, so a non-SINGLE scan is a true no-op, not a guest
+    // check-in.
     const eventType = await getEventType(scan.eventId);
     if (eventType !== 'SINGLE') {
       return NextResponse.json({ status: 'ignored', reason: `event type ${eventType}, not SINGLE` });
+    }
+
+    const customer = ticket.customerId
+      ? await db.customer.findFirst({
+          where: { vivenuCustomerId: ticket.customerId },
+          select: { id: true, vivenuAttendedEventIdsJson: true },
+        })
+      : null;
+
+    if (!customer) {
+      // upsert, not create: a re-entry scan of the same ticket hits the @unique(ticketId)
+      // constraint — keep the first-seen scannedAt rather than erroring or double-counting.
+      await db.guestCheckin.upsert({
+        where: { ticketId: scan.ticketId },
+        create: { eventId: scan.eventId, ticketId: scan.ticketId, scannedAt: scan.time ? new Date(scan.time) : new Date() },
+        update: {},
+      });
+      return NextResponse.json({ status: 'ok', reason: ticket.customerId ? 'no local customer for this vivenuCustomerId' : 'ticket has no linked customer', guestCheckin: true });
     }
 
     let attendedEventIds: string[] = [];

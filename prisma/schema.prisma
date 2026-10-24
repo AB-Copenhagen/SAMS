@@ -399,6 +399,21 @@ model VivenuEvent {
   syncedAt  DateTime @default(now())
 }
 
+// An approved scan.created check-in whose ticket couldn't be resolved to a local Customer — no
+// customerId on the ticket (guest/unlinked purchase), or no Customer row matches it. Recorded so
+// these check-ins still count somewhere (lib/customer-reports.ts's "Guest check-ins" stat)
+// instead of silently vanishing, as they did before gh-62. @unique on ticketId so a re-entry scan
+// of the same ticket doesn't double-count.
+model GuestCheckin {
+  id        String   @id @default(cuid())
+  eventId   String
+  ticketId  String   @unique
+  scannedAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([eventId])
+}
+
 // Generic small key-value store for cron resume cursors — currently just
 // "descope-customers-resume-page" (see app/api/cron/sync-customers), but deliberately not
 // named for that one case, since any cron that can't finish a full sweep in one invocation
