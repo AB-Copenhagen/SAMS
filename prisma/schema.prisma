@@ -394,3 +394,13 @@ model VivenuEvent {
   eventType String   // "SINGLE" | "GROUP" | "RECURRENCE" | "ROOT"
   syncedAt  DateTime @default(now())
 }
+
+// Generic small key-value store for cron resume cursors — currently just
+// "descope-customers-resume-page" (see app/api/cron/sync-customers), but deliberately not
+// named for that one case, since any cron that can't finish a full sweep in one invocation
+// needs the same mechanism.
+model SyncState {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

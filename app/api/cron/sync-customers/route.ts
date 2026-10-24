@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createPrismaClient } from '../../../../lib/db';
-import { iterateAllCustomers } from '../../../../lib/descope-customers';
+import { iterateAllCustomers, CUSTOMER_PAGE_SIZE } from '../../../../lib/descope-customers';
 import { supersedeStaleRun } from '../../../../lib/customer-sync-run';
+
+const RESUME_CURSOR_KEY = 'descope-customers-resume-page';
 
 // 280s, not the platform's full 300s ceiling — leaves headroom to still hit the catch block and
 // record a clean "error" before a hard platform kill. Needed because this processes customers
@@ -45,10 +47,13 @@ export async function GET(request: Request) {
   db.customerSyncRun.deleteMany({ where: { startedAt: { lt: new Date(Date.now() - RUN_RETENTION_MS) } } })
     .catch((err) => console.error('[cron/sync-customers] CustomerSyncRun prune failed:', err));
 
+  const cursor = await db.syncState.findUnique({ where: { key: RESUME_CURSOR_KEY } });
+  const startPage = cursor ? parseInt(cursor.value, 10) || 0 : 0;
+
   let processed = 0;
   let changed = 0;
   try {
-    for await (const customer of iterateAllCustomers()) {
+    for await (const customer of iterateAllCustomers(startPage)) {
       const existing = await db.customer.findUnique({
         where: { id: customer.userId },
         select: { email: true, name: true, phone: true, marketingOptIn: true },
@@ -107,12 +112,29 @@ export async function GET(request: Request) {
 
       if (processed % PROGRESS_UPDATE_INTERVAL === 0) {
         await db.customerSyncRun.update({ where: { id: run.id }, data: { processed } }).catch(() => {});
+        // Checkpoint the resume cursor periodically, not just at the end — a timeout kill can't
+        // be caught, so whatever was last persisted here is what the next run resumes from.
+        const resumePage = startPage + Math.floor(processed / CUSTOMER_PAGE_SIZE);
+        await db.syncState.upsert({
+          where: { key: RESUME_CURSOR_KEY },
+          create: { key: RESUME_CURSOR_KEY, value: String(resumePage) },
+          update: { value: String(resumePage) },
+        }).catch(() => {});
       }
     }
 
+    // Reached the end of the Descope list without timing out — reset the cursor so the next
+    // run starts a fresh full lap (picks up brand-new signups and re-checks already-synced
+    // customers for changed fields) instead of resuming from near the end forever.
+    await db.syncState.upsert({
+      where: { key: RESUME_CURSOR_KEY },
+      create: { key: RESUME_CURSOR_KEY, value: '0' },
+      update: { value: '0' },
+    }).catch(() => {});
+
     const finishedAt = new Date();
     await db.customerSyncRun.update({ where: { id: run.id }, data: { status: 'success', finishedAt, processed } });
-    return NextResponse.json({ status: 'ok', processed, changed });
+    return NextResponse.json({ status: 'ok', processed, changed, startPage });
   } catch (err) {
     const finishedAt = new Date();
     await db.customerSyncRun.update({
