@@ -56,6 +56,7 @@ export default async function CustomerReportsPage() {
         <StackedBarChart
           data={matchAttendance.map((m) => ({
             label: m.label,
+            sublabel: m.date,
             segments: [
               { name: 'Checked in', value: m.checkedIn, color: '#006A52' },
               { name: 'No-show / unknown', value: m.noShow, color: '#dde1ee' },

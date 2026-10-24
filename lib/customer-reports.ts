@@ -95,7 +95,14 @@ async function getSeasonPassRateUncached(): Promise<SeasonPassRate> {
   return { holders, total, rate: total > 0 ? holders / total : 0 };
 }
 
-export type MatchAttendance = { label: string; ticketsSold: number; checkedIn: number; noShow: number };
+export type MatchAttendance = { label: string; date: string; ticketsSold: number; checkedIn: number; noShow: number };
+
+// Strips the "AB vs "/"AB mod " prefix every match name shares (confirmed live) so the chart's
+// x-axis can show just the opponent, which is both more compact and more informative than a
+// bare date for telling bars apart.
+function opponentName(matchName: string): string {
+  return matchName.replace(/^AB\s+(vs|mod)\s+/i, '').trim();
+}
 
 // Tickets sold come live from Vivenu per match (works for every match, past or future —
 // see lib/vivenu.ts's listMatches/getTicketsSoldCount). Checked-in can only come from our own
@@ -123,14 +130,39 @@ async function getMatchAttendanceUncached(): Promise<MatchAttendance[]> {
     }
   }
 
-  const recentMatches = [...matches].sort((a, b) => a.start.localeCompare(b.start)).slice(-10);
+  // AB's Vivenu account has duplicate Event records for the same real match — confirmed live,
+  // e.g. "AB vs EfB" and "AB vs Esbjerg fB" at the identical start timestamp, "AB vs Aarhus
+  // Fremad!" vs "AB vs Aarhus Fremad". AB never plays twice in one calendar day, so grouping by
+  // UTC date is a safe real-world merge key — without it, one match's sales/attendance were
+  // silently split across two bars, which is what made this look date-indexed rather than
+  // event-indexed in the first place.
+  const groups = new Map<string, { name: string; start: string; ids: string[] }>();
+  for (const match of matches) {
+    const day = match.start.slice(0, 10);
+    const group = groups.get(day);
+    if (!group) {
+      groups.set(day, { name: match.name, start: match.start, ids: [match.id] });
+    } else {
+      group.ids.push(match.id);
+      // Prefer a "vs" name over a "mod" one when merging duplicates — purely cosmetic, both
+      // refer to the same real match either way.
+      if (/\bmod\b/i.test(group.name) && /\bvs\b/i.test(match.name)) group.name = match.name;
+    }
+  }
+
+  const recentMatches = [...groups.values()].sort((a, b) => a.start.localeCompare(b.start)).slice(-10);
 
   const results: MatchAttendance[] = [];
   for (const match of recentMatches) {
-    const ticketsSold = await getTicketsSoldCount(match.id).catch(() => 0);
-    const checkedIn = checkedInByEvent.get(match.id) ?? 0;
+    let ticketsSold = 0;
+    let checkedIn = 0;
+    for (const id of match.ids) {
+      ticketsSold += await getTicketsSoldCount(id).catch(() => 0);
+      checkedIn += checkedInByEvent.get(id) ?? 0;
+    }
     results.push({
-      label: new Date(match.start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+      label: opponentName(match.name),
+      date: new Date(match.start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
       ticketsSold,
       checkedIn,
       noShow: Math.max(0, ticketsSold - checkedIn),
