@@ -25,8 +25,8 @@ export type NavSectionDef = {
   items: NavItemDef[];
 };
 
-// Single source of truth for sidebar nav + the command palette's "Go to" results
-// (components/CommandPalette.tsx) — add a destination here once, it shows up in both.
+// Single source of truth for sidebar nav + the header search's "Go to" results
+// (components/HeaderSearch.tsx) — add a destination here once, it shows up in both.
 export const NAV_SECTIONS: NavSectionDef[] = [
   {
     label: 'Library',
