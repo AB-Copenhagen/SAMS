@@ -150,6 +150,7 @@ async function getMatchAttendanceUncached(): Promise<MatchAttendance[]> {
 export type MatchActivitySummary = {
   ticketsSold: number;
   checkedIn: number;
+  guestCheckins: number;
   noShow: number;
   newFans: number;
   returningFans: number;
@@ -173,7 +174,7 @@ const TOP_FANS_LIMIT = 15;
 // that set doesn't record attendance order — good enough to answer "did we convert a first-timer"
 // without needing per-match timestamps we don't have.
 async function getMatchActivityUncached(eventIds: string[]): Promise<MatchActivity> {
-  const [ticketsSold, attendedCustomers] = await Promise.all([
+  const [ticketsSold, attendedCustomers, guestCheckins] = await Promise.all([
     Promise.all(eventIds.map((id) => getTicketsSoldCount(id).catch(() => 0))).then((counts) =>
       counts.reduce((a, b) => a + b, 0)
     ),
@@ -188,6 +189,10 @@ async function getMatchActivityUncached(eventIds: string[]): Promise<MatchActivi
         vivenuSeasonPassStatus: true,
       },
     }),
+    // Approved check-ins whose ticket had no linkable Customer (away-team, comp, internal
+    // tickets, etc. — see gh-62) — counted separately so "Checked in" keeps meaning "known fan
+    // checked in" and no-show math isn't skewed by guests who were never counted as fans.
+    prisma.guestCheckin.count({ where: { eventId: { in: eventIds } } }),
   ]);
 
   const idSet = new Set(eventIds);
@@ -216,7 +221,8 @@ async function getMatchActivityUncached(eventIds: string[]): Promise<MatchActivi
     summary: {
       ticketsSold,
       checkedIn: checkedInCustomers.length,
-      noShow: Math.max(0, ticketsSold - checkedInCustomers.length),
+      guestCheckins,
+      noShow: Math.max(0, ticketsSold - checkedInCustomers.length - guestCheckins),
       newFans,
       returningFans: checkedInCustomers.length - newFans,
     },

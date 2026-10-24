@@ -99,6 +99,10 @@ async function MatchActivityBody({ merged, selectedDate }: { merged: MergedMatch
           <div className="stat-value">{summary.checkedIn}</div>
         </div>
         <div className="stat-card">
+          <div className="stat-label">Guest check-ins</div>
+          <div className="stat-value">{summary.guestCheckins}</div>
+        </div>
+        <div className="stat-card">
           <div className="stat-label">No-show / unknown</div>
           <div className="stat-value">{summary.noShow}</div>
         </div>
@@ -108,8 +112,11 @@ async function MatchActivityBody({ merged, selectedDate }: { merged: MergedMatch
         </div>
       </div>
       <p style={{ color: '#8890b4', fontSize: 12, marginTop: -8, marginBottom: 20 }}>
-        Tickets sold is live from Vivenu. Checked-in only reflects what the scan.created webhook
-        has delivered since it went live — expect low or 0 counts for matches before then.
+        Tickets sold is live from Vivenu. Checked-in/guest counts only reflect what the
+        scan.created webhook has delivered since it went live — expect low or 0 counts for
+        matches before then. Guest check-ins are approved scans whose ticket isn&apos;t linked to
+        a CRM customer (away-team, comp, internal tickets, etc.) — they&apos;re still real
+        check-ins, just not attributable to a known fan.
       </p>
 
       <div className="dashboard-row">
