@@ -124,7 +124,19 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
             {avatarInitial(customer.name, customer.email)}
           </span>
           <div>
-            <h1>{customer.name || customer.email || customer.id}</h1>
+            <h1 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {customer.name || customer.email || customer.id}
+              {customer.vivenuSeasonPassStatus && (
+                <span className="season-pass-badge" title={customer.vivenuSeasonPassStatus}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M8 21v-4a4 4 0 0 1 8 0v4" />
+                    <path d="M12 3a4 4 0 0 0-4 4v2a4 4 0 0 0 8 0V7a4 4 0 0 0-4-4z" />
+                    <path d="M6 9H4a2 2 0 0 1 0-4h2M18 9h2a2 2 0 0 0 0-4h-2" />
+                  </svg>
+                  SEASON PASS
+                </span>
+              )}
+            </h1>
             <p>{customer.email}</p>
           </div>
         </div>
@@ -133,7 +145,12 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
 
       <div className="customer-layout">
         <aside className="sticky-sidebar">
-          <CollapsibleCard title="Identity & consent" summary={identitySummary}>
+          <CollapsibleCard
+            title="Profile"
+            summary={identitySummary}
+            iconClass="section-icon-profile"
+            icon={<Icon><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" /></Icon>}
+          >
             <div className="field">
               <label>Phone</label>
               <div className="detail-value">{customer.phone || '—'}</div>
@@ -162,7 +179,12 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
             <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.descopeSyncedAt)}</p>
           </CollapsibleCard>
 
-          <CollapsibleCard title="Goliath segments" summary={goliathSummary}>
+          <CollapsibleCard
+            title="Goliath"
+            summary={goliathSummary}
+            iconClass="section-icon-goliath"
+            icon={<Icon><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></Icon>}
+          >
             <div style={{ marginBottom: 10 }}>
               {segments.length > 0
                 ? segments.map((name) => <span key={name} className="segment-chip">{name}</span>)
@@ -176,7 +198,12 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
             <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.goliathSyncedAt)}</p>
           </CollapsibleCard>
 
-          <CollapsibleCard title="Shopify" summary={shopifySummary}>
+          <CollapsibleCard
+            title="Shopify"
+            summary={shopifySummary}
+            iconClass="section-icon-shopify"
+            icon={<Icon><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 0 1-8 0" /></Icon>}
+          >
             <div className="field">
               <label>Lifetime spend</label>
               <div className="detail-value">{customer.shopifyLifetimeSpend != null ? formatSpend(customer.shopifyLifetimeSpend) : '—'}</div>
@@ -197,7 +224,12 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
             <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.shopifySyncedAt)}</p>
           </CollapsibleCard>
 
-          <CollapsibleCard title="MailerLite" summary={mailerliteSummary}>
+          <CollapsibleCard
+            title="MailerLite"
+            summary={mailerliteSummary}
+            iconClass="section-icon-mailerlite"
+            icon={<Icon><path d="M4 4h16v16H4z" /><polyline points="22 6 12 13 2 6" /></Icon>}
+          >
             <div className="field">
               <label>Status</label>
               <div className="detail-value">
@@ -229,7 +261,12 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
             <p style={{ color: '#8890b4', fontSize: 12 }}>{syncedLabel(customer.mailerliteSyncedAt)}</p>
           </CollapsibleCard>
 
-          <CollapsibleCard title="EventBilletten (Vivenu)" summary={vivenuSummary}>
+          <CollapsibleCard
+            title="Vivenu"
+            summary={vivenuSummary}
+            iconClass="section-icon-vivenu"
+            icon={<Icon><path d="M4 9V7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z" /><line x1="13" y1="5" x2="13" y2="9" /><line x1="13" y1="15" x2="13" y2="19" /></Icon>}
+          >
             <div className="field">
               <label>Season pass</label>
               <div className="detail-value">{customer.vivenuSeasonPassStatus || '—'}</div>
@@ -266,8 +303,8 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
               <div className="stat-value">{customer.shopifyOrderCount ?? '—'}</div>
             </div>
             <div className="stat-card">
-              <div className="stat-label">Days since login</div>
-              <div className="stat-value">{daysSinceLogin ?? '—'}</div>
+              <div className="stat-label">Matches attended</div>
+              <div className="stat-value">{customer.vivenuMatchesAttendedCount ?? '—'}</div>
             </div>
             <div className="stat-card">
               <div className="stat-label">Segments</div>
