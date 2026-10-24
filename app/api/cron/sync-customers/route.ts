@@ -78,8 +78,12 @@ export async function GET(request: Request) {
           phone: customer.phone,
           marketingOptIn: customer.marketingOptIn,
           vivenuCustomerId: customer.vivenuCustomerId,
+          // Also written on update, not just create: the value itself is immutable upstream
+          // (Descope's createdTime for a user never changes), so re-setting it every run is a
+          // no-op for already-correct rows and self-heals any customer whose local row predates
+          // this field existing — no separate backfill needed.
+          descopeCreatedAt: customer.createdAt,
           descopeSyncedAt: new Date(),
-          // descopeCreatedAt is immutable upstream — set once on create, never overwritten
         },
       });
 
