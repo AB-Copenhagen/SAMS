@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { verifyDescopeSession, resolveAppRole } from './descope';
 
-export type UserRole = 'ADMIN' | 'STAFF' | 'PLAYER' | 'MEDIA' | 'SPONSOR';
+export type UserRole = 'ADMIN' | 'STAFF' | 'USER' | 'PLAYER' | 'MEDIA' | 'SPONSOR';
 
 export type User = {
   id: string;
@@ -65,7 +65,6 @@ export async function getCurrentUser(): Promise<User | null> {
   if (!descopeSession) return null;
 
   const role = resolveAppRole(descopeSession.roles);
-  if (!role) return null;
 
   return {
     id: descopeSession.id,

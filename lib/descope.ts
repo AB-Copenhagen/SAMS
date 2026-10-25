@@ -9,22 +9,30 @@ export type DescopeSession = {
   roles?: string[];
 };
 
-export type AppRole = 'ADMIN' | 'STAFF';
+export type AppRole = 'ADMIN' | 'STAFF' | 'USER';
 
-// Descope role names (Console → Roles) that grant access to media.ab.dk, in priority order.
+// Descope role names (Console → Roles) that grant elevated in-app privilege, in priority order.
 // Overridable per-project since the codebase itself has no opinion on what they're called there.
 const ADMIN_ROLE_NAME = process.env.DESCOPE_ADMIN_ROLE ?? 'Admin';
 const STAFF_ROLE_NAME = process.env.DESCOPE_STAFF_ROLE ?? 'Staff';
 
-// Login gate: a user must hold one of these Descope roles to use the app at all, and which one
-// they hold sets their in-app privilege level. Replaces the old ADMIN_EMAILS allowlist — access
-// is now managed entirely in the Descope console (assign/revoke a role) instead of an env var
-// redeploy. Admin implies staff-level access, so check it first.
-export function resolveAppRole(roleNames: string[] | undefined): AppRole | null {
+// Privilege level, not a login gate: every session that reaches this (already past the email
+// domain check in the caller) gets at least USER. Admin implies staff-level access, so check it
+// first.
+export function resolveAppRole(roleNames: string[] | undefined): AppRole {
   const roles = roleNames ?? [];
   if (roles.includes(ADMIN_ROLE_NAME)) return 'ADMIN';
   if (roles.includes(STAFF_ROLE_NAME)) return 'STAFF';
-  return null;
+  return 'USER';
+}
+
+// Login gate: only an @{ALLOWED_EMAIL_DOMAIN} email may use the app at all. Replaces the old
+// ADMIN_EMAILS allowlist / role-required gate — anyone on the domain gets in by default now,
+// with resolveAppRole above deciding their privilege level rather than whether they're let in.
+const ALLOWED_EMAIL_DOMAIN = process.env.DESCOPE_ALLOWED_DOMAIN ?? 'ab.dk';
+
+export function isAllowedEmailDomain(email: string): boolean {
+  return email.toLowerCase().endsWith(`@${ALLOWED_EMAIL_DOMAIN.toLowerCase()}`);
 }
 
 const projectId = process.env.NEXT_PUBLIC_DESCOPE_PROJECT_ID;
