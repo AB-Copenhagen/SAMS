@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getCurrentUser, requireStaff } from '../../../lib/auth';
+import { getCurrentUser, requirePermission } from '../../../lib/auth';
 import AppShell from '../../../components/AppShell';
 import BarChart from '../../../components/charts/BarChart';
 import AreaChart from '../../../components/charts/AreaChart';
@@ -14,7 +14,7 @@ import {
 } from '../../../lib/customer-reports';
 
 export default async function CustomerReportsPage() {
-  const user = requireStaff(await getCurrentUser());
+  const user = requirePermission(await getCurrentUser(), 'crm', 'view');
 
   const [spendDistribution, attendanceCohorts, growth, seasonPass, matchAttendance] = await Promise.all([
     getCachedSpendDistribution(),

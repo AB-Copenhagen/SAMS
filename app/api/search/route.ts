@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, isStaffOrAdmin } from '../../../lib/auth';
+import { getCurrentUser, hasPermission } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
 import { getCachedPlayers, getCachedSponsors, getCachedCollections } from '../../../lib/lookup-cache';
 
@@ -41,9 +41,9 @@ export async function GET(request: Request) {
   ]);
 
   // Customer rows must never be queried for a role that can't reach /customers — not filtered
-  // out after the fact, not queried at all. STAFF can view the CRM now too (gh-64), so this
-  // mirrors requireStaff on the pages themselves rather than requireAdmin. See admin-portal-ux skill.
-  const customers = isStaffOrAdmin(user)
+  // out after the fact, not queried at all. Mirrors requirePermission(..., 'crm', 'view') on the
+  // pages themselves. See admin-portal-ux skill.
+  const customers = hasPermission(user, 'crm', 'view')
     ? await prisma.customer.findMany({
         where: { AND: [{ OR: [{ name: { contains: q } }, { email: { contains: q } }] }] },
         select: { id: true, name: true, email: true },

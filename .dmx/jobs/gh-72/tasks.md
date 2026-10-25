@@ -31,10 +31,10 @@
 
 ## Phase 4: CRM RBAC Enforcement
 
-- [ ] `app/api/customers/route.ts`: replace `isStaffOrAdmin` with `hasPermission(user, 'crm', 'view')`
-- [ ] `app/api/customers/[id]/route.ts`: replace `isStaffOrAdmin` with `hasPermission(user, 'crm', 'view')` on GET; any mutation handler in this file uses `hasPermission(user, 'crm', 'edit')`
-- [ ] `app/api/search/route.ts`: replace the `isStaffOrAdmin(user)` check gating customer results with `hasPermission(user, 'crm', 'view')`
-- [ ] `app/customers/*` pages (dashboard, list, `[id]`, match-activity, reports): add a `requirePermission(user, 'crm', 'view')` guard at the top of each page, replacing any existing staff/admin check
+- [x] `app/api/customers/route.ts`: replace `isStaffOrAdmin` with `hasPermission(user, 'crm', 'view')`
+- [x] `app/api/customers/[id]/route.ts`: replace `isStaffOrAdmin` with `hasPermission(user, 'crm', 'view')` on GET; any mutation handler in this file uses `hasPermission(user, 'crm', 'edit')` (no mutation handler exists in this file)
+- [x] `app/api/search/route.ts`: replace the `isStaffOrAdmin(user)` check gating customer results with `hasPermission(user, 'crm', 'view')`
+- [x] `app/customers/*` pages (dashboard, list, `[id]`, match-activity, reports): add a `requirePermission(user, 'crm', 'view')` guard at the top of each page, replacing any existing staff/admin check
 
 ## Phase 5: Admin Settings RBAC Enforcement
 
