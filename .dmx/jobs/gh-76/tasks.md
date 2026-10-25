@@ -27,17 +27,17 @@
 
 ## Phase 4: Admin Invite UI
 
-- [ ] `app/api/admin/users/route.ts`: `GET` returns `listStaffUsers()` from the local table (no more Descope Management API call); `POST` creates a new invite — body `{ email, role }`, calls `inviteStaffUser(email, role, invitedBy: currentAdmin.email)`, status `PENDING`
-- [ ] Replace `app/api/admin/users/[id]/role/route.ts` with `app/api/admin/users/[id]/route.ts`: `PATCH` with body `{ role? , status? }`, where `[id]` is the `StaffUser`'s email (URL-encoded); calls `setStaffUserRole`/`setStaffUserStatus` as applicable
-- [ ] `components/UserRoleSelect.tsx`: update to `PATCH /api/admin/users/{email}` with `{ role }` instead of the old `{ loginId, role }` shape against `/api/admin/users/{userId}/role`
-- [ ] New `components/StaffUserStatusSelect.tsx`: Active/Suspended selector per row, `PATCH`es `{ status }` to the same route, following `UserRoleSelect`'s confirm/refresh pattern
-- [ ] New `components/InviteStaffUserForm.tsx`: email input + role select, `POST`s to `/api/admin/users`, `router.refresh()` on success
-- [ ] `app/admin/users/page.tsx`: render the invite form above the table; add a Status column (`StaffUserStatusSelect`) alongside the existing role column; table now reflects the local roster, including `PENDING` invites who've never logged in
+- [x] `app/api/admin/users/route.ts`: `GET` returns `listStaffUsers()` from the local table (no more Descope Management API call); `POST` creates a new invite — body `{ email, role }`, calls `inviteStaffUser(email, role, invitedBy: currentAdmin.email)`, status `PENDING`; 409 on a duplicate email instead of a raw 500
+- [x] Replace `app/api/admin/users/[id]/role/route.ts` with `app/api/admin/users/[id]/route.ts`: `PATCH` with body `{ role? , status? }`, where `[id]` is the `StaffUser`'s email (URL-encoded); calls `setStaffUserRole`/`setStaffUserStatus` as applicable
+- [x] `components/UserRoleSelect.tsx`: update to `PATCH /api/admin/users/{email}` with `{ role }` instead of the old `{ loginId, role }` shape against `/api/admin/users/{userId}/role`
+- [x] New `components/StaffUserStatusSelect.tsx`: Active/Suspended selector per row, `PATCH`es `{ status }` to the same route, following `UserRoleSelect`'s confirm/refresh pattern
+- [x] New `components/InviteStaffUserForm.tsx`: email input + role select, `POST`s to `/api/admin/users`, `router.refresh()` on success
+- [x] `app/admin/users/page.tsx`: render the invite form above the table; add a Status column (`StaffUserStatusSelect`) alongside the existing role column; table now reflects the local roster, including `PENDING` invites who've never logged in
 
 ## Phase 5: Descope Cleanup & Tests
 
-- [ ] `lib/descope.ts`: remove `listStaffUsers`, `setUserRole`, their `StaffUser`/`RawStaffUser` types, `STAFF_USER_PAGE_SIZE`, and the now-unused `mgmtHeaders`/`managementKey` helpers (keep `requireProjectId` — still used by `getSdk`; keep `resolveAppRole`/`isAllowedEmailDomain`/`DESCOPE_ADMIN_ROLE`/`DESCOPE_STAFF_ROLE`/`DESCOPE_ALLOWED_DOMAIN` as inert leftovers per spec Question 4)
-- [ ] Unit test `resolveLoginDecision` in `lib/staff-users.test.ts`: no row → rejected; `PENDING` → allowed with role; `ACTIVE` → allowed with role; `SUSPENDED` → rejected
+- [x] `lib/descope.ts`: remove `listStaffUsers`, `setUserRole`, their `StaffUser`/`RawStaffUser` types, `STAFF_USER_PAGE_SIZE`, and the now-unused `mgmtHeaders`/`managementKey` helpers (keep `requireProjectId` — still used by `getSdk`; keep `resolveAppRole`/`isAllowedEmailDomain`/`DESCOPE_ADMIN_ROLE`/`DESCOPE_STAFF_ROLE`/`DESCOPE_ALLOWED_DOMAIN` as inert leftovers per spec Question 4)
+- [x] Unit test `resolveLoginDecision` in `lib/staff-users.test.ts`: no row → rejected; `PENDING` → allowed with role; `ACTIVE` → allowed with role; `SUSPENDED` → rejected
 - [ ] Manual verification (after the Phase 1 migrate/backfill route has been run in production, before or atomically with Phase 3's deploy): `zsmith@ab.dk` logs in as the seeded Admin; a never-invited email is rejected regardless of domain; a `PENDING` invite becomes `ACTIVE` on first login; a `SUSPENDED` user is rejected within 24h of being suspended (their existing cookie expires and re-login is blocked)
 
 ---
