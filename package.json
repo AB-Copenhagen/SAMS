@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "prisma generate && next build --webpack",
     "start": "next start",
-    "prisma": "prisma"
+    "prisma": "prisma",
+    "test": "vitest run"
   },
   "dependencies": {
     "@aws-sdk/client-rekognition": "^3.1097.0",
@@ -38,7 +39,8 @@
     "@types/react": "19.2.17",
     "@types/sharp": "^0.31.1",
     "prisma": "^7.10.0",
-    "typescript": "^5.7.4"
+    "typescript": "^5.7.4",
+    "vitest": "^2.1.9"
   },
   "overrides": {
     "@types/react": "19.2.17",

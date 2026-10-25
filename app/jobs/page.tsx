@@ -1,9 +1,9 @@
-import { getCurrentUser, requireAdmin } from '../../lib/auth';
+import { getCurrentUser, requirePermission } from '../../lib/auth';
 import AppShell from '../../components/AppShell';
 import JobsClient from '../../components/JobsClient';
 
 export default async function JobsPage() {
-  const user = requireAdmin(await getCurrentUser());
+  const user = requirePermission(await getCurrentUser(), 'adminSettings', 'view');
 
   return (
     <AppShell user={user}>

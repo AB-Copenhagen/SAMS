@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, isStaffOrAdmin } from '../../../lib/auth';
+import { getCurrentUser, hasPermission } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
 import { buildCustomerWhere } from '../../../lib/customer-query';
 
@@ -7,7 +7,7 @@ const PER_PAGE = 50;
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
-  if (!isStaffOrAdmin(user)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  if (!hasPermission(user, 'crm', 'view')) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(request.url);
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1') || 1);

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, isAdmin } from '../../../../lib/auth';
+import { getCurrentUser, hasPermission } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 
 // One-time correction: Asset.faceTagStatus defaults to 'pending' for every row (including
@@ -8,7 +8,7 @@ import { prisma } from '../../../../lib/db';
 // assets are left at their default 'pending' — the cron sweep drains them gradually.
 export async function POST() {
   const user = await getCurrentUser();
-  if (!isAdmin(user)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  if (!hasPermission(user, 'media', 'edit')) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const result = await prisma.asset.updateMany({
     where: { faceTagStatus: 'pending', NOT: { fileType: { startsWith: 'image/' } } },

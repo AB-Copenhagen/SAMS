@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, isAdmin } from '../../../../lib/auth';
+import { getCurrentUser, hasPermission } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { upsertPlayerTag, upsertSponsorTag, addConfirmedStringTag } from '../../../../lib/asset-tags';
 
@@ -16,7 +16,7 @@ function slugify(name: string): string {
 // creates the missing structured rows. Idempotent — safe to re-run.
 export async function POST() {
   const user = await getCurrentUser();
-  if (!isAdmin(user)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  if (!hasPermission(user, 'media', 'edit')) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const [players, sponsors] = await Promise.all([
     prisma.player.findMany({ where: { active: true }, select: { id: true, name: true } }),

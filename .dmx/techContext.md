@@ -17,6 +17,7 @@
 | Email | [MailerLite](https://developers.mailerlite.com) Connect API (not legacy Classic API) |
 | Ticketing | [Vivenu](https://docs.vivenu.dev) (AB's EventBilletten platform) — season passes, tickets, match attendance via `scan.created` webhook |
 | Command palette | [cmdk](https://cmdk.paco.me) |
+| Tests | [Vitest](https://vitest.dev) (`npm test`) — added gh-72 as the project's first test runner; pinned to `^2` to match the existing `@types/node@^20` range rather than bumping it for a newer major |
 | Scheduled processing | Vercel Cron — ingest reconciliation sweep + customer sync crons, configured in `vercel.json` |
 | Deployment | [Vercel](https://vercel.com) |
 
@@ -65,3 +66,5 @@ node bin/sams-ingest.mjs import <folder> --api-url <url> --token <device-key> --
 - **AWS Rekognition region should be EU** for GDPR data residency, since enrolled face vectors are biometric data.
 - **Cron/webhook endpoints need their own auth**, not the staff session (`CRON_SECRET` for cron, `VIVENU_API_KEY`/webhook HMAC validation for the Vivenu webhook, device API keys for unattended ingest) — see the `security-checklist` skill before adding new routes of this kind.
 - **Descope SDK widgets (`UserProfile`, the `Descope` flow component) wrap browser-only custom elements** (`customElements.define()`). Rendering one directly lets Next.js SSR a placeholder that the client then hydrates into the real custom element, which React can't reconcile — causing a hydration error that can leave the widget in a broken state. Always render these via `next/dynamic(..., { ssr: false })`, per the existing pattern in `components/DescopeLoginForm.tsx` and `components/ProfileClient.tsx`.
+- **Descope role add/remove Management API endpoints key by `loginId`, not `userId`.** `lib/descope.ts`'s `setUserRole` (gh-72) takes a `loginId`. Also: this project resolves roles from tenant-scoped assignments as well as top-level ones when reading (gh-66) — `setUserRole` only writes the top-level assignment, so changing the role of a user whose Admin/Staff role actually lives in a tenant membership may not take effect the way `resolveAppRole` reads it. Unverified against a live tenant-scoped account as of gh-72; confirm before relying on it for such a user.
+- **`DESCOPE_ALLOWED_DOMAIN`** (default `ab.dk`) — the email domain allowed to log in at all (gh-72's `isAllowedEmailDomain` in `lib/descope.ts`), analogous to `DESCOPE_ADMIN_ROLE`/`DESCOPE_STAFF_ROLE` for the role names.

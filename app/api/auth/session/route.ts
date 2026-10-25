@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyDescopeSession, resolveAppRole } from '../../../../lib/descope';
+import { verifyDescopeSession, resolveAppRole, isAllowedEmailDomain } from '../../../../lib/descope';
 import { createSessionCookie } from '../../../../lib/auth';
 import { checkRateLimit, requestIp } from '../../../../lib/rate-limit';
 import { getCachedStaffPreferences, resolveLandingPage } from '../../../../lib/staff-preferences';
@@ -28,10 +28,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'Invalid or expired session.' }, { status: 401 });
   }
 
-  const role = resolveAppRole(descopeUser.roles);
-  if (!role) {
+  if (!isAllowedEmailDomain(descopeUser.email)) {
     return NextResponse.json({ message: 'Your account does not have access to this app.' }, { status: 403 });
   }
+
+  const role = resolveAppRole(descopeUser.roles);
 
   const user = {
     id: descopeUser.id,
