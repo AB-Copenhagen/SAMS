@@ -23,19 +23,23 @@ export default function HeaderSearch({ role }: { role: string }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResponse>(EMPTY_RESULTS);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (query.trim().length < 2) { setResults(EMPTY_RESULTS); return; }
+    if (query.trim().length < 2) { setResults(EMPTY_RESULTS); setLoading(false); return; }
 
+    setLoading(true);
     debounceRef.current = setTimeout(async () => {
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}`);
         if (res.ok) setResults(await res.json());
       } catch {
         // transient network hiccup — leave the previous results in place rather than erroring
+      } finally {
+        setLoading(false);
       }
     }, 200);
 
@@ -53,7 +57,7 @@ export default function HeaderSearch({ role }: { role: string }) {
   return (
     <Command shouldFilter={false} label="Global search" className="header-search">
       <div className="header-search-input-wrap">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={loading ? 'header-search-icon-loading' : undefined}>
           <circle cx="11" cy="11" r="8" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
@@ -72,7 +76,7 @@ export default function HeaderSearch({ role }: { role: string }) {
         <div className="header-search-dropdown" onMouseDown={(e) => e.preventDefault()}>
           <Command.List className="header-search-list">
             <Command.Empty className="header-search-empty">
-              {query.trim().length < 2 ? 'Type to search, or jump to a page below.' : 'No results.'}
+              {query.trim().length < 2 ? 'Type to search, or jump to a page below.' : loading ? 'Searching…' : 'No results.'}
             </Command.Empty>
 
             {query.trim().length < 2 && (
