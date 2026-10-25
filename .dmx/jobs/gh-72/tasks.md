@@ -38,8 +38,8 @@
 
 ## Phase 5: Admin Settings RBAC Enforcement
 
-- [ ] `app/jobs/page.tsx`: replace `requireAdmin` with `requirePermission(user, 'adminSettings', 'view')`
-- [ ] Confirm `app/api/system/*` routes are left untouched on `isAdmin` per spec Question 4 (no code change — record as verified in this phase, not a separate ticket)
+- [x] `app/jobs/page.tsx`: replace `requireAdmin` with `requirePermission(user, 'adminSettings', 'view')`
+- [x] Confirm `app/api/system/*` routes are left untouched on `isAdmin` per spec Question 4 (no code change — verified: every route under `app/api/system/*` still gates on `isAdmin`, none on `isStaffOrAdmin`)
 
 ## Phase 6: Admin User Management UI
 
