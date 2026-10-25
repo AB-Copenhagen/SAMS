@@ -113,9 +113,11 @@ type RawStaffUser = {
 
 const STAFF_USER_PAGE_SIZE = 100;
 
-// Admin → Users (gh-72): lists every user in THIS app's own staff project (not the consumer MyAB
-// project — see lib/descope-customers.ts for that one), via the same Search Users Management API
-// iterateAllCustomers there uses, resolving each one's privilege level the same way login does.
+// Admin → Users (gh-72): lists the manageable users in THIS app's own staff project (not the
+// consumer MyAB project — see lib/descope-customers.ts for that one), via the same Search Users
+// Management API iterateAllCustomers there uses, resolving each one's privilege level the same
+// way login does. Filtered to isAllowedEmailDomain — a user outside that domain can never log in
+// (see app/api/auth/session/route.ts), so they'd be unmanageable noise on this page.
 export async function listStaffUsers(): Promise<StaffUser[]> {
   const users: StaffUser[] = [];
   let page = 0;
@@ -134,12 +136,15 @@ export async function listStaffUsers(): Promise<StaffUser[]> {
     if (!data.users?.length) break;
 
     for (const raw of data.users) {
-      const tenantRoles = (raw.userTenants ?? []).flatMap((t) => t.roleNames ?? []);
       const loginId = raw.loginIds?.[0] ?? raw.email ?? raw.userId;
+      const email = raw.email ?? loginId;
+      if (!isAllowedEmailDomain(email)) continue; // can never log in — not a manageable staff user
+
+      const tenantRoles = (raw.userTenants ?? []).flatMap((t) => t.roleNames ?? []);
       users.push({
         userId: raw.userId,
         loginId,
-        email: raw.email ?? loginId,
+        email,
         name: raw.name ?? null,
         role: resolveAppRole([...(raw.roleNames ?? []), ...tenantRoles]),
       });
