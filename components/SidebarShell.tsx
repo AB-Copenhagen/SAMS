@@ -28,12 +28,6 @@ export default function SidebarShell({
 
       <aside className={`sidebar${open ? ' sidebar-open' : ''}`}>
         <div className="sidebar-logo">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/WhiteCrest-AB1889.png" alt="AB Copenhagen" className="sidebar-logo-mark" />
-          <div>
-            <div className="sidebar-logo-text">AB Media</div>
-            <div className="sidebar-logo-sub">Asset Manager</div>
-          </div>
           <button type="button" className="sidebar-close" aria-label="Close menu" onClick={onClose}>
             ×
           </button>
