@@ -15,8 +15,8 @@
 
 ## Phase 2: Staff User Domain Logic
 
-- [ ] New `lib/staff-users.ts`: `StaffUserRecord` type; pure `resolveLoginDecision(record: StaffUserRecord | null): { allowed: boolean; role?: AppRole }` (no row or `SUSPENDED` → not allowed; `PENDING`/`ACTIVE` → allowed with that row's role) — kept pure/testable per the repo's functional-first style, no Prisma/IO inside it
-- [ ] Same file: IO functions backed by `lib/db.ts` Prisma — `findStaffUserByEmail(email)`, `markActive(email, { descopeUserId, name })` (flips `PENDING` → `ACTIVE`, fills in `descopeUserId`/`name`), `listStaffUsers()`, `inviteStaffUser(email, role, invitedBy)`, `setStaffUserRole(email, role)`, `setStaffUserStatus(email, status)`
+- [x] New `lib/staff-users.ts`: `StaffUserRecord` type; pure `resolveLoginDecision(record: StaffUserRecord | null): { allowed: boolean; role?: AppRole }` (no row or `SUSPENDED` → not allowed; `PENDING`/`ACTIVE` → allowed with that row's role) — kept pure/testable per the repo's functional-first style, no Prisma/IO inside it
+- [x] Same file: IO functions backed by `lib/db.ts` Prisma — `findStaffUserByEmail(email)`, `markActive(email, { descopeUserId, name })` (flips `PENDING` → `ACTIVE`, fills in `descopeUserId`/`name`), `listStaffUsers()`, `inviteStaffUser(email, role, invitedBy)`, `setStaffUserRole(email, role)`, `setStaffUserStatus(email, status)`
 
 ## Phase 3: Login Gate Cutover
 
