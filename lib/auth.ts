@@ -12,6 +12,42 @@ export type User = {
   role: UserRole;
 };
 
+export type Module = 'media' | 'crm' | 'adminSettings';
+export type PermissionAction = 'view' | 'add' | 'edit' | 'delete';
+
+// Per-role module access (gh-72) — fixed per role tier, no per-user overrides. PLAYER/MEDIA/
+// SPONSOR aren't login roles (see isStaffOrAdmin below) so they carry no module permissions.
+const PERMISSION_MATRIX: Record<Module, Record<UserRole, PermissionAction[]>> = {
+  media: {
+    USER: ['view', 'add', 'edit'],
+    STAFF: ['view', 'add', 'edit', 'delete'],
+    ADMIN: ['view', 'add', 'edit', 'delete'],
+    PLAYER: [],
+    MEDIA: [],
+    SPONSOR: [],
+  },
+  crm: {
+    USER: [],
+    STAFF: ['view'],
+    ADMIN: ['view', 'edit', 'delete'],
+    PLAYER: [],
+    MEDIA: [],
+    SPONSOR: [],
+  },
+  adminSettings: {
+    USER: [],
+    STAFF: [],
+    ADMIN: ['view', 'edit'],
+    PLAYER: [],
+    MEDIA: [],
+    SPONSOR: [],
+  },
+};
+
+export function hasPermission(user: User | null, module: Module, action: PermissionAction): boolean {
+  return Boolean(user && PERMISSION_MATRIX[module][user.role].includes(action));
+}
+
 const SESSION_COOKIE_NAME = 'dam_session';
 
 function getSecret(): string {
@@ -78,10 +114,14 @@ export function isAdmin(user: User | null): user is User {
   return Boolean(user && user.role === 'ADMIN');
 }
 
-// STAFF and ADMIN are the two roles the Descope login gate can ever issue (resolveAppRole in
-// lib/descope.ts) — PLAYER/MEDIA/SPONSOR sessions come from a separate device-key auth path
-// (app/api/devices/route.ts) and must not gain access just by having *a* session cookie, hence
-// the explicit role check rather than "any logged-in user."
+// isAdmin/isStaffOrAdmin are role checks, not module permission checks — use hasPermission/
+// requirePermission (above) for anything gated by Media Assets/CRM/Admin Settings access.
+// These two remain for the few non-module gates this app still has: app/api/system/*'s one-shot
+// admin maintenance routes (gh-72 spec Question 4 — intentionally kept isAdmin-only, outside the
+// module RBAC) and any plain "staff or better" check with no module behind it. PLAYER/MEDIA/
+// SPONSOR sessions come from a separate device-key auth path (app/api/devices/route.ts) and must
+// not gain access just by having *a* session cookie, hence the explicit role check rather than
+// "any logged-in user."
 export function isStaffOrAdmin(user: User | null): user is User {
   return Boolean(user && (user.role === 'ADMIN' || user.role === 'STAFF'));
 }
@@ -103,5 +143,12 @@ export function requireAdmin(user: User | null): User {
 export function requireStaff(user: User | null): User {
   if (!user) redirect('/login');
   if (!isStaffOrAdmin(user)) redirect('/home');
+  return user;
+}
+
+/** Same as requireAdmin, but for a page gated by module permission — see hasPermission. */
+export function requirePermission(user: User | null, module: Module, action: PermissionAction): User {
+  if (!user) redirect('/login');
+  if (!hasPermission(user, module, action)) redirect('/home');
   return user;
 }

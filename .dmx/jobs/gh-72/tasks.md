@@ -16,11 +16,11 @@
 
 ## Phase 2: Permission Matrix & Helpers
 
-- [ ] `lib/auth.ts`: add `Module = 'media' | 'crm' | 'adminSettings'` and `PermissionAction = 'view' | 'add' | 'edit' | 'delete'` types
-- [ ] `lib/auth.ts`: add a static `PERMISSION_MATRIX: Record<Module, Record<UserRole, PermissionAction[]>>` encoding the confirmed table from spec.md Question 1 (Media: User=view/add/edit, Staff/Admin=view/add/edit/delete; CRM: User=none, Staff=view, Admin=view/edit/delete; Admin Settings: User/Staff=none, Admin=view/edit)
-- [ ] `lib/auth.ts`: add `hasPermission(user: User | null, module: Module, action: PermissionAction): boolean`
-- [ ] `lib/auth.ts`: add `requirePermission(user: User | null, module: Module, action: PermissionAction): User`, following the existing `requireAdmin` redirect pattern (no session → `/login`, lacks permission → `/home`)
-- [ ] `lib/auth.ts`: update the comment above `isStaffOrAdmin` to note it (and `isAdmin`) now exist only for the non-module checks in `app/api/system/*` (spec Question 4), not for module gating
+- [x] `lib/auth.ts`: add `Module = 'media' | 'crm' | 'adminSettings'` and `PermissionAction = 'view' | 'add' | 'edit' | 'delete'` types
+- [x] `lib/auth.ts`: add a static `PERMISSION_MATRIX: Record<Module, Record<UserRole, PermissionAction[]>>` encoding the confirmed table from spec.md Question 1 (Media: User=view/add/edit, Staff/Admin=view/add/edit/delete; CRM: User=none, Staff=view, Admin=view/edit/delete; Admin Settings: User/Staff=none, Admin=view/edit)
+- [x] `lib/auth.ts`: add `hasPermission(user: User | null, module: Module, action: PermissionAction): boolean`
+- [x] `lib/auth.ts`: add `requirePermission(user: User | null, module: Module, action: PermissionAction): User`, following the existing `requireAdmin` redirect pattern (no session → `/login`, lacks permission → `/home`)
+- [x] `lib/auth.ts`: update the comment above `isStaffOrAdmin` to note it (and `isAdmin`) now exist only for the non-module checks in `app/api/system/*` (spec Question 4), not for module gating
 
 ## Phase 3: Media Assets RBAC Enforcement
 
