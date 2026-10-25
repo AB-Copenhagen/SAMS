@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, isAdmin } from '../../../../lib/auth';
+import { getCurrentUser, hasPermission } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { deleteFileFromWasabi } from '../../../../lib/wasabi';
 import { syncPlayerTags, syncSponsorTags } from '../../../../lib/asset-tags';
@@ -8,7 +8,7 @@ import { generateShareToken, resolveEventFieldDefaults } from '../../../../lib/c
 export async function GET(_: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  if (!hasPermission(user, 'media', 'view')) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const asset = await prisma.asset.findUnique({
     where: { id: params.id },
@@ -21,7 +21,7 @@ export async function GET(_: Request, props: { params: Promise<{ id: string }> }
 export async function DELETE(_: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const user = await getCurrentUser();
-  if (!isAdmin(user)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  if (!hasPermission(user, 'media', 'delete')) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const asset = await prisma.asset.findUnique({ where: { id: params.id }, select: { objectKey: true } });
   if (!asset) return NextResponse.json({ message: 'Not found' }, { status: 404 });
@@ -40,7 +40,7 @@ export async function DELETE(_: Request, props: { params: Promise<{ id: string }
 export async function PUT(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const user = await getCurrentUser();
-  if (!isAdmin(user)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  if (!user || !hasPermission(user, 'media', 'edit')) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const body = await request.json();
 
@@ -103,7 +103,7 @@ type SharePatchBody = {
 export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const user = await getCurrentUser();
-  if (!isAdmin(user)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  if (!hasPermission(user, 'media', 'edit')) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   const body = await request.json() as SharePatchBody;
 
   const existing = await prisma.asset.findUnique({ where: { id: params.id }, select: { shareToken: true } });

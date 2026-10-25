@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, isAdmin } from '../../../../lib/auth';
+import { getCurrentUser, hasPermission } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { generateShareToken, hashSharePassword } from '../../../../lib/collections';
 import { invalidateCollections } from '../../../../lib/lookup-cache';
@@ -9,7 +9,7 @@ const ASSET_PAGE_SIZE = 100;
 export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  if (!hasPermission(user, 'media', 'view')) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(request.url);
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1'));
@@ -56,8 +56,8 @@ type PatchBody = {
 };
 
 // Fields that control who can reach a collection's media from outside the app — gated behind
-// isAdmin below, same bar as the checklist's other "publish/delete"-level mutations, rather than
-// anything a logged-in STAFF session can flip.
+// hasPermission(..., 'media', 'edit') below, same bar as the checklist's other "publish/delete"-
+// level mutations, rather than anything a logged-in STAFF session can flip.
 const SHARE_SETTING_FIELDS = [
   'isPublic', 'password', 'regenerateToken', 'shareMinRating', 'shareDateRangeDays', 'expiresAt',
 ] as const satisfies readonly (keyof PatchBody)[];
@@ -68,7 +68,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   const body = await request.json() as PatchBody;
 
-  if (SHARE_SETTING_FIELDS.some((field) => body[field] !== undefined) && !isAdmin(user)) {
+  if (SHARE_SETTING_FIELDS.some((field) => body[field] !== undefined) && !hasPermission(user, 'media', 'edit')) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
   }
 
@@ -109,7 +109,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
 export async function DELETE(_: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const user = await getCurrentUser();
-  if (!isAdmin(user)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  if (!hasPermission(user, 'media', 'delete')) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const existing = await prisma.collection.findUnique({ where: { id: params.id }, select: { id: true } });
   if (!existing) return NextResponse.json({ message: 'Not found' }, { status: 404 });

@@ -24,10 +24,10 @@
 
 ## Phase 3: Media Assets RBAC Enforcement
 
-- [ ] `app/api/assets/[id]/route.ts`: GET uses `hasPermission(user, 'media', 'view')`; PUT and PATCH use `hasPermission(user, 'media', 'edit')` in place of `isAdmin`; DELETE uses `hasPermission(user, 'media', 'delete')` in place of `isAdmin`
-- [ ] `app/api/assets/bulk-delete/route.ts`: replace `isAdmin` with `hasPermission(user, 'media', 'delete')`
-- [ ] `app/api/assets/backfill-face-tags/route.ts` and `app/api/assets/backfill-manual-tags/route.ts`: replace their current role check with `hasPermission(user, 'media', 'edit')`
-- [ ] `app/api/collections/[id]/route.ts`: GET uses `hasPermission(user, 'media', 'view')`; the share-setting fields in PATCH use `hasPermission(user, 'media', 'edit')`; DELETE uses `hasPermission(user, 'media', 'delete')`, replacing their `isAdmin` checks
+- [x] `app/api/assets/[id]/route.ts`: GET uses `hasPermission(user, 'media', 'view')`; PUT and PATCH use `hasPermission(user, 'media', 'edit')` in place of `isAdmin`; DELETE uses `hasPermission(user, 'media', 'delete')` in place of `isAdmin`
+- [x] `app/api/assets/bulk-delete/route.ts`: replace `isAdmin` with `hasPermission(user, 'media', 'delete')`
+- [x] `app/api/assets/backfill-face-tags/route.ts` and `app/api/assets/backfill-manual-tags/route.ts`: replace their current role check with `hasPermission(user, 'media', 'edit')`
+- [x] `app/api/collections/[id]/route.ts`: GET uses `hasPermission(user, 'media', 'view')`; the share-setting fields in PATCH use `hasPermission(user, 'media', 'edit')`; DELETE uses `hasPermission(user, 'media', 'delete')`, replacing their `isAdmin` checks
 
 ## Phase 4: CRM RBAC Enforcement
 
