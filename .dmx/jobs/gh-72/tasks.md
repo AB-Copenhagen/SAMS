@@ -52,8 +52,8 @@
 
 ## Phase 7: Tests & Validation
 
-- [ ] Unit test `resolveAppRole` in `lib/descope.ts`: returns `'ADMIN'`/`'STAFF'` as before, and now `'USER'` instead of `null` for an empty/non-matching role list
-- [ ] Unit test `hasPermission` in `lib/auth.ts` against the full matrix from spec.md (all 3 modules × 3 roles × relevant actions)
+- [x] Unit test `resolveAppRole` in `lib/descope.ts`: returns `'ADMIN'`/`'STAFF'` as before, and now `'USER'` instead of `null` for an empty/non-matching role list — added `lib/descope.test.ts` (also covers `isAllowedEmailDomain`); installed `vitest@^2` (matches existing `@types/node` peer range) as the project's first test runner, added `npm test` script
+- [x] Unit test `hasPermission` in `lib/auth.ts` against the full matrix from spec.md (all 3 modules × 3 roles × relevant actions) — added `lib/auth.test.ts`, 47 assertions, all passing
 - [ ] Manual verification: an `@ab.dk` Descope user with no Admin/Staff role can log in and lands at the default page with `USER`-level access
 - [ ] Manual verification: a non-`@ab.dk` email is still rejected at `/api/auth/session`
 - [ ] Manual verification: Staff can view but not edit/delete a CRM customer record; User gets no CRM access at all
