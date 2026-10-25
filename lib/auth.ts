@@ -1,7 +1,8 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createHmac, timingSafeEqual } from 'crypto';
-import { verifyDescopeSession, resolveAppRole } from './descope';
+import { verifyDescopeSession } from './descope';
+import { findStaffUserByEmail, resolveLoginDecision } from './staff-users';
 
 export type UserRole = 'ADMIN' | 'STAFF' | 'USER' | 'PLAYER' | 'MEDIA' | 'SPONSOR';
 
@@ -96,17 +97,20 @@ export async function getCurrentUser(): Promise<User | null> {
   const parsed = parseSessionCookie(session.value);
   if (parsed) return parsed;
 
-  // Fallback: raw Descope session token (covers legacy cookies and direct API calls)
+  // Fallback: raw Descope session token (covers legacy cookies and direct API calls). Must apply
+  // the same StaffUser roster check as app/api/auth/session/route.ts (gh-76) -- this path bypasses
+  // that route entirely, so a suspended or never-invited user must not get in through it either.
   const descopeSession = await verifyDescopeSession(session.value);
   if (!descopeSession) return null;
 
-  const role = resolveAppRole(descopeSession.roles);
+  const decision = resolveLoginDecision(await findStaffUserByEmail(descopeSession.email));
+  if (!decision.allowed || !decision.role) return null;
 
   return {
     id: descopeSession.id,
     email: descopeSession.email,
     name: descopeSession.name,
-    role,
+    role: decision.role,
   };
 }
 

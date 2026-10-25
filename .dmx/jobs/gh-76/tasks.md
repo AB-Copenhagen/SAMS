@@ -20,8 +20,10 @@
 
 ## Phase 3: Login Gate Cutover
 
-- [ ] `app/api/auth/session/route.ts`: replace the `isAllowedEmailDomain`/`resolveAppRole` gate with `findStaffUserByEmail(descopeUser.email)` + `resolveLoginDecision`; reject (403) when not allowed; on `PENDING`, call `markActive` with the Descope session's `id`/`name` before issuing the cookie
-- [ ] `lib/auth.ts`: drop the session cookie's `maxAge` from 90 days to 24 hours (`createSessionCookie`'s `Set-Cookie` call in `app/api/auth/session/route.ts`), per spec's suspension-timing decision
+- [x] `app/api/auth/session/route.ts`: replace the `isAllowedEmailDomain`/`resolveAppRole` gate with `findStaffUserByEmail(descopeUser.email)` + `resolveLoginDecision`; reject (403) when not allowed; on `PENDING`, call `markActive` with the Descope session's `id`/`name` before issuing the cookie
+- [x] Drop the session cookie's `maxAge` from 90 days to 24 hours — the `Set-Cookie` call in `app/api/auth/session/route.ts` (not `lib/auth.ts`; `createSessionCookie` there just signs the payload, it doesn't set `maxAge`), per spec's suspension-timing decision
+- [x] (found during implementation, not in original plan) `lib/auth.ts`'s `getCurrentUser()` has a second, independent gate: its "raw Descope session token" legacy fallback path called `resolveAppRole` directly, bypassing `app/api/auth/session/route.ts` entirely — a suspended or never-invited user could still get in through it. Cut over to the same `findStaffUserByEmail`/`resolveLoginDecision` check.
+- [x] (found during implementation, not in original plan) New `vitest.config.ts` setting a placeholder `TURSO_DATABASE_URL` — `lib/db.ts` constructs a `PrismaClient` at module-import time, so `lib/auth.ts` now transitively throwing on import under test (via `lib/staff-users.ts`) broke `lib/auth.test.ts`'s 37 passing assertions; also needed ahead of Phase 5's new `lib/staff-users.test.ts`
 
 ## Phase 4: Admin Invite UI
 
