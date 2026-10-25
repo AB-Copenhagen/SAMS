@@ -37,11 +37,28 @@ export function isAllowedEmailDomain(email: string): boolean {
 
 const projectId = process.env.NEXT_PUBLIC_DESCOPE_PROJECT_ID;
 
+function requireProjectId(): string {
+  if (!projectId) throw new Error('NEXT_PUBLIC_DESCOPE_PROJECT_ID is not set');
+  return projectId;
+}
+
+function managementKey(): string {
+  const key = process.env.DESCOPE_SERVICE_ACCOUNT_KEY;
+  if (!key) throw new Error('DESCOPE_SERVICE_ACCOUNT_KEY is not set');
+  return key;
+}
+
+function mgmtHeaders(): Record<string, string> {
+  return {
+    Authorization: `Bearer ${requireProjectId()}:${managementKey()}`,
+    'Content-Type': 'application/json',
+  };
+}
+
 let _sdk: ReturnType<typeof createSdk> | undefined;
 
 function getSdk() {
-  if (!projectId) throw new Error('NEXT_PUBLIC_DESCOPE_PROJECT_ID is not set');
-  if (!_sdk) _sdk = createSdk({ projectId });
+  if (!_sdk) _sdk = createSdk({ projectId: requireProjectId() });
   return _sdk;
 }
 
@@ -74,5 +91,93 @@ export async function verifyDescopeSession(sessionToken: string): Promise<Descop
     };
   } catch {
     return null;
+  }
+}
+
+export type StaffUser = {
+  userId: string;
+  loginId: string;
+  email: string;
+  name: string | null;
+  role: AppRole;
+};
+
+type RawStaffUser = {
+  userId: string;
+  email?: string;
+  loginIds?: string[];
+  name?: string;
+  roleNames?: string[];
+  userTenants?: { roleNames?: string[] }[];
+};
+
+const STAFF_USER_PAGE_SIZE = 100;
+
+// Admin → Users (gh-72): lists every user in THIS app's own staff project (not the consumer MyAB
+// project — see lib/descope-customers.ts for that one), via the same Search Users Management API
+// iterateAllCustomers there uses, resolving each one's privilege level the same way login does.
+export async function listStaffUsers(): Promise<StaffUser[]> {
+  const users: StaffUser[] = [];
+  let page = 0;
+  for (;;) {
+    const res = await fetch('https://api.descope.com/v2/mgmt/user/search', {
+      method: 'POST',
+      headers: mgmtHeaders(),
+      body: JSON.stringify({ limit: STAFF_USER_PAGE_SIZE, page }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Descope user search failed: ${res.status} ${await res.text()}`);
+    }
+
+    const data = (await res.json()) as { users: RawStaffUser[] };
+    if (!data.users?.length) break;
+
+    for (const raw of data.users) {
+      const tenantRoles = (raw.userTenants ?? []).flatMap((t) => t.roleNames ?? []);
+      const loginId = raw.loginIds?.[0] ?? raw.email ?? raw.userId;
+      users.push({
+        userId: raw.userId,
+        loginId,
+        email: raw.email ?? loginId,
+        name: raw.name ?? null,
+        role: resolveAppRole([...(raw.roleNames ?? []), ...tenantRoles]),
+      });
+    }
+
+    if (data.users.length < STAFF_USER_PAGE_SIZE) break;
+    page++;
+  }
+  return users;
+}
+
+// Changes a staff user's privilege tier by adding/removing the Admin/Staff Descope role names
+// (see resolveAppRole) — USER is the absence of both, so nothing is added for it. Keyed by
+// loginId, not userId: Descope's role add/remove Management API endpoints take loginId.
+//
+// NOTE: this project resolves roles from tenant-scoped assignments too, not just top-level
+// (gh-66) — these calls only touch the top-level assignment. If an existing user's Admin/Staff
+// role actually lives inside a tenant membership, this may not change what resolveAppRole reads
+// for them. Verify against a real account (see tasks.md Phase 7) before relying on this for an
+// already-tenant-scoped user.
+export async function setUserRole(loginId: string, role: AppRole): Promise<void> {
+  const removeRes = await fetch('https://api.descope.com/v1/mgmt/user/update/role/remove', {
+    method: 'POST',
+    headers: mgmtHeaders(),
+    body: JSON.stringify({ loginId, roleNames: [ADMIN_ROLE_NAME, STAFF_ROLE_NAME] }),
+  });
+  if (!removeRes.ok) {
+    throw new Error(`Descope role remove failed: ${removeRes.status} ${await removeRes.text()}`);
+  }
+
+  if (role === 'USER') return;
+
+  const addRes = await fetch('https://api.descope.com/v1/mgmt/user/update/role/add', {
+    method: 'POST',
+    headers: mgmtHeaders(),
+    body: JSON.stringify({ loginId, roleNames: [role === 'ADMIN' ? ADMIN_ROLE_NAME : STAFF_ROLE_NAME] }),
+  });
+  if (!addRes.ok) {
+    throw new Error(`Descope role add failed: ${addRes.status} ${await addRes.text()}`);
   }
 }

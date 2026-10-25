@@ -43,12 +43,12 @@
 
 ## Phase 6: Admin User Management UI
 
-- [ ] `lib/descope.ts`: add `listStaffUsers()` — pages through the staff project's users via the Search Users Management API (`POST https://api.descope.com/v2/mgmt/user/search` with `Authorization: Bearer {projectId}:{DESCOPE_SERVICE_ACCOUNT_KEY}`), mirroring `iterateAllCustomers` in `lib/descope-customers.ts`; returns each user's id, email, name, and resolved `AppRole`/`'USER'`
-- [ ] `lib/descope.ts`: add `setUserRole(userId: string, role: 'ADMIN' | 'STAFF' | 'USER')` using the Descope Management API's role add/remove endpoints to remove both `Admin`/`Staff` role names and add the target one (no role added for `'USER'`)
-- [ ] `app/api/admin/users/route.ts` (new): `GET` returns `listStaffUsers()`, gated with `requirePermission(user, 'adminSettings', 'view')`
-- [ ] `app/api/admin/users/[id]/role/route.ts` (new): `PATCH` calls `setUserRole`, gated with `requirePermission(user, 'adminSettings', 'edit')`; validates the posted role is one of `'ADMIN' | 'STAFF' | 'USER'`
-- [ ] `app/admin/users/page.tsx` (new): Admin-only page listing users with a role selector per row, calling the new PATCH route; guarded with `requirePermission(user, 'adminSettings', 'edit')`
-- [ ] Add a nav entry to the new Admin → Users page in the existing admin/sidebar navigation component
+- [x] `lib/descope.ts`: add `listStaffUsers()` — pages through the staff project's users via the Search Users Management API (`POST https://api.descope.com/v2/mgmt/user/search` with `Authorization: Bearer {projectId}:{DESCOPE_SERVICE_ACCOUNT_KEY}`), mirroring `iterateAllCustomers` in `lib/descope-customers.ts`; returns each user's id, email, name, and resolved `AppRole`/`'USER'`
+- [x] `lib/descope.ts`: add `setUserRole(loginId: string, role: 'ADMIN' | 'STAFF' | 'USER')` using the Descope Management API's role add/remove endpoints to remove both `Admin`/`Staff` role names and add the target one (no role added for `'USER'`) — keyed by `loginId` not `userId` since that's what Descope's role endpoints require; NOTE: only touches the top-level role assignment, not a tenant-scoped one (see gh-66) — needs live verification
+- [x] `app/api/admin/users/route.ts` (new): `GET` returns `listStaffUsers()`, gated with `hasPermission(user, 'adminSettings', 'view')`
+- [x] `app/api/admin/users/[id]/role/route.ts` (new): `PATCH` calls `setUserRole`, gated with `hasPermission(user, 'adminSettings', 'edit')`; validates the posted role is one of `'ADMIN' | 'STAFF' | 'USER'`; takes `loginId` in the body (Descope's role endpoints key by loginId, not userId)
+- [x] `app/admin/users/page.tsx` (new): Admin-only page listing users with a role selector per row (`components/UserRoleSelect.tsx`, following the `DeleteAssetRowButton` confirm/refresh pattern), calling the new PATCH route; guarded with `requirePermission(user, 'adminSettings', 'edit')`
+- [x] Add a nav entry to the new Admin → Users page in the existing admin/sidebar navigation component
 
 ## Phase 7: Tests & Validation
 
