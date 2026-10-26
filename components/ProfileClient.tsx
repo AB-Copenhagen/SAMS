@@ -19,10 +19,12 @@ const UserProfile = dynamic(
 type LandingPageChoice = { value: string; label: string; minRole?: 'STAFF' | 'ADMIN' };
 
 export default function ProfileClient({
+  name: initialName,
   preferences,
   pageSizeOptions,
   landingPageChoices,
 }: {
+  name: string;
   preferences: StaffPreferences;
   pageSizeOptions: number[];
   landingPageChoices: LandingPageChoice[];
@@ -31,6 +33,12 @@ export default function ProfileClient({
   const [form, setForm] = useState(preferences);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+
+  const [name, setName] = useState(initialName);
+  const [editingName, setEditingName] = useState(false);
+  const [savingName, setSavingName] = useState(false);
+  const [nameStatus, setNameStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+  const [nameError, setNameError] = useState<string | null>(null);
 
   async function save() {
     setSaving(true);
@@ -45,8 +53,73 @@ export default function ProfileClient({
     if (res.ok) router.refresh(); // picks up the new theme cookie in the root layout
   }
 
+  async function saveName() {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setNameError('Name is required');
+      return;
+    }
+    setSavingName(true);
+    setNameStatus('idle');
+    setNameError(null);
+    const res = await fetch('/api/profile/name', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: trimmed }),
+    });
+    setSavingName(false);
+    if (res.ok) {
+      setName(trimmed);
+      setEditingName(false);
+      setNameStatus('saved');
+      router.refresh(); // picks up the new name in the top header
+    } else {
+      const body = await res.json().catch(() => null);
+      setNameError(body?.message ?? "Couldn't save name. Try again.");
+      setNameStatus('error');
+    }
+  }
+
   return (
     <>
+      <div className="card">
+        <div className="card-header">Account details</div>
+
+        <div className="field">
+          <label htmlFor="profile-name">Name</label>
+          {editingName ? (
+            <div className="meta-row">
+              <input
+                id="profile-name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={savingName}
+                autoFocus
+              />
+              <button className="btn-primary" type="button" onClick={saveName} disabled={savingName}>
+                {savingName ? 'Saving…' : 'Save'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setEditingName(false); setName(initialName); setNameError(null); }}
+                disabled={savingName}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="meta-row">
+              <span>{name || '(no name set)'}</span>
+              <button type="button" onClick={() => setEditingName(true)}>Edit</button>
+            </div>
+          )}
+        </div>
+
+        {nameStatus === 'saved' && !editingName && <div className="alert alert-success">Name saved.</div>}
+        {nameError && <div className="alert alert-error">{nameError}</div>}
+      </div>
+
       <div className="card">
         <div className="card-header">Display preferences</div>
 

@@ -18,6 +18,7 @@ export default async function ProfilePage() {
         <p>Manage your account details and security settings</p>
       </div>
       <ProfileClient
+        name={user.name ?? ''}
         preferences={preferences}
         pageSizeOptions={PAGE_SIZE_OPTIONS}
         landingPageChoices={landingPageChoices}

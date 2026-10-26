@@ -70,3 +70,10 @@ export async function setStaffUserStatus(email: string, status: StaffUserStatus)
   const row = await prisma.staffUser.update({ where: { email }, data: { status } });
   return toRecord(row);
 }
+
+// Self-service rename from /profile — distinct from markActive's name refresh (which mirrors
+// Descope's name on login) because this is the user overriding that value themselves.
+export async function setStaffUserName(email: string, name: string): Promise<StaffUserRecord> {
+  const row = await prisma.staffUser.update({ where: { email }, data: { name } });
+  return toRecord(row);
+}
