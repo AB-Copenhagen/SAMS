@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { verifyDescopeSession, resolveAppRole, isAllowedEmailDomain } from '../../../../lib/descope';
+import { verifyDescopeSession } from '../../../../lib/descope';
 import { createSessionCookie } from '../../../../lib/auth';
 import { checkRateLimit, requestIp } from '../../../../lib/rate-limit';
 import { getCachedStaffPreferences, resolveLandingPage } from '../../../../lib/staff-preferences';
+import { findStaffUserByEmail, resolveLoginDecision, markActive } from '../../../../lib/staff-users';
 
 const RATE_LIMIT_WINDOW_SECONDS = 600;
 const RATE_LIMIT_MAX_ATTEMPTS = 20;
@@ -28,17 +29,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'Invalid or expired session.' }, { status: 401 });
   }
 
-  if (!isAllowedEmailDomain(descopeUser.email)) {
+  const staffUser = await findStaffUserByEmail(descopeUser.email);
+  const decision = resolveLoginDecision(staffUser);
+  if (!decision.allowed || !decision.role) {
     return NextResponse.json({ message: 'Your account does not have access to this app.' }, { status: 403 });
   }
 
-  const role = resolveAppRole(descopeUser.roles);
+  await markActive(descopeUser.email, { descopeUserId: descopeUser.id, name: descopeUser.name });
 
   const user = {
     id: descopeUser.id,
     email: descopeUser.email,
     name: descopeUser.name,
-    role,
+    role: decision.role,
   };
 
   const pref = await getCachedStaffPreferences(user.id);
@@ -52,7 +55,7 @@ export async function POST(request: Request) {
     path: '/',
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 90,
+    maxAge: 60 * 60 * 24, // 24h, not 90d (gh-76) -- bounds how long a since-suspended user's cookie still works
   });
 
   return response;

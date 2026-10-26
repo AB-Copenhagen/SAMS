@@ -6,7 +6,7 @@ import type { AppRole } from '../lib/descope';
 
 const ROLE_OPTIONS: AppRole[] = ['USER', 'STAFF', 'ADMIN'];
 
-export default function UserRoleSelect({ userId, loginId, role }: { userId: string; loginId: string; role: AppRole }) {
+export default function UserRoleSelect({ email, role }: { email: string; role: AppRole }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
 
@@ -14,10 +14,10 @@ export default function UserRoleSelect({ userId, loginId, role }: { userId: stri
     if (next === role) return;
     if (!confirm(`Change this user's role to ${next}?`)) return;
     setSaving(true);
-    const res = await fetch(`/api/admin/users/${userId}/role`, {
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(email)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ loginId, role: next }),
+      body: JSON.stringify({ role: next }),
     });
     if (res.ok) {
       router.refresh();

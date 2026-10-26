@@ -423,3 +423,19 @@ model SyncState {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+// SAMS's own staff login roster (gh-76) — replaces Descope's user directory/role console as the
+// source of truth for who can log in and what role they hold. Keyed by email, not Descope userId:
+// an invited-but-not-yet-logged-in person has no Descope identity yet. descopeUserId/name fill in
+// once they first successfully authenticate (app/api/auth/session/route.ts), at which point
+// status flips PENDING -> ACTIVE. SUSPENDED cuts off access on their next login attempt.
+model StaffUser {
+  email         String    @id
+  role          String    // "USER" | "STAFF" | "ADMIN"
+  status        String    // "PENDING" | "ACTIVE" | "SUSPENDED"
+  descopeUserId String?
+  name          String?
+  invitedBy     String?
+  invitedAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}

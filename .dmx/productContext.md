@@ -29,7 +29,7 @@ SAMS solves both by being the single system of record: a DAM that gets media tag
 
 ## Who uses it
 
-- **Club staff / media team** — the primary users of both the DAM (upload, tag-correction, review, editing) and the CRM (fan lookups, reports). Any `@ab.dk` Descope user can log in by default (role `USER`); `STAFF`/`ADMIN` are elevated tiers an Admin assigns (Admin → Users), and View/Add/Edit/Delete access to Media Assets/CRM/Admin Settings follows a fixed per-tier permission matrix rather than login itself being the access gate (gh-72).
+- **Club staff / media team** — the primary users of both the DAM (upload, tag-correction, review, editing) and the CRM (fan lookups, reports). Access is invite-only (gh-76): an Admin invites a person by any email address from Admin → Users and assigns their role (`User`/`Staff`/`Admin`) up front — no email-domain auto-admit. Descope verifies the person's identity/session at login; it no longer decides who's let in. View/Add/Edit/Delete access to Media Assets/CRM/Admin Settings follows a fixed per-tier permission matrix (gh-72), now sourced from the invited role rather than Descope's role console.
 - **Field/press photographers** — use the mobile ingest page or the DSLR/HDD-watching CLI tool, often one-handed and under time pressure; see `press-worker-usability` skill for UX conventions this drives.
 - **Players, media partners, sponsors** — referenced as subjects/owners of content (player face galleries, sponsor galleries, device-credential ownership) but are not users of the admin back-office itself.
 - **Unattended ingest tools** — authenticate via per-device API keys (Configure → Devices) rather than a browser session.
