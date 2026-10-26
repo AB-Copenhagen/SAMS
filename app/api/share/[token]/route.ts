@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { checkRateLimit, requestIp } from '../../../../lib/rate-limit';
-import { applyShareFilters, getPublicCollectionByToken, resolveCollectionAssets, sanitizePublicAsset, verifySharePassword } from '../../../../lib/collections';
+import { applyShareFilters, getPublicCollectionByToken, resolveCollectionGalleryAssets, sanitizePublicAsset, verifySharePassword } from '../../../../lib/collections';
 import { createShareUnlockCookieValue, isShareUnlocked, shareUnlockCookieName } from '../../../../lib/share-auth';
 
 const RATE_LIMIT_WINDOW_SECONDS = 600;
@@ -16,7 +16,7 @@ export async function GET(_: Request, props: { params: Promise<{ token: string }
     return NextResponse.json({ passwordRequired: true, name: collection.name });
   }
 
-  const assets = applyShareFilters(await resolveCollectionAssets(collection), collection);
+  const assets = applyShareFilters(await resolveCollectionGalleryAssets(collection), collection);
   return NextResponse.json({
     passwordRequired: false,
     name: collection.name,
@@ -49,7 +49,7 @@ export async function POST(request: Request, props: { params: Promise<{ token: s
     return NextResponse.json({ message: 'Incorrect password' }, { status: 401 });
   }
 
-  const assets = applyShareFilters(await resolveCollectionAssets(collection), collection);
+  const assets = applyShareFilters(await resolveCollectionGalleryAssets(collection), collection);
   const response = NextResponse.json({
     passwordRequired: false,
     name: collection.name,

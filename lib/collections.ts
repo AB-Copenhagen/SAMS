@@ -74,37 +74,79 @@ export type GalleryListAsset = Prisma.AssetGetPayload<{ select: typeof GALLERY_L
  * Union of an asset's legacy single-collection FK (game/event collections), manual
  * CollectionAsset membership, and any confirmed player/sponsor tag matching one of the
  * collection's auto-include rules. Shared by the admin collection page and the public share API
- * so membership logic lives in exactly one place. Always includes confirmed player/sponsor tags
- * so callers can show "featuring" credits without a second query.
+ * so membership logic lives in exactly one place.
+ *
+ * Resolved as four separate indexed id-only lookups, unioned in application code, rather than one
+ * Prisma `OR` across all four conditions in a single query: that single query mixed a direct FK
+ * equality, a join-table EXISTS, and two confirmed-tag EXISTS subqueries in one WHERE clause, which
+ * left the query planner unable to use any one index cleanly and fell back to a full scan of the
+ * entire (tens-of-thousands-row) Asset table — the dominant cost behind a custom (rule-based)
+ * collection, with as few as a couple hundred matching assets, taking tens of seconds to load on
+ * both the admin page and its public share link.
  */
-function collectionMembershipWhere(collection: CollectionWithRules): Prisma.AssetWhereInput {
+async function collectionMemberAssetIds(collection: CollectionWithRules): Promise<string[]> {
   const playerIds = collection.playerRules.map((r) => r.playerId);
   const sponsorIds = collection.sponsorRules.map((r) => r.sponsorId);
 
-  const or: Prisma.AssetWhereInput[] = [
-    { collectionId: collection.id },
-    { collectionMemberships: { some: { collectionId: collection.id } } },
-  ];
-  if (playerIds.length) or.push({ playerTags: { some: { status: 'confirmed', playerId: { in: playerIds } } } });
-  if (sponsorIds.length) or.push({ sponsorTags: { some: { status: 'confirmed', sponsorId: { in: sponsorIds } } } });
+  const [direct, manual, playerMatches, sponsorMatches] = await Promise.all([
+    prisma.asset.findMany({ where: { collectionId: collection.id }, select: { id: true } }),
+    prisma.collectionAsset.findMany({ where: { collectionId: collection.id }, select: { assetId: true } }),
+    playerIds.length
+      ? prisma.assetPlayerTag.findMany({ where: { status: 'confirmed', playerId: { in: playerIds } }, select: { assetId: true }, distinct: ['assetId'] })
+      : Promise.resolve([]),
+    sponsorIds.length
+      ? prisma.assetSponsorTag.findMany({ where: { status: 'confirmed', sponsorId: { in: sponsorIds } }, select: { assetId: true }, distinct: ['assetId'] })
+      : Promise.resolve([]),
+  ]);
 
-  return { OR: or };
+  const ids = new Set<string>();
+  for (const a of direct) ids.add(a.id);
+  for (const m of manual) ids.add(m.assetId);
+  for (const p of playerMatches) ids.add(p.assetId);
+  for (const s of sponsorMatches) ids.add(s.assetId);
+  return [...ids];
 }
 
 export async function resolveCollectionAssets(collection: CollectionWithRules): Promise<GalleryListAsset[]> {
+  const ids = await collectionMemberAssetIds(collection);
+  if (ids.length === 0) return [];
   return prisma.asset.findMany({
-    where: collectionMembershipWhere(collection),
+    where: { id: { in: ids } },
     orderBy: { uploadedAt: 'desc' },
     select: GALLERY_LIST_SELECT,
   });
+}
+
+/**
+ * Same type-based branch the admin collection page already made (resolveCollectionAssets's
+ * rule-matching membership query only for 'custom' collections, a trivial collectionId lookup for
+ * everything else) — centralized here so the public share page can use it too. It previously
+ * called resolveCollectionAssets unconditionally for every collection type, which meant even a
+ * plain single-match gallery with a simple FK relation paid for the full auto-include-rule
+ * membership resolution on every public page view.
+ */
+export async function resolveCollectionGalleryAssets(collection: CollectionWithRules): Promise<GalleryListAsset[]> {
+  if (collection.type !== 'custom') {
+    return prisma.asset.findMany({
+      where: { collectionId: collection.id },
+      orderBy: { uploadedAt: 'desc' },
+      select: GALLERY_LIST_SELECT,
+    });
+  }
+  return resolveCollectionAssets(collection);
 }
 
 // Id-only variant of resolveCollectionAssets for callers (nav prev/next) that only need
 // membership + ordering, not the full tag include — that include pulls every confirmed
 // player/sponsor tag row for every asset just to be discarded down to an id.
 async function resolveCollectionAssetIds(collection: CollectionWithRules): Promise<string[]> {
+  const ids = await collectionMemberAssetIds(collection);
+  if (ids.length === 0) return [];
+  // Still need upload-date ordering for nav — an `id IN (...)` result's row order isn't
+  // guaranteed, so re-fetch ordered off the same id set (a cheap primary-key lookup + in-memory
+  // sort of just the matching rows, not a full-table scan).
   const assets = await prisma.asset.findMany({
-    where: collectionMembershipWhere(collection),
+    where: { id: { in: ids } },
     orderBy: { uploadedAt: 'desc' },
     select: { id: true },
   });
