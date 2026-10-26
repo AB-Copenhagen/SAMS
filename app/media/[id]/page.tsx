@@ -14,6 +14,7 @@ type SearchParams = {
   navFrom?: string;
   q?: string; type?: string; seasonId?: string; category?: string;
   playerIds?: string; sponsorIds?: string; rating?: string;
+  uploaderEmail?: string; all?: string;
 };
 
 export default async function AssetDetailPage(props: { params: Promise<{ id: string }>; searchParams: Promise<SearchParams> }) {
@@ -43,6 +44,8 @@ export default async function AssetDetailPage(props: { params: Promise<{ id: str
       playerIds: searchParams.playerIds ? searchParams.playerIds.split(',').filter(Boolean) : undefined,
       sponsorIds: searchParams.sponsorIds ? searchParams.sponsorIds.split(',').filter(Boolean) : undefined,
       rating: [1, 2, 3, 4].includes(parseInt(searchParams.rating ?? '')) ? parseInt(searchParams.rating!) : undefined,
+      uploaderEmail: searchParams.uploaderEmail,
+      all: searchParams.all === '1',
     };
     const assetIds = await getMediaLibraryNavContext(filters);
     const navIndex = assetIds.indexOf(asset.id);

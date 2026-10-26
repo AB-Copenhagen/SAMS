@@ -9,7 +9,14 @@ export type MediaLibraryFilters = {
   playerIds?: string[];
   sponsorIds?: string[];
   rating?: number;
+  uploaderEmail?: string;
+  /** Shows the full library when true; otherwise restricted to the UPLOADED_WITHIN_DAYS window
+   * below (see MediaFilterBar's "Show all time" checkbox) — the library's default is the recent
+   * window so a page load doesn't query/render the entire (tens-of-thousands-row) asset table. */
+  all?: boolean;
 };
+
+export const UPLOADED_WITHIN_DAYS = 30;
 
 // Shared between the /media grid query, the query string its asset cards link out with, and the
 // asset-detail page's prev/next nav context — all three must agree on both "which assets are in
@@ -27,6 +34,8 @@ export function buildMediaLibraryWhere(f: MediaLibraryFilters): Record<string, u
   if (f.playerIds?.length) AND.push({ playerTags: { some: { playerId: { in: f.playerIds }, status: 'confirmed' } } });
   if (f.sponsorIds?.length) AND.push({ sponsorTags: { some: { sponsorId: { in: f.sponsorIds }, status: 'confirmed' } } });
   if (f.rating) AND.push({ rating: { gte: f.rating } });
+  if (f.uploaderEmail) AND.push({ uploaderEmail: f.uploaderEmail });
+  if (!f.all) AND.push({ uploadedAt: { gte: new Date(Date.now() - UPLOADED_WITHIN_DAYS * 24 * 60 * 60 * 1000) } });
   return AND.length ? { AND } : {};
 }
 
@@ -45,6 +54,8 @@ export function mediaNavQueryString(f: MediaLibraryFilters): string {
   if (f.playerIds?.length) params.set('playerIds', f.playerIds.join(','));
   if (f.sponsorIds?.length) params.set('sponsorIds', f.sponsorIds.join(','));
   if (f.rating) params.set('rating', String(f.rating));
+  if (f.uploaderEmail) params.set('uploaderEmail', f.uploaderEmail);
+  if (f.all) params.set('all', '1');
   return params.toString();
 }
 

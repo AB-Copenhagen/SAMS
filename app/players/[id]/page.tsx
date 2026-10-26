@@ -4,6 +4,7 @@ import { getCurrentUser } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
 import AppShell from '../../../components/AppShell';
 import AssetGallery from '../../../components/AssetGallery';
+import { attachThumbnailUrls } from '../../../lib/thumbnail';
 
 const PER_PAGE = 30;
 
@@ -48,7 +49,7 @@ export default async function PlayerPhotosPage(
   const total = distinctConfirmed.length;
 
   const pages = Math.ceil(total / PER_PAGE);
-  const assets = confirmedTags.map((t) => t.asset);
+  const assets = await attachThumbnailUrls(confirmedTags.map((t) => t.asset));
 
   return (
     <AppShell user={user}>

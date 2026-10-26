@@ -34,6 +34,22 @@ export const getCachedSeasons = unstable_cache(
   { tags: ['seasons'], revalidate: 60 },
 );
 
+// Distinct uploader emails for the Media Library's "Photographer" filter — no dedicated
+// invalidate*() since nothing ever edits this list directly, it just reflects whatever's on
+// Asset rows; the 60s revalidate is enough for a new uploader to show up promptly.
+export const getCachedUploaders = unstable_cache(
+  async () => {
+    const rows = await prisma.asset.findMany({
+      distinct: ['uploaderEmail'],
+      select: { uploaderEmail: true },
+      orderBy: { uploaderEmail: 'asc' },
+    });
+    return rows.map((r) => r.uploaderEmail);
+  },
+  ['lookup-uploaders'],
+  { tags: ['uploaders'], revalidate: 60 },
+);
+
 export const getCachedStadiums = unstable_cache(
   () => prisma.stadium.findMany({ orderBy: { name: 'asc' } }),
   ['lookup-stadiums'],
