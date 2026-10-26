@@ -44,8 +44,26 @@ export default async function MediaPage(props: { searchParams: Promise<SearchPar
   const where = buildMediaLibraryWhere(filters);
   const navQuery = mediaNavQueryString(filters);
 
+  // Timed and logged (not just left to guesswork) because this page's latency has been reported
+  // slow more than once — with Vercel log read access blocked for this session, a prefixed,
+  // greppable breakdown here is what lets whoever CAN read the dashboard logs pin the next slow
+  // request to the query, the thumbnail presigning, or something else entirely, instead of
+  // re-guessing from scratch.
+  const pageStart = Date.now();
   const [rawAssets, total, seasons, allCollections, allPlayers, allSponsors, uploaders] = await Promise.all([
-    prisma.asset.findMany({ where, orderBy: { uploadedAt: 'desc' }, take: perPage, skip: (page - 1) * perPage }),
+    // Trimmed to exactly what the gallery renders (see GalleryAsset) — the untrimmed query was
+    // pulling every column for every asset on the page, including several large JSON blobs
+    // (exifJson, legacyMetaJson, detectedTagsJson/manualTagsJson, gcvResponseJson,
+    // wasbaiResponseJson) that the grid never uses, multiplying the Turso round trip's payload
+    // for no reason — same fix already applied to the collection gallery query, see
+    // app/api/collections/[id]/route.ts.
+    prisma.asset.findMany({
+      where, orderBy: { uploadedAt: 'desc' }, take: perPage, skip: (page - 1) * perPage,
+      select: {
+        id: true, title: true, eventName: true, eventDate: true, location: true,
+        fileType: true, fileSize: true, thumbnailKey: true, thumbnailStatus: true,
+      },
+    }),
     prisma.asset.count({ where }),
     getCachedSeasons(),
     getCachedCollections(),
@@ -53,7 +71,17 @@ export default async function MediaPage(props: { searchParams: Promise<SearchPar
     getCachedSponsors(),
     getCachedUploaders(),
   ]);
+  const queryMs = Date.now() - pageStart;
+
+  const thumbStart = Date.now();
   const assets = await attachThumbnailUrls(rawAssets);
+  const thumbMs = Date.now() - thumbStart;
+
+  console.log(
+    `[media-page] query=${queryMs}ms thumbnails=${thumbMs}ms total=${Date.now() - pageStart}ms ` +
+    `rows=${rawAssets.length}/${total} page=${page} perPage=${perPage} q=${JSON.stringify(q)} all=${all} ` +
+    `filters=${JSON.stringify({ type, seasonId, category, collectionId, playerIds, sponsorIds, rating, uploaderEmail })}`
+  );
   const players = allPlayers.filter((p) => p.active);
   const sponsors = allSponsors.filter((s) => s.active);
   const collections = allCollections.filter((c) => c.type !== 'custom');
