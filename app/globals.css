@@ -720,6 +720,34 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   flex-shrink: 0;
 }
 
+/* ─── Top progress bar ──────────────────────────────────────
+   Page-level "something is loading" feedback (e.g. Media Library filter changes) that stays
+   visible no matter where the viewer has scrolled to — unlike a spinner tucked in a sidebar card,
+   which scrolls out of view on mobile once .sticky-sidebar stops sticking below the 860px
+   breakpoint. Fixed to the viewport, above everything else. */
+@keyframes top-progress-slide {
+  0%   { left: -35%; width: 35%; }
+  50%  { left: 20%;  width: 55%; }
+  100% { left: 100%; width: 35%; }
+}
+.top-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 2000;
+  overflow: hidden;
+  pointer-events: none;
+}
+.top-progress-bar-fill {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: var(--color-primary);
+  animation: top-progress-slide 1.1s ease-in-out infinite;
+}
+
 /* ─── Gallery grid ───────────────────────────────────────── */
 .gallery {
   display: grid;
