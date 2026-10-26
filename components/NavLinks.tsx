@@ -30,16 +30,18 @@ export type NavSectionDef = {
 // (components/HeaderSearch.tsx) — add a destination here once, it shows up in both.
 export const NAV_SECTIONS: NavSectionDef[] = [
   {
-    label: 'Library',
+    label: 'Media',
     items: [
       {
-        href: '/home',
-        label: 'Home',
-        isActive: (p) => p === '/home' || p === '/',
+        href: '/media',
+        label: 'Media library',
+        isActive: (p) => p.startsWith('/media'),
         icon: (
           <Icon>
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9 22 9 12 15 12 15 22" />
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
           </Icon>
         ),
       },
@@ -63,19 +65,6 @@ export const NAV_SECTIONS: NavSectionDef[] = [
           <Icon>
             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
             <circle cx="12" cy="13" r="4" />
-          </Icon>
-        ),
-      },
-      {
-        href: '/media',
-        label: 'Media library',
-        isActive: (p) => p.startsWith('/media'),
-        icon: (
-          <Icon>
-            <rect x="3" y="3" width="7" height="7" />
-            <rect x="14" y="3" width="7" height="7" />
-            <rect x="14" y="14" width="7" height="7" />
-            <rect x="3" y="14" width="7" height="7" />
           </Icon>
         ),
       },
