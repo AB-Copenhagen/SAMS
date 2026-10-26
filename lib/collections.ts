@@ -42,6 +42,34 @@ const CONFIRMED_TAGS_INCLUDE = {
 
 export type AssetWithTags = Prisma.AssetGetPayload<{ include: typeof CONFIRMED_TAGS_INCLUDE }>;
 
+// Narrower than CONFIRMED_TAGS_INCLUDE's full-row include — used only for resolving an entire
+// collection's asset list (admin collection page, public share gallery), where the untrimmed
+// query was pulling every column, including several large JSON blobs (manualTagsJson,
+// detectedTagsJson, gcvResponseJson, wasbaiResponseJson, legacyMetaJson, editParamsJson), for
+// every asset in the collection — same bloat already fixed for the Media Library's listing query
+// (app/media/page.tsx). Deliberately excludes operational fields (objectKey, editedKey,
+// webPreviewKey, expiresAt, shareToken) that only the single-asset lookups in resolveShareTarget/
+// getAssetByShareToken need, below.
+const GALLERY_LIST_SELECT = {
+  id: true, title: true, description: true, shareText: true,
+  eventName: true, eventDate: true, location: true, category: true,
+  fileType: true, fileSize: true, thumbnailKey: true, thumbnailStatus: true,
+  durationMs: true, videoWidth: true, videoHeight: true,
+  uploadedAt: true, exifJson: true, rating: true,
+  playerTags: {
+    where: { status: 'confirmed' as const },
+    select: { playerId: true, player: { select: { id: true, name: true, number: true } } },
+    distinct: ['playerId'],
+  },
+  sponsorTags: {
+    where: { status: 'confirmed' as const },
+    select: { sponsorId: true, sponsor: { select: { id: true, name: true } } },
+    distinct: ['sponsorId'],
+  },
+} satisfies Prisma.AssetSelect;
+
+export type GalleryListAsset = Prisma.AssetGetPayload<{ select: typeof GALLERY_LIST_SELECT }>;
+
 /**
  * Union of an asset's legacy single-collection FK (game/event collections), manual
  * CollectionAsset membership, and any confirmed player/sponsor tag matching one of the
@@ -63,11 +91,11 @@ function collectionMembershipWhere(collection: CollectionWithRules): Prisma.Asse
   return { OR: or };
 }
 
-export async function resolveCollectionAssets(collection: CollectionWithRules): Promise<AssetWithTags[]> {
+export async function resolveCollectionAssets(collection: CollectionWithRules): Promise<GalleryListAsset[]> {
   return prisma.asset.findMany({
     where: collectionMembershipWhere(collection),
     orderBy: { uploadedAt: 'desc' },
-    include: CONFIRMED_TAGS_INCLUDE,
+    select: GALLERY_LIST_SELECT,
   });
 }
 
@@ -180,7 +208,7 @@ export async function matchCollectionByCaptureDate(exifJson: string | null): Pro
 }
 
 /** Same fallback chain as the public gallery's client-side sort: EXIF capture time, then event date, then upload date. */
-function assetEffectiveDate(asset: Pick<AssetWithTags, 'exifJson' | 'eventDate' | 'uploadedAt'>): Date {
+function assetEffectiveDate(asset: Pick<GalleryListAsset, 'exifJson' | 'eventDate' | 'uploadedAt'>): Date {
   const taken = extractDateTaken(asset.exifJson);
   if (taken) return new Date(taken);
   return asset.eventDate ?? asset.uploadedAt;
@@ -194,7 +222,7 @@ type ShareFilterConfig = Pick<Collection, 'shareMinRating' | 'shareDateRangeDays
  * *shared* view without being removed from the collection). Applied only in public-facing code
  * paths; the admin collection page always shows full membership for management.
  */
-export function applyShareFilters<T extends AssetWithTags>(assets: T[], collection: ShareFilterConfig): T[] {
+export function applyShareFilters<T extends GalleryListAsset>(assets: T[], collection: ShareFilterConfig): T[] {
   return assets.filter((asset) => {
     if (collection.shareMinRating && (asset.rating ?? 0) < collection.shareMinRating) return false;
     if (collection.shareDateRangeDays) {
@@ -224,6 +252,10 @@ export type PublicAsset = {
   uploadedAt: Date;
   dateTaken: string | null;
   rating: number | null;
+  /** Presigned straight to Wasabi, attached in bulk by attachThumbnailUrls after sanitization —
+   * see app/s/[token]/page.tsx. Falls back to the per-asset /api/share/.../thumbnail route when
+   * absent (not yet thumbnailed). */
+  thumbnailUrl?: string;
   tags: {
     players: { id: string; name: string; number: number | null }[];
     sponsors: { id: string; name: string }[];
@@ -231,7 +263,7 @@ export type PublicAsset = {
 };
 
 /** Whitelist projection for anonymous/public consumption — never leak uploader, review, or raw AI/EXIF fields. */
-export function sanitizePublicAsset(asset: AssetWithTags): PublicAsset {
+export function sanitizePublicAsset(asset: GalleryListAsset): PublicAsset {
   return {
     id: asset.id,
     title: asset.title,

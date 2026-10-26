@@ -23,7 +23,7 @@ function Thumb({ token, asset }: { token: string; asset: PublicAsset }) {
 
   return showThumbnail ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={`/api/share/${token}/assets/${asset.id}/thumbnail`} alt={asset.title ?? ''} loading="lazy" />
+    <img src={asset.thumbnailUrl ?? `/api/share/${token}/assets/${asset.id}/thumbnail`} alt={asset.title ?? ''} loading="lazy" />
   ) : (
     <span style={{ fontSize: 32 }}>🎬</span>
   );
@@ -269,7 +269,7 @@ export default function PublicAssetGallery({ token, assets }: Props) {
                       immediately while the sharp 1920px preview loads on top. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={`/api/share/${token}/assets/${lightboxAsset.id}/thumbnail`}
+                    src={lightboxAsset.thumbnailUrl ?? `/api/share/${token}/assets/${lightboxAsset.id}/thumbnail`}
                     alt=""
                     aria-hidden="true"
                     draggable={false}
