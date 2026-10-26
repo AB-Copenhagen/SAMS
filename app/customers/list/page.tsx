@@ -32,6 +32,7 @@ export default async function CustomersListPage(
       minSpend?: string;
       segment?: string;
       minMatchesAttended?: string;
+      minMatchesPurchased?: string;
       seasonPassHolder?: string;
       sort?: string;
       dir?: string;
@@ -50,9 +51,10 @@ export default async function CustomersListPage(
   const minSpend = searchParams.minSpend ? Number(searchParams.minSpend) : undefined;
   const segment = searchParams.segment || undefined;
   const minMatchesAttended = searchParams.minMatchesAttended ? Number(searchParams.minMatchesAttended) : undefined;
+  const minMatchesPurchased = searchParams.minMatchesPurchased ? Number(searchParams.minMatchesPurchased) : undefined;
   const seasonPassHolder =
     searchParams.seasonPassHolder === 'true' ? true : searchParams.seasonPassHolder === 'false' ? false : undefined;
-  const where = buildCustomerWhere({ q: q || undefined, marketingOptIn, minSpend, segment, minMatchesAttended, seasonPassHolder });
+  const where = buildCustomerWhere({ q: q || undefined, marketingOptIn, minSpend, segment, minMatchesAttended, minMatchesPurchased, seasonPassHolder });
 
   const sortField = (Object.keys(SORT_COLUMNS) as SortField[]).includes(searchParams.sort as SortField)
     ? (searchParams.sort as SortField)
@@ -73,13 +75,14 @@ export default async function CustomersListPage(
 
   const pages = Math.ceil(total / PER_PAGE) || 1;
 
-  function urlWith(overrides: Partial<{ q: string; marketingOptIn: string; minSpend: string; segment: string; minMatchesAttended: string; seasonPassHolder: string; page: string; sort: string; dir: string }>) {
+  function urlWith(overrides: Partial<{ q: string; marketingOptIn: string; minSpend: string; segment: string; minMatchesAttended: string; minMatchesPurchased: string; seasonPassHolder: string; page: string; sort: string; dir: string }>) {
     const next = {
       q,
       marketingOptIn: marketingOptIn === undefined ? '' : String(marketingOptIn),
       minSpend: minSpend !== undefined ? String(minSpend) : '',
       segment: segment ?? '',
       minMatchesAttended: minMatchesAttended !== undefined ? String(minMatchesAttended) : '',
+      minMatchesPurchased: minMatchesPurchased !== undefined ? String(minMatchesPurchased) : '',
       seasonPassHolder: seasonPassHolder === undefined ? '' : String(seasonPassHolder),
       page: '',
       sort: sortField ?? '',
@@ -92,6 +95,7 @@ export default async function CustomersListPage(
     if (next.minSpend) params.set('minSpend', next.minSpend);
     if (next.segment) params.set('segment', next.segment);
     if (next.minMatchesAttended) params.set('minMatchesAttended', next.minMatchesAttended);
+    if (next.minMatchesPurchased) params.set('minMatchesPurchased', next.minMatchesPurchased);
     if (next.seasonPassHolder) params.set('seasonPassHolder', next.seasonPassHolder);
     if (next.page && next.page !== '1') params.set('page', next.page);
     if (next.sort) params.set('sort', next.sort);
@@ -161,8 +165,15 @@ export default async function CustomersListPage(
                 <input type="number" id="minSpend" name="minSpend" defaultValue={minSpend ?? ''} />
               </div>
               <div className="field">
+                <label htmlFor="minMatchesPurchased">Min tickets purchased</label>
+                <input type="number" id="minMatchesPurchased" name="minMatchesPurchased" min={0} defaultValue={minMatchesPurchased ?? ''} />
+              </div>
+              <div className="field">
                 <label htmlFor="minMatchesAttended">Min matches attended</label>
                 <input type="number" id="minMatchesAttended" name="minMatchesAttended" min={0} defaultValue={minMatchesAttended ?? ''} />
+                <p style={{ color: '#8890b4', fontSize: 11, margin: '4px 0 0' }}>
+                  Only counts scanned check-ins — less reliable than tickets purchased.
+                </p>
               </div>
               <button className="btn-primary" type="submit" style={{ width: '100%' }}>Search</button>
             </form>
