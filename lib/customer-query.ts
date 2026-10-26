@@ -10,6 +10,7 @@ export type CustomerFilters = {
   minSpend?: number;
   segment?: string;
   minMatchesAttended?: number;
+  minMatchesPurchased?: number;
   seasonPassHolder?: boolean;
 };
 
@@ -23,6 +24,10 @@ export function buildCustomerWhere(f: CustomerFilters): Record<string, unknown> 
   // counts a club actually has, per lib/goliath.ts's note on this not being a relational store.
   if (f.segment) AND.push({ goliathSegmentsJson: { contains: `"${f.segment}"` } });
   if (f.minMatchesAttended !== undefined) AND.push({ vivenuMatchesAttendedCount: { gte: f.minMatchesAttended } });
+  // Purchased is recomputed from full transaction history on every refresh (see schema.prisma),
+  // so it's the more reliable of the two counts — attended only accrues via scan.created webhooks,
+  // which can miss events (see gh-62/gh-68/gh-70's checkin-backfill incidents).
+  if (f.minMatchesPurchased !== undefined) AND.push({ vivenuMatchesPurchasedCount: { gte: f.minMatchesPurchased } });
   // vivenuSeasonPassStatus holds the GROUP event name for a holder, null otherwise — same
   // not-null-as-boolean derivation as getSeasonPassRateUncached in lib/customer-reports.ts.
   if (f.seasonPassHolder !== undefined) {
