@@ -9,6 +9,8 @@ export type CustomerFilters = {
   marketingOptIn?: boolean;
   minSpend?: number;
   segment?: string;
+  minMatchesAttended?: number;
+  seasonPassHolder?: boolean;
 };
 
 export function buildCustomerWhere(f: CustomerFilters): Record<string, unknown> {
@@ -20,6 +22,12 @@ export function buildCustomerWhere(f: CustomerFilters): Record<string, unknown> 
   // membership is a quoted-substring match rather than a real `in` query — fine at the segment
   // counts a club actually has, per lib/goliath.ts's note on this not being a relational store.
   if (f.segment) AND.push({ goliathSegmentsJson: { contains: `"${f.segment}"` } });
+  if (f.minMatchesAttended !== undefined) AND.push({ vivenuMatchesAttendedCount: { gte: f.minMatchesAttended } });
+  // vivenuSeasonPassStatus holds the GROUP event name for a holder, null otherwise — same
+  // not-null-as-boolean derivation as getSeasonPassRateUncached in lib/customer-reports.ts.
+  if (f.seasonPassHolder !== undefined) {
+    AND.push({ vivenuSeasonPassStatus: f.seasonPassHolder ? { not: null } : null });
+  }
   return AND.length ? { AND } : {};
 }
 

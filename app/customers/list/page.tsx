@@ -15,11 +15,12 @@ function consentBadge(marketingOptIn: boolean | null) {
     : <span className="consent-badge badge-opted-out">OPTED OUT</span>;
 }
 
-type SortField = 'consent' | 'spend' | 'tickets';
+type SortField = 'consent' | 'spend' | 'tickets' | 'attended';
 const SORT_COLUMNS: Record<SortField, string> = {
   consent: 'marketingOptIn',
   spend: 'shopifyLifetimeSpend',
   tickets: 'vivenuMatchesPurchasedCount',
+  attended: 'vivenuMatchesAttendedCount',
 };
 
 export default async function CustomersListPage(
@@ -30,6 +31,8 @@ export default async function CustomersListPage(
       marketingOptIn?: string;
       minSpend?: string;
       segment?: string;
+      minMatchesAttended?: string;
+      seasonPassHolder?: string;
       sort?: string;
       dir?: string;
     }>;
@@ -46,7 +49,10 @@ export default async function CustomersListPage(
     searchParams.marketingOptIn === 'true' ? true : searchParams.marketingOptIn === 'false' ? false : undefined;
   const minSpend = searchParams.minSpend ? Number(searchParams.minSpend) : undefined;
   const segment = searchParams.segment || undefined;
-  const where = buildCustomerWhere({ q: q || undefined, marketingOptIn, minSpend, segment });
+  const minMatchesAttended = searchParams.minMatchesAttended ? Number(searchParams.minMatchesAttended) : undefined;
+  const seasonPassHolder =
+    searchParams.seasonPassHolder === 'true' ? true : searchParams.seasonPassHolder === 'false' ? false : undefined;
+  const where = buildCustomerWhere({ q: q || undefined, marketingOptIn, minSpend, segment, minMatchesAttended, seasonPassHolder });
 
   const sortField = (Object.keys(SORT_COLUMNS) as SortField[]).includes(searchParams.sort as SortField)
     ? (searchParams.sort as SortField)
@@ -67,12 +73,14 @@ export default async function CustomersListPage(
 
   const pages = Math.ceil(total / PER_PAGE) || 1;
 
-  function urlWith(overrides: Partial<{ q: string; marketingOptIn: string; minSpend: string; segment: string; page: string; sort: string; dir: string }>) {
+  function urlWith(overrides: Partial<{ q: string; marketingOptIn: string; minSpend: string; segment: string; minMatchesAttended: string; seasonPassHolder: string; page: string; sort: string; dir: string }>) {
     const next = {
       q,
       marketingOptIn: marketingOptIn === undefined ? '' : String(marketingOptIn),
       minSpend: minSpend !== undefined ? String(minSpend) : '',
       segment: segment ?? '',
+      minMatchesAttended: minMatchesAttended !== undefined ? String(minMatchesAttended) : '',
+      seasonPassHolder: seasonPassHolder === undefined ? '' : String(seasonPassHolder),
       page: '',
       sort: sortField ?? '',
       dir: sortDir,
@@ -83,6 +91,8 @@ export default async function CustomersListPage(
     if (next.marketingOptIn) params.set('marketingOptIn', next.marketingOptIn);
     if (next.minSpend) params.set('minSpend', next.minSpend);
     if (next.segment) params.set('segment', next.segment);
+    if (next.minMatchesAttended) params.set('minMatchesAttended', next.minMatchesAttended);
+    if (next.seasonPassHolder) params.set('seasonPassHolder', next.seasonPassHolder);
     if (next.page && next.page !== '1') params.set('page', next.page);
     if (next.sort) params.set('sort', next.sort);
     if (next.sort && next.dir) params.set('dir', next.dir);
@@ -116,6 +126,13 @@ export default async function CustomersListPage(
   ];
   const currentConsent = marketingOptIn === undefined ? '' : String(marketingOptIn);
 
+  const seasonPassFilters: { label: string; value: string }[] = [
+    { label: 'All customers', value: '' },
+    { label: 'Season Pass holders', value: 'true' },
+    { label: 'Non-holders', value: 'false' },
+  ];
+  const currentSeasonPassHolder = seasonPassHolder === undefined ? '' : String(seasonPassHolder);
+
   return (
     <AppShell user={user} wide>
       <div className="page-header">
@@ -132,6 +149,7 @@ export default async function CustomersListPage(
             <form method="get">
               <input type="hidden" name="marketingOptIn" value={currentConsent} />
               <input type="hidden" name="segment" value={segment ?? ''} />
+              <input type="hidden" name="seasonPassHolder" value={currentSeasonPassHolder} />
               {sortField && <input type="hidden" name="sort" value={sortField} />}
               {sortField && <input type="hidden" name="dir" value={sortDir} />}
               <div className="field">
@@ -141,6 +159,10 @@ export default async function CustomersListPage(
               <div className="field">
                 <label htmlFor="minSpend">Min spend (DKK)</label>
                 <input type="number" id="minSpend" name="minSpend" defaultValue={minSpend ?? ''} />
+              </div>
+              <div className="field">
+                <label htmlFor="minMatchesAttended">Min matches attended</label>
+                <input type="number" id="minMatchesAttended" name="minMatchesAttended" min={0} defaultValue={minMatchesAttended ?? ''} />
               </div>
               <button className="btn-primary" type="submit" style={{ width: '100%' }}>Search</button>
             </form>
@@ -154,6 +176,19 @@ export default async function CustomersListPage(
                   key={f.value}
                   href={urlWith({ marketingOptIn: f.value })}
                   className={'customer-rail-item' + (currentConsent === f.value ? ' active' : '')}
+                >
+                  {f.label}
+                </Link>
+              ))}
+            </div>
+
+            <div className="customer-rail-section">
+              <div className="customer-rail-label">Season Pass</div>
+              {seasonPassFilters.map((f) => (
+                <Link
+                  key={f.value}
+                  href={urlWith({ seasonPassHolder: f.value })}
+                  className={'customer-rail-item' + (currentSeasonPassHolder === f.value ? ' active' : '')}
                 >
                   {f.label}
                 </Link>
@@ -202,6 +237,8 @@ export default async function CustomersListPage(
                       {sortHeader('consent', 'Consent')}
                       {sortHeader('spend', 'Shopify Spend')}
                       {sortHeader('tickets', '# of Tickets')}
+                      {sortHeader('attended', '# Attended')}
+                      <th>Season Pass</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -221,6 +258,12 @@ export default async function CustomersListPage(
                           {customer.shopifyLifetimeSpend != null ? formatSpend(customer.shopifyLifetimeSpend) : '—'}
                         </td>
                         <td>{customer.vivenuMatchesPurchasedCount ?? '—'}</td>
+                        <td>{customer.vivenuMatchesAttendedCount ?? '—'}</td>
+                        <td>
+                          {customer.vivenuSeasonPassStatus
+                            ? <span className="season-pass-badge" title={customer.vivenuSeasonPassStatus}>SEASON PASS</span>
+                            : '—'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
