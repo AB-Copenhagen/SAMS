@@ -2,18 +2,20 @@ import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { getCurrentUser } from '../../lib/auth';
 import { prisma } from '../../lib/db';
-import { getCachedPlayers, getCachedSponsors, getCachedSeasons, getCachedCollections } from '../../lib/lookup-cache';
+import { getCachedPlayers, getCachedSponsors, getCachedSeasons, getCachedCollections, getCachedUploaders } from '../../lib/lookup-cache';
 import { getCachedStaffPreferences, resolvePageSize } from '../../lib/staff-preferences';
+import { attachThumbnailUrls } from '../../lib/thumbnail';
 import AppShell from '../../components/AppShell';
 import MediaFilterBar from '../../components/MediaFilterBar';
 import MediaLibraryGallery from '../../components/MediaLibraryGallery';
-import { buildMediaLibraryWhere, mediaNavQueryString } from '../../lib/media-query';
+import { buildMediaLibraryWhere, mediaNavQueryString, UPLOADED_WITHIN_DAYS } from '../../lib/media-query';
 
 const PER_PAGE_OPTIONS = [25, 50, 100];
 
 type SearchParams = {
   q?: string; type?: string; seasonId?: string; category?: string;
   collectionId?: string; playerIds?: string; sponsorIds?: string; rating?: string;
+  uploaderEmail?: string; all?: string;
   page?: string; perPage?: string;
 };
 
@@ -31,23 +33,27 @@ export default async function MediaPage(props: { searchParams: Promise<SearchPar
   const playerIds    = searchParams.playerIds ? searchParams.playerIds.split(',').filter(Boolean) : [];
   const sponsorIds   = searchParams.sponsorIds ? searchParams.sponsorIds.split(',').filter(Boolean) : [];
   const rating       = [1, 2, 3, 4].includes(parseInt(searchParams.rating ?? '')) ? parseInt(searchParams.rating!) : 0;
+  const uploaderEmail = searchParams.uploaderEmail ?? '';
+  const all           = searchParams.all === '1';
   const page     = Math.max(1, parseInt(searchParams.page ?? '1'));
   const perPage  = PER_PAGE_OPTIONS.includes(parseInt(searchParams.perPage ?? ''))
     ? parseInt(searchParams.perPage!)
     : resolvePageSize(pref, 25);
 
-  const filters = { q, type, seasonId, category, collectionId, playerIds, sponsorIds, rating };
+  const filters = { q, type, seasonId, category, collectionId, playerIds, sponsorIds, rating, uploaderEmail, all };
   const where = buildMediaLibraryWhere(filters);
   const navQuery = mediaNavQueryString(filters);
 
-  const [assets, total, seasons, allCollections, allPlayers, allSponsors] = await Promise.all([
+  const [rawAssets, total, seasons, allCollections, allPlayers, allSponsors, uploaders] = await Promise.all([
     prisma.asset.findMany({ where, orderBy: { uploadedAt: 'desc' }, take: perPage, skip: (page - 1) * perPage }),
     prisma.asset.count({ where }),
     getCachedSeasons(),
     getCachedCollections(),
     getCachedPlayers(),
     getCachedSponsors(),
+    getCachedUploaders(),
   ]);
+  const assets = await attachThumbnailUrls(rawAssets);
   const players = allPlayers.filter((p) => p.active);
   const sponsors = allSponsors.filter((s) => s.active);
   const collections = allCollections.filter((c) => c.type !== 'custom');
@@ -56,7 +62,7 @@ export default async function MediaPage(props: { searchParams: Promise<SearchPar
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const pages      = Math.ceil(total / perPage);
-  const isFiltered = !!(q || type || seasonId || category || collectionId || playerIds.length || sponsorIds.length || rating);
+  const isFiltered = !!(q || type || seasonId || category || collectionId || playerIds.length || sponsorIds.length || rating || uploaderEmail);
 
   function pageUrl(p: number) {
     const params = new URLSearchParams();
@@ -68,6 +74,8 @@ export default async function MediaPage(props: { searchParams: Promise<SearchPar
     if (playerIds.length) params.set('playerIds', playerIds.join(','));
     if (sponsorIds.length) params.set('sponsorIds', sponsorIds.join(','));
     if (rating) params.set('rating', String(rating));
+    if (uploaderEmail) params.set('uploaderEmail', uploaderEmail);
+    if (all) params.set('all', '1');
     if (perPage !== 25) params.set('perPage', String(perPage));
     if (p > 1) params.set('page', String(p));
     const s = params.toString();
@@ -81,7 +89,11 @@ export default async function MediaPage(props: { searchParams: Promise<SearchPar
           <div className="page-header">
             <div>
               <h1>Media Library</h1>
-              <p>{total} asset{total !== 1 ? 's' : ''}{isFiltered ? ' (filtered)' : ''}</p>
+              <p>
+                {total} asset{total !== 1 ? 's' : ''}
+                {isFiltered ? ' (filtered)' : ''}
+                {!all ? ` (last ${UPLOADED_WITHIN_DAYS} days)` : ''}
+              </p>
             </div>
           </div>
 
@@ -121,6 +133,7 @@ export default async function MediaPage(props: { searchParams: Promise<SearchPar
             collections={collections}
             players={players}
             sponsors={sponsors}
+            uploaders={uploaders}
             perPageOptions={PER_PAGE_OPTIONS}
             currentPerPage={perPage}
           />

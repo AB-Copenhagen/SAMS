@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { getPresignedUrl, uploadFileToWasabi } from './wasabi';
+import { getPresignedUrl, getPresignedUrls, uploadFileToWasabi } from './wasabi';
 import { prisma } from './db';
 
 const THUMBNAIL_WIDTH = 400;
@@ -43,4 +43,24 @@ export async function ensureThumbnailKey(asset: { id: string; objectKey: string;
     console.error('[thumbnail] on-demand generation failed:', err);
     return asset.objectKey;
   }
+}
+
+/**
+ * Attaches a presigned `thumbnailUrl` to each asset that already has a thumbnailKey, via one
+ * batched getPresignedUrls call instead of a DB lookup + presign per gallery card (see
+ * components/AssetThumbnail.tsx — the old per-image /api/assets/[id]/thumbnail route did a
+ * Turso round trip for every single thumbnail on the page). Assets missing a thumbnailKey (not
+ * yet processed) or a not-yet-posterized video are left without thumbnailUrl and fall back to
+ * that same on-demand route, which still handles on-the-fly generation for those rare cases.
+ */
+export async function attachThumbnailUrls<T extends { fileType: string; thumbnailKey: string | null; thumbnailStatus: string }>(
+  assets: T[],
+): Promise<(T & { thumbnailUrl?: string })[]> {
+  const keys = assets
+    .filter((a) => a.thumbnailKey && (a.fileType.startsWith('image/') || a.thumbnailStatus === 'done'))
+    .map((a) => a.thumbnailKey as string);
+  if (keys.length === 0) return assets;
+
+  const urls = await getPresignedUrls(keys);
+  return assets.map((a) => (a.thumbnailKey && urls[a.thumbnailKey] ? { ...a, thumbnailUrl: urls[a.thumbnailKey] } : a));
 }

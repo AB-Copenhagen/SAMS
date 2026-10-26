@@ -4,6 +4,7 @@ import { getCurrentUser } from '../../lib/auth';
 import { prisma } from '../../lib/db';
 import AppShell from '../../components/AppShell';
 import AssetThumbnail from '../../components/AssetThumbnail';
+import { attachThumbnailUrls } from '../../lib/thumbnail';
 
 function timeAgo(date: Date): string {
   const s = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -17,7 +18,7 @@ export default async function HomePage() {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
 
-  const [assetCount, collectionCount, playerCount, sizeResult, recentAssets, recentCollections] = await Promise.all([
+  const [assetCount, collectionCount, playerCount, sizeResult, rawRecentAssets, recentCollections] = await Promise.all([
     prisma.asset.count(),
     prisma.collection.count(),
     prisma.player.count({ where: { active: true } }),
@@ -25,6 +26,7 @@ export default async function HomePage() {
     prisma.asset.findMany({ orderBy: { uploadedAt: 'desc' }, take: 12, select: { id: true, title: true, assetUrl: true, fileType: true, eventName: true, uploadedAt: true, thumbnailKey: true, thumbnailStatus: true } }),
     prisma.collection.findMany({ orderBy: { createdAt: 'desc' }, take: 5, include: { _count: { select: { assets: true } }, season: { select: { name: true } } } }),
   ]);
+  const recentAssets = await attachThumbnailUrls(rawRecentAssets);
 
   const storageMB = ((sizeResult._sum.fileSize ?? 0) / 1024 / 1024).toFixed(1);
 
@@ -74,7 +76,7 @@ export default async function HomePage() {
               {recentAssets.map((a) => (
                 <a key={a.id} href={`/media/${a.id}`} className="asset-card">
                   <div className="asset-thumb">
-                    <AssetThumbnail id={a.id} title={a.title} fileType={a.fileType} thumbnailKey={a.thumbnailKey} thumbnailStatus={a.thumbnailStatus} />
+                    <AssetThumbnail id={a.id} title={a.title} fileType={a.fileType} thumbnailKey={a.thumbnailKey} thumbnailStatus={a.thumbnailStatus} thumbnailUrl={a.thumbnailUrl} />
                   </div>
                   <div className="asset-card-body">
                     <div className="asset-card-title">{a.title || a.eventName || 'Untitled'}</div>

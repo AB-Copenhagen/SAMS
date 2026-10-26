@@ -5,6 +5,7 @@ import { prisma } from '../../../lib/db';
 import { resolveCollectionAssets } from '../../../lib/collections';
 import { formatCollectionType } from '../../../lib/collection-types';
 import { getCachedPlayers, getCachedSponsors, getCachedSeasons } from '../../../lib/lookup-cache';
+import { attachThumbnailUrls } from '../../../lib/thumbnail';
 import AppShell from '../../../components/AppShell';
 import CollectionEditForm from '../../../components/CollectionEditForm';
 import CollectionSharePanel from '../../../components/CollectionSharePanel';
@@ -38,7 +39,8 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
   if (!collection) notFound();
 
   const isCustom = collection.type === 'custom';
-  const assets = isCustom ? await resolveCollectionAssets(collection) : collection.assets;
+  const rawAssets = isCustom ? await resolveCollectionAssets(collection) : collection.assets;
+  const assets = await attachThumbnailUrls(rawAssets);
 
   const [allPlayers, allSponsors] = isCustom
     ? await Promise.all([getCachedPlayers(), getCachedSponsors()])

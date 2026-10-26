@@ -18,14 +18,14 @@ function collectionLabel(c: Collection): string {
 }
 
 export default function MediaFilterBar({
-  seasons, collections, players, sponsors, perPageOptions, currentPerPage,
+  seasons, collections, players, sponsors, uploaders, perPageOptions, currentPerPage,
 }: {
-  seasons: Season[]; collections: Collection[]; players: Player[]; sponsors: Sponsor[];
+  seasons: Season[]; collections: Collection[]; players: Player[]; sponsors: Sponsor[]; uploaders: string[];
   perPageOptions: number[]; currentPerPage: number;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const setFilter = useCallback(
@@ -55,16 +55,21 @@ export default function MediaFilterBar({
 
   const playerIds  = searchParams.get('playerIds')?.split(',').filter(Boolean)  ?? [];
   const sponsorIds = searchParams.get('sponsorIds')?.split(',').filter(Boolean) ?? [];
+  const showAll    = searchParams.get('all') === '1';
 
   const hasFilters = !!(
     searchParams.get('q') || searchParams.get('type') || searchParams.get('seasonId') ||
-    searchParams.get('collectionId') || searchParams.get('rating') || playerIds.length || sponsorIds.length
+    searchParams.get('collectionId') || searchParams.get('rating') || searchParams.get('uploaderEmail') ||
+    playerIds.length || sponsorIds.length
   );
 
   return (
-    <div className="sticky-sidebar">
+    <div className="sticky-sidebar" style={{ opacity: isPending ? 0.6 : 1, transition: 'opacity 150ms' }}>
       <div className="card">
-        <div className="card-header">Filters</div>
+        <div className="card-header" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          Filters
+          {isPending && <span className="spinner" aria-label="Applying filters…" />}
+        </div>
 
         <div className="field">
           <label>Search</label>
@@ -120,7 +125,7 @@ export default function MediaFilterBar({
             onChange={(ids) => setMultiFilter('playerIds', ids)}
           />
         </div>
-        <div className="field" style={{ marginBottom: hasFilters ? 12 : 0 }}>
+        <div className="field">
           <label>Sponsor(s)</label>
           <EntityMultiSelect
             placeholder="Add sponsor…"
@@ -128,6 +133,25 @@ export default function MediaFilterBar({
             selected={sponsorIds}
             onChange={(ids) => setMultiFilter('sponsorIds', ids)}
           />
+        </div>
+        <div className="field">
+          <label>Photographer</label>
+          <select value={searchParams.get('uploaderEmail') ?? ''} onChange={(e) => setFilter('uploaderEmail', e.target.value)}>
+            <option value="">All photographers</option>
+            {uploaders.map((email) => (
+              <option key={email} value={email}>{email}</option>
+            ))}
+          </select>
+        </div>
+        <div className="field" style={{ marginBottom: hasFilters ? 12 : 0 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#6b7491' }}>
+            <input
+              type="checkbox"
+              checked={showAll}
+              onChange={(e) => setFilter('all', e.target.checked ? '1' : '')}
+            />
+            Show all time (not just last 30 days)
+          </label>
         </div>
         {hasFilters && (
           <button

@@ -81,6 +81,38 @@ export async function getPresignedUrl(objectKey: string): Promise<string> {
   return url;
 }
 
+// Batched form of getPresignedUrl — one Redis mget for the whole page of thumbnails instead of
+// one round trip per asset (see components/AssetThumbnail.tsx), with a single pipelined write-back
+// for whatever wasn't already cached. Keyed by objectKey; callers get back only the keys that
+// resolved (a thumbnail generation failure for one asset shouldn't fail the rest of the page).
+export async function getPresignedUrls(objectKeys: string[]): Promise<Record<string, string>> {
+  const uniqueKeys = [...new Set(objectKeys)];
+  if (uniqueKeys.length === 0) return {};
+
+  const cached = await redis.mget<(string | null)[]>(uniqueKeys.map((k) => CACHE_PREFIX + k));
+
+  const result: Record<string, string> = {};
+  const missing: string[] = [];
+  uniqueKeys.forEach((key, i) => {
+    const url = cached[i];
+    if (url) result[key] = url;
+    else missing.push(key);
+  });
+
+  if (missing.length > 0) {
+    const { client, bucket } = getClient();
+    const pipeline = redis.pipeline();
+    await Promise.all(missing.map(async (key) => {
+      const url = await getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: URL_TTL_S });
+      result[key] = url;
+      pipeline.set(CACHE_PREFIX + key, url, { ex: CACHE_TTL_S });
+    }));
+    await pipeline.exec();
+  }
+
+  return result;
+}
+
 export async function getPresignedUploadUrl(objectKey: string, contentType: string, expiresIn = 300): Promise<string> {
   const { client, bucket } = getClient();
   return getSignedUrl(

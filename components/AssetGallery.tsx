@@ -13,6 +13,7 @@ export type GalleryAsset = {
   fileSize: number;
   thumbnailKey: string | null;
   thumbnailStatus: string;
+  thumbnailUrl?: string;
 };
 
 interface AssetGalleryProps {
@@ -82,7 +83,7 @@ export default function AssetGallery({
                   {isSelected ? '✓' : ''}
                 </span>
               )}
-              <AssetThumbnail id={a.id} title={a.title} fileType={a.fileType} thumbnailKey={a.thumbnailKey} thumbnailStatus={a.thumbnailStatus} />
+              <AssetThumbnail id={a.id} title={a.title} fileType={a.fileType} thumbnailKey={a.thumbnailKey} thumbnailStatus={a.thumbnailStatus} thumbnailUrl={a.thumbnailUrl} />
             </div>
             <div className="asset-card-body">
               <div className="asset-card-title">{a.title || a.eventName || 'Untitled'}</div>
