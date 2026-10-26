@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { applyShareFilters, getPublicCollectionByToken, resolveCollectionAssets, sanitizePublicAsset } from '../../../lib/collections';
 import { isShareUnlocked } from '../../../lib/share-auth';
 import { logShareEvent } from '../../../lib/share-analytics';
+import { attachThumbnailUrls } from '../../../lib/thumbnail';
 import SharePasswordForm from '../../../components/SharePasswordForm';
 import PublicAssetGallery from '../../../components/PublicAssetGallery';
 
@@ -27,7 +28,11 @@ export default async function SharedCollectionPage(props: { params: Promise<{ to
   });
 
   const assets = applyShareFilters(await resolveCollectionAssets(collection), collection);
-  const publicAssets = assets.map(sanitizePublicAsset);
+  // Batch-presigned once here instead of every gallery image round-tripping through
+  // /api/share/[token]/assets/[id]/thumbnail on its own — same fix as the Media Library's
+  // gallery (app/media/page.tsx), just as important for a public link an external viewer expects
+  // to load instantly.
+  const publicAssets = await attachThumbnailUrls(assets.map(sanitizePublicAsset));
 
   return (
     <div className="share-page" style={{ maxWidth: 2000 }}>
