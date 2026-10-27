@@ -207,6 +207,14 @@ export async function getTicketsSoldCount(eventId: string): Promise<number> {
   return data.total;
 }
 
+// Cached wrapper, same pattern as getCachedMatches — lib/customer-reports.ts's cross-match
+// attendance report calls this once per event for up to 10 merged matches (so ~15-20 calls),
+// which, sequentially throttled at MIN_INTERVAL_MS each, was the actual cause of that report's
+// 10s+ load time (confirmed live via production logs). A 300s TTL matches that report's own
+// cache window, and is safe for any match that's already happened (sales are closed) or
+// already in progress.
+export const getCachedTicketsSoldCount = unstable_cache(getTicketsSoldCount, ['vivenu-tickets-sold'], { revalidate: 300 });
+
 export type VivenuTicket = { customerId: string | null; eventId: string };
 
 // Used by the scan.created webhook handler to resolve which customer a check-in belongs to —
