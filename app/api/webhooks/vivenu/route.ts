@@ -14,23 +14,31 @@ type ScanPayload = {
   time?: string;
 };
 
-// Observed live during match-day burst traffic: concurrent check-ins land on this table at once
-// and SQLite/libSQL serializes writes, so a handful hit SQLITE_BUSY ("database is locked"). Vivenu
-// already retries the delivery on our 502, which recovers these within ~30-60s, but a short
-// in-process retry absorbs most of them within the original request instead.
-const BUSY_RETRY_DELAYS_MS = [50, 150, 400];
+// Observed live during match-day burst traffic: concurrent check-ins land on this table at once,
+// and Turso/libSQL takes a single database-level write lock per transaction (not per-row), so
+// every concurrent POST in a burst contends for the same lock regardless of which ticket/customer
+// it touches. The original 50/150/400ms budget (~600ms) was sized for a brief spike; production
+// logs showed a sustained backlog-catchup burst where one ticket still hit SQLITE_BUSY on Vivenu's
+// own redelivery 40s after the first failure, so this budget is widened to ~8s. Delays are
+// jittered (not fixed) so concurrent requests retrying together don't resynchronize onto the same
+// instant and reproduce the same contention.
+const BUSY_RETRY_BASE_DELAYS_MS = [100, 250, 500, 1000, 2000, 4000];
 
 function isSqliteBusy(err: unknown): boolean {
   return err instanceof Error && err.message.includes('SQLITE_BUSY');
 }
 
+function jittered(ms: number): number {
+  return ms / 2 + Math.random() * (ms / 2);
+}
+
 async function withBusyRetry<T>(fn: () => Promise<T>): Promise<T> {
-  for (const delay of BUSY_RETRY_DELAYS_MS) {
+  for (const delay of BUSY_RETRY_BASE_DELAYS_MS) {
     try {
       return await fn();
     } catch (err) {
       if (!isSqliteBusy(err)) throw err;
-      await new Promise((resolve) => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, jittered(delay)));
     }
   }
   return fn();
