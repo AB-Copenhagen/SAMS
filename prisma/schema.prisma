@@ -67,6 +67,10 @@ model Asset {
   @@index([faceTagStatus, uploadedAt])
   @@index([thumbnailStatus, uploadedAt])
   @@index([reviewedAt, faceTagStatus])
+  @@index([fileType])
+  @@index([uploaderEmail])
+  @@index([reviewedBy])
+  @@index([rating])
 }
 
 model AssetPlayerTag {
@@ -160,6 +164,7 @@ model ShareEvent {
   @@index([kind, createdAt])
   @@index([kind, collectionId])
   @@index([kind, assetId])
+  @@index([kind, ipHash])
 }
 
 model CronRun {
