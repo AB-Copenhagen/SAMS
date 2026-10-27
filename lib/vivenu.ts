@@ -28,8 +28,8 @@ function apiKey(): string {
   return key;
 }
 
-async function vivenuFetch(path: string): Promise<Response> {
-  await throttle('vivenu', MIN_INTERVAL_MS);
+async function vivenuFetch(path: string, opts: { skipThrottle?: boolean } = {}): Promise<Response> {
+  if (!opts.skipThrottle) await throttle('vivenu', MIN_INTERVAL_MS);
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: { Authorization: `Bearer ${apiKey()}` },
   });
@@ -219,8 +219,14 @@ export type VivenuTicket = { customerId: string | null; eventId: string };
 // attendance (e.g. per-match check-in counts) can only ever be as complete as what scan.created
 // has delivered since the webhook went live — there's no way to backfill or spot-check it
 // against Vivenu's own historical scan data with what we have today.
+// skipThrottle: unlike listCompleteTransactions's cron-driven sequential loop (what MIN_INTERVAL_MS
+// is throttling against — see that constant's comment), this runs once per incoming scan.created
+// delivery. The throttle is an in-process Map with no cross-instance coordination (lib/api-throttle.ts),
+// so under concurrent match-day check-in volume it doesn't actually pace calls to Vivenu — it only
+// serializes requests that happen to land on the same warm instance, adding latency that risks the
+// webhook's own timeout. A real Vivenu rate limit would need a cross-instance limiter to matter here.
 export async function getTicket(ticketId: string): Promise<VivenuTicket> {
-  const res = await vivenuFetch(`/tickets/${encodeURIComponent(ticketId)}`);
+  const res = await vivenuFetch(`/tickets/${encodeURIComponent(ticketId)}`, { skipThrottle: true });
   const data = (await res.json()) as { customerId?: string; eventId: string };
   return { customerId: data.customerId ?? null, eventId: data.eventId };
 }

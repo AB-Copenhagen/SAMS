@@ -110,6 +110,13 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ status: 'ok' });
+  } catch (err) {
+    // Logged with the scan's identifying fields rather than left as a bare uncaught throw — with
+    // no error tracking wired into this app (Vercel logs only), this is the only record of which
+    // scan failed. 502 (not 500) signals an upstream/Vivenu-side failure specifically, since
+    // Vivenu is expected to retry the delivery on a non-2xx response.
+    console.error('[webhooks/vivenu] failed', scan.ticketId, scan.eventId, err);
+    return NextResponse.json({ status: 'error', reason: err instanceof Error ? err.message : String(err) }, { status: 502 });
   } finally {
     await db.$disconnect();
   }

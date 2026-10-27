@@ -346,6 +346,7 @@ model Customer {
 
   @@index([email])
   @@index([shopifyLifetimeSpend])
+  @@index([vivenuCustomerId])
 }
 
 model CustomerSyncRun {
