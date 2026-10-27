@@ -14,6 +14,28 @@ type ScanPayload = {
   time?: string;
 };
 
+// Observed live during match-day burst traffic: concurrent check-ins land on this table at once
+// and SQLite/libSQL serializes writes, so a handful hit SQLITE_BUSY ("database is locked"). Vivenu
+// already retries the delivery on our 502, which recovers these within ~30-60s, but a short
+// in-process retry absorbs most of them within the original request instead.
+const BUSY_RETRY_DELAYS_MS = [50, 150, 400];
+
+function isSqliteBusy(err: unknown): boolean {
+  return err instanceof Error && err.message.includes('SQLITE_BUSY');
+}
+
+async function withBusyRetry<T>(fn: () => Promise<T>): Promise<T> {
+  for (const delay of BUSY_RETRY_DELAYS_MS) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (!isSqliteBusy(err)) throw err;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+  return fn();
+}
+
 // Receives vivenu's scan.created webhook — the only realistic way to track match attendance,
 // since the Scans API has no customerId filter (see lib/vivenu.ts's module comment). Each
 // approved check-in at a SINGLE-type event adds that event to the customer's
@@ -73,11 +95,13 @@ export async function POST(request: Request) {
     if (!customer) {
       // upsert, not create: a re-entry scan of the same ticket hits the @unique(ticketId)
       // constraint — keep the first-seen scannedAt rather than erroring or double-counting.
-      await db.guestCheckin.upsert({
-        where: { ticketId: scan.ticketId },
-        create: { eventId: scan.eventId, ticketId: scan.ticketId, scannedAt: scan.time ? new Date(scan.time) : new Date() },
-        update: {},
-      });
+      await withBusyRetry(() =>
+        db.guestCheckin.upsert({
+          where: { ticketId: scan.ticketId },
+          create: { eventId: scan.eventId, ticketId: scan.ticketId, scannedAt: scan.time ? new Date(scan.time) : new Date() },
+          update: {},
+        })
+      );
       return NextResponse.json({ status: 'ok', reason: ticket.customerId ? 'no local customer for this vivenuCustomerId' : 'ticket has no linked customer', guestCheckin: true });
     }
 
@@ -90,13 +114,15 @@ export async function POST(request: Request) {
 
     if (!attendedEventIds.includes(scan.eventId)) {
       attendedEventIds.push(scan.eventId);
-      await db.customer.update({
-        where: { id: customer.id },
-        data: {
-          vivenuAttendedEventIdsJson: JSON.stringify(attendedEventIds),
-          vivenuMatchesAttendedCount: attendedEventIds.length,
-        },
-      });
+      await withBusyRetry(() =>
+        db.customer.update({
+          where: { id: customer.id },
+          data: {
+            vivenuAttendedEventIdsJson: JSON.stringify(attendedEventIds),
+            vivenuMatchesAttendedCount: attendedEventIds.length,
+          },
+        })
+      );
 
       const event = await db.vivenuEvent.findUnique({ where: { id: scan.eventId } });
       await db.customerActivity.create({
