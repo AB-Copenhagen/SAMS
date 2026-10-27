@@ -7,7 +7,7 @@
 
 import { unstable_cache } from 'next/cache';
 import { prisma } from './db';
-import { getCachedMatches, getTicketsSoldCount, mergeMatchesByDay, opponentName } from './vivenu';
+import { getCachedMatches, getCachedTicketsSoldCount, mergeMatchesByDay, opponentName } from './vivenu';
 
 export type Bucket = { label: string; count: number };
 
@@ -128,23 +128,24 @@ async function getMatchAttendanceUncached(): Promise<MatchAttendance[]> {
   // made this look date-indexed rather than event-indexed in the first place.
   const recentMatches = mergeMatchesByDay(matches).slice(-10);
 
-  const results: MatchAttendance[] = [];
-  for (const match of recentMatches) {
-    let ticketsSold = 0;
-    let checkedIn = 0;
-    for (const id of match.ids) {
-      ticketsSold += await getTicketsSoldCount(id).catch(() => 0);
-      checkedIn += checkedInByEvent.get(id) ?? 0;
-    }
-    results.push({
-      label: opponentName(match.name),
-      date: new Date(match.start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
-      ticketsSold,
-      checkedIn,
-      noShow: Math.max(0, ticketsSold - checkedIn),
-    });
-  }
-  return results;
+  // Across matches and their duplicate event ids in parallel, not a sequential for-await loop —
+  // up to ~15-20 getCachedTicketsSoldCount calls, which on a cache miss each go through
+  // lib/vivenu.ts's MIN_INTERVAL_MS throttle; sequential awaits made every one of those add up
+  // instead of overlapping, and was the actual cause of this report's 10s+ load time.
+  return Promise.all(
+    recentMatches.map(async (match) => {
+      const soldCounts = await Promise.all(match.ids.map((id) => getCachedTicketsSoldCount(id).catch(() => 0)));
+      const ticketsSold = soldCounts.reduce((a, b) => a + b, 0);
+      const checkedIn = match.ids.reduce((sum, id) => sum + (checkedInByEvent.get(id) ?? 0), 0);
+      return {
+        label: opponentName(match.name),
+        date: new Date(match.start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+        ticketsSold,
+        checkedIn,
+        noShow: Math.max(0, ticketsSold - checkedIn),
+      };
+    })
+  );
 }
 
 export type MatchActivitySummary = {
@@ -175,7 +176,7 @@ const TOP_FANS_LIMIT = 15;
 // without needing per-match timestamps we don't have.
 async function getMatchActivityUncached(eventIds: string[]): Promise<MatchActivity> {
   const [ticketsSold, attendedCustomers, guestCheckins] = await Promise.all([
-    Promise.all(eventIds.map((id) => getTicketsSoldCount(id).catch(() => 0))).then((counts) =>
+    Promise.all(eventIds.map((id) => getCachedTicketsSoldCount(id).catch(() => 0))).then((counts) =>
       counts.reduce((a, b) => a + b, 0)
     ),
     prisma.customer.findMany({
