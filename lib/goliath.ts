@@ -5,6 +5,16 @@
 // getSegmentMembers() assumes /public/segments/{id}/users uses the same envelope (AB has no
 // segments yet to confirm member row field names against, so those — goliathId/externalId/
 // email — are still a best-effort parse per the prose docs; verify once a real segment exists).
+//
+// GET /public/users/{id} is NOT in Goliath's live OpenAPI spec (GET /docs-json, checked
+// 2026-10-27) — only /public/segments*, /public/campaigns/*, and /public/data-points/{keyOrId}/bulk
+// are documented. Confirmed live against AB's account (2026-10-27) via a real dashboard-linked
+// user id; it returns { id, createdAt, updatedAt, externalId, firstName, lastName, email,
+// phoneNumber, phoneCountryCode, lastActiveAt, birthday, ticketProviderUser }. getUserProfile()
+// below only reads lastActiveAt — isAppUser/hasPushPermission are in neither this response nor
+// anywhere in the OpenAPI spec (see gh-91/gh-93). Being undocumented, this endpoint could change
+// or be locked down by Goliath without notice; that risk was accepted deliberately (gh-91) rather
+// than block on Goliath/SportsInnovation documenting it.
 
 const BASE_URL = (process.env.GOLIATH_API_BASE_URL ?? 'https://goliath-api.si-ab.com').replace(/\/$/, '');
 
@@ -57,6 +67,22 @@ export async function getSegmentMembers(segmentId: string): Promise<GoliathSegme
     externalId: typeof u.externalId === 'string' ? u.externalId : null,
     email: typeof u.email === 'string' ? u.email : null,
   }));
+}
+
+export type GoliathUserProfile = { lastActiveAt: Date | null };
+
+// A 404 means Goliath has no profile for this id and is treated as "no data" (returns null) so
+// the caller can null out its own synced field to match — not thrown as an error, which would
+// instead leave a stale value in place (see gh-91 spec Answer 3).
+export async function getUserProfile(goliathUserId: string): Promise<GoliathUserProfile | null> {
+  const res = await fetch(`${BASE_URL}/public/users/${encodeURIComponent(goliathUserId)}`, {
+    headers: { Authorization: `Bearer ${apiKey()}`, 'Content-Type': 'application/json' },
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Goliath API /public/users/${goliathUserId} failed: ${res.status} ${await res.text()}`);
+
+  const data = (await res.json()) as Record<string, unknown>;
+  return { lastActiveAt: typeof data.lastActiveAt === 'string' ? new Date(data.lastActiveAt) : null };
 }
 
 export type GoliathUserProvider = 'club' | 'email' | 'phone' | 'goliath' | 'ligalogin' | 'eventii' | 'roboticket';

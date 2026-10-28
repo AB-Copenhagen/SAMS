@@ -13,6 +13,7 @@ import { prisma } from './db';
 import { findCustomerByEmail } from './shopify';
 import { findSubscriberByEmail } from './mailerlite';
 import { listCompleteTransactions, getEventType } from './vivenu';
+import { getUserProfile } from './goliath';
 import { formatSpend } from './customer-ui';
 
 const EXTERNAL_DATA_TTL_MS = 24 * 60 * 60 * 1000; // 24h
@@ -23,6 +24,8 @@ export function isExternalDataStale(syncedAt: Date | null): boolean {
 }
 
 export type ExternalDataFields = {
+  goliathLastActiveAt: Date | null;
+  goliathSyncedAt: Date;
   shopifyCustomerId: string | null;
   shopifyLifetimeSpend: number | null;
   shopifyOrderCount: number | null;
@@ -53,6 +56,8 @@ export type ExternalDataFields = {
 export async function refreshCustomerExternalData(customer: {
   id: string;
   email: string | null;
+  goliathUserId: string | null;
+  goliathSyncedAt: Date | null;
   shopifyOrderCount: number | null;
   shopifySyncedAt: Date | null;
   mailerliteStatus: string | null;
@@ -174,6 +179,22 @@ export async function refreshCustomerExternalData(customer: {
     }
   } catch (err) {
     console.error(`[customer-enrichment] Vivenu refresh failed for ${customer.id}:`, err);
+  }
+
+  // Unlike Shopify/MailerLite/Vivenu, there's no bulk fetch for this — it's one GET per
+  // customer (see lib/goliath.ts's getUserProfile) — so it only ever runs here, lazily, never
+  // in the segment-walking cron. A null/missing profile (404) nulls goliathLastActiveAt out
+  // rather than leaving a stale value, so it tracks Goliath's own state (gh-91 spec Answer 3).
+  if (customer.goliathUserId && isExternalDataStale(customer.goliathSyncedAt)) try {
+    const profile = await getUserProfile(customer.goliathUserId);
+    const goliathFields: Partial<ExternalDataFields> = {
+      goliathLastActiveAt: profile?.lastActiveAt ?? null,
+      goliathSyncedAt: new Date(),
+    };
+    await prisma.customer.update({ where: { id: customer.id }, data: goliathFields });
+    Object.assign(updates, goliathFields);
+  } catch (err) {
+    console.error(`[customer-enrichment] Goliath refresh failed for ${customer.id}:`, err);
   }
 
   return updates;
