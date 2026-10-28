@@ -81,6 +81,13 @@ export async function debugRawSegmentMembersPage(segmentId: string): Promise<unk
   return res.json();
 }
 
+// listSegments() itself is returning an empty array live — this bypasses it entirely to see the
+// real /public/segments response (envelope included) before any parsing.
+export async function debugRawSegmentsPage(): Promise<unknown> {
+  const res = await goliathFetch('/public/segments?page=1&perPage=20');
+  return res.json();
+}
+
 export type GoliathUserProfile = { lastActiveAt: Date | null };
 
 // A 404 means Goliath has no profile for this id and is treated as "no data" (returns null) so
