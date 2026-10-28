@@ -236,6 +236,7 @@ export default async function CollectionsPage(props: { searchParams: Promise<Sea
                 <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#3b4070' }}>Type</th>
                 <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#3b4070' }}>Season</th>
                 <th style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 600, color: '#3b4070' }}>Assets</th>
+                <th style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 600, color: '#3b4070' }}>Sharing</th>
               </tr>
             </thead>
             <tbody>
@@ -263,6 +264,9 @@ export default async function CollectionsPage(props: { searchParams: Promise<Sea
                   </td>
                   <td style={{ padding: '10px 16px', color: '#6b7491' }}>{c.season?.name ?? '—'}</td>
                   <td style={{ padding: '10px 16px', textAlign: 'right', color: '#6b7491' }}>{c._count.assets}</td>
+                  <td style={{ padding: '10px 16px', textAlign: 'right' }}>
+                    {c.isPublic ? <span className="coll-type-badge">🔗 Public</span> : <span style={{ color: '#8890b4' }}>Private</span>}
+                  </td>
                 </tr>
               ))}
             </tbody>
