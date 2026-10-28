@@ -88,6 +88,16 @@ export async function debugRawSegmentsPage(): Promise<unknown> {
   return res.json();
 }
 
+// Segments came back genuinely empty (totalRecords: 0, not a parsing bug) — this hits the other
+// documented-but-unused public endpoint with the same API key/host to tell apart "this
+// key/account/host sees no data at all" (wrong account or environment) from "this account has
+// real data but segments specifically aren't exposed via the API" (e.g. a per-segment API-export
+// toggle in Goliath's own dashboard that nothing in this codebase controls).
+export async function debugRawCampaignsPage(): Promise<unknown> {
+  const res = await goliathFetch('/public/campaigns?page=1&perPage=20');
+  return res.json();
+}
+
 export type GoliathUserProfile = { lastActiveAt: Date | null };
 
 // A 404 means Goliath has no profile for this id and is treated as "no data" (returns null) so
