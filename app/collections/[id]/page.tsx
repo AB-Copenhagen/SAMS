@@ -98,18 +98,24 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
           </div>
         </div>
 
+        {/* Sharing applies to every collection type (game/event/training/etc, not just custom) —
+            resolveCollectionGalleryAssets and the public /s/[token] routes already handle any
+            type correctly; this panel itself is generic and was only ever gated here. Rules
+            (auto-include by player/sponsor tag) and the manual asset picker stay custom-only:
+            every other type already gets its assets via the direct collectionId assignment made
+            on upload/import, not via rules or manual picking. */}
+        <CollectionSharePanel
+          id={collection.id}
+          isPublic={collection.isPublic}
+          hasPassword={Boolean(collection.sharePasswordHash)}
+          shareToken={collection.shareToken}
+          appBaseUrl={appBaseUrl}
+          shareMinRating={collection.shareMinRating}
+          shareDateRangeDays={collection.shareDateRangeDays}
+          expiresAt={collection.expiresAt}
+        />
         {isCustom && (
           <>
-            <CollectionSharePanel
-              id={collection.id}
-              isPublic={collection.isPublic}
-              hasPassword={Boolean(collection.sharePasswordHash)}
-              shareToken={collection.shareToken}
-              appBaseUrl={appBaseUrl}
-              shareMinRating={collection.shareMinRating}
-              shareDateRangeDays={collection.shareDateRangeDays}
-              expiresAt={collection.expiresAt}
-            />
             <CollectionRulesEditor
               collectionId={collection.id}
               playerRules={collection.playerRules}
