@@ -317,6 +317,9 @@ model Customer {
   goliathUserId        String?
   goliathSegmentsJson  String?
   goliathSyncedAt      DateTime?
+  // Goliath's own `lastActiveAt`, fetched lazily per customer via GET /public/users/{id} (an
+  // undocumented endpoint, not in Goliath's published OpenAPI spec — see lib/goliath.ts).
+  goliathLastActiveAt  DateTime?
   shopifyCustomerId    String?
   shopifyLifetimeSpend Float?
   shopifyOrderCount    Int?

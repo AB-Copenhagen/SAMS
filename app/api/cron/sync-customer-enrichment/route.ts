@@ -19,9 +19,9 @@ function authorized(request: Request): boolean {
   return request.headers.get('authorization') === `Bearer ${secret}`;
 }
 
-// Backfills Shopify/MailerLite/Vivenu enrichment for every customer, not just the ones an admin
-// has individually opened. refreshCustomerExternalData (lib/customer-enrichment.ts) was only
-// ever called lazily on a customer's detail-page view — which meant /customers/list's Shopify
+// Backfills Shopify/MailerLite/Vivenu/Goliath enrichment for every customer, not just the ones
+// an admin has individually opened. refreshCustomerExternalData (lib/customer-enrichment.ts) was
+// only ever called lazily on a customer's detail-page view — which meant /customers/list's Shopify
 // Spend and # of Tickets columns stayed empty for virtually the entire ~4,100-customer base,
 // since almost none of them had ever had their detail page opened. This reuses that exact same
 // function (not a duplicate implementation) so the per-platform staleness gating stays in one
@@ -52,6 +52,8 @@ export async function GET(request: Request) {
         select: {
           id: true,
           email: true,
+          goliathUserId: true,
+          goliathSyncedAt: true,
           shopifyOrderCount: true,
           shopifySyncedAt: true,
           mailerliteStatus: true,

@@ -388,6 +388,8 @@ CREATE TABLE IF NOT EXISTS "SyncState" (
     "value" TEXT NOT NULL,
     "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE "Customer" ADD COLUMN "goliathLastActiveAt" DATETIME;
 `;
 
 const statements = sql

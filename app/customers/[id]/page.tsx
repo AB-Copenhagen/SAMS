@@ -192,6 +192,10 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
                 ? segments.map((name) => <span key={name} className="segment-chip">{name}</span>)
                 : <p style={{ color: '#8890b4', fontSize: 13 }}>No segment membership synced.</p>}
             </div>
+            <div className="field">
+              <label>Last active in app</label>
+              <div className="detail-value">{customer.goliathLastActiveAt ? new Date(customer.goliathLastActiveAt).toLocaleString() : '—'}</div>
+            </div>
             {goliathUrl && (
               <p style={{ marginBottom: 8 }}>
                 <a href={goliathUrl} target="_blank" rel="noopener noreferrer" className="asset-link">View in Goliath ↗</a>
