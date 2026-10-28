@@ -69,6 +69,18 @@ export async function getSegmentMembers(segmentId: string): Promise<GoliathSegme
   }));
 }
 
+// Temporary diagnostic (see app/api/system/debug-goliath-segments) — returns a segment's member
+// rows completely unparsed, to confirm the real field names /public/segments/{id}/users returns
+// now that AB has live segments with real members. getSegmentMembers's goliathId/externalId/email
+// parse above was only ever a best-effort guess from the prose docs (see the top-of-file comment:
+// AB had no segments to confirm the real shape against when it was written) — sync-goliath-segments
+// reports success but matches zero customers, which is consistent with that guess being wrong.
+// Delete this export and the route once the real shape is confirmed and getSegmentMembers is fixed.
+export async function debugRawSegmentMembersPage(segmentId: string): Promise<unknown> {
+  const res = await goliathFetch(`/public/segments/${segmentId}/users?page=1&perPage=5`);
+  return res.json();
+}
+
 export type GoliathUserProfile = { lastActiveAt: Date | null };
 
 // A 404 means Goliath has no profile for this id and is treated as "no data" (returns null) so
