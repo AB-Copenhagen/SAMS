@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isAdmin } from '../../../../lib/auth';
-import { listSegments, debugRawSegmentMembersPage, debugRawSegmentsPage } from '../../../../lib/goliath';
+import { listSegments, debugRawSegmentMembersPage, debugRawSegmentsPage, debugRawCampaignsPage } from '../../../../lib/goliath';
 
 // Temporary read-only diagnostic: dumps the real, unparsed shape of each Goliath segment's member
 // rows. app/api/cron/sync-goliath-segments reports success but matches zero customers, and
@@ -14,10 +14,13 @@ export async function GET() {
   if (!isAdmin(user)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const rawSegmentsPage = await debugRawSegmentsPage();
+  const rawCampaignsPage = await debugRawCampaignsPage().catch((err) => ({
+    error: err instanceof Error ? err.message : String(err),
+  }));
   const segments = await listSegments();
   const samples = [];
   for (const segment of segments.slice(0, 5)) {
     samples.push({ segment, raw: await debugRawSegmentMembersPage(segment.id) });
   }
-  return NextResponse.json({ rawSegmentsPage, segments, samples });
+  return NextResponse.json({ rawSegmentsPage, rawCampaignsPage, segments, samples });
 }
