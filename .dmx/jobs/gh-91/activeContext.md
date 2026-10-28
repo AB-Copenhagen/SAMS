@@ -5,3 +5,4 @@
 
 ## Session Notes
 - Implemented `goliathLastActiveAt` sync (via `GET /public/users/{id}`) and display on the customer detail page; `isAppUser`/`hasPushPermission` split to #93, Goliath analytics-event-stream idea stubbed as #92. All code phases complete; schema migration deferred to post-deploy.
+- PR opened for: Sync and display Goliath app-engagement fields on customer detail page.
