@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createPrismaClient } from '../../../../lib/db';
-import { iterateAllCustomers, CUSTOMER_PAGE_SIZE } from '../../../../lib/descope-customers';
+import { iterateAllCustomers, CUSTOMER_PAGE_SIZE, type DescopeCustomer } from '../../../../lib/descope-customers';
 import { supersedeStaleRun } from '../../../../lib/customer-sync-run';
 
 const RESUME_CURSOR_KEY = 'descope-customers-resume-page';
@@ -9,14 +9,16 @@ const RESUME_CURSOR_KEY = 'descope-customers-resume-page';
 // 280s: maxDuration IS the platform's kill point, not a buffer below some higher ceiling — a
 // hard timeout kill can't be caught, so the catch block below never actually runs on a timeout
 // regardless of how much headroom is left under it; supersedeStaleRun (below) is what recovers
-// a run stuck "running" from a kill, not this). This processes customers sequentially (2 Turso
-// round-trips each via findUnique+upsert) — at ~170ms/customer and ~4,100 users in the MyAB
-// project, a full sweep needs ~700s, which fits in one run at 800s instead of requiring several
-// laps via the resume cursor below (still in place as the safety net if the population or
-// per-customer latency grows past what one run can finish). This used to also enqueue a QStash
-// job per changed customer for Shopify/MailerLite enrichment, which was a major contributor to
-// the timeout before this — that enrichment is now fetched lazily on a customer's detail page
-// view instead, with a TTL cache (see lib/customer-enrichment.ts).
+// a run stuck "running" from a kill, not this). The existing-customer lookup is batched per
+// Descope page (see the comment on `batch` below) rather than one round trip per customer, so a
+// full sweep of the ~4,700-strong and growing MyAB population has real margin under 800s instead
+// of repeatedly dying partway through (confirmed live: a full lap used to reliably time out at
+// 3,500/4,701 once the per-customer findUnique+upsert cost caught up with the population size —
+// the resume cursor below just masked it, finishing the short remainder on the next run and then
+// timing out again on the lap after). This used to also enqueue a QStash job per changed customer
+// for Shopify/MailerLite enrichment, which was a major contributor to the timeout before this —
+// that enrichment is now fetched lazily on a customer's detail page view instead, with a TTL
+// cache (see lib/customer-enrichment.ts).
 export const maxDuration = 800;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -54,12 +56,21 @@ export async function GET(request: Request) {
 
   let processed = 0;
   let changed = 0;
-  try {
-    for await (const customer of iterateAllCustomers(startPage)) {
-      const existing = await db.customer.findUnique({
-        where: { id: customer.userId },
-        select: { email: true, name: true, phone: true, marketingOptIn: true },
-      });
+
+  // Batched one findMany per Descope page instead of one findUnique per customer — see the
+  // maxDuration comment above for why.
+  let batch: DescopeCustomer[] = [];
+
+  async function flushBatch() {
+    if (batch.length === 0) return;
+    const existingRows = await db.customer.findMany({
+      where: { id: { in: batch.map((c) => c.userId) } },
+      select: { id: true, email: true, name: true, phone: true, marketingOptIn: true },
+    });
+    const existingById = new Map(existingRows.map((r) => [r.id, r]));
+
+    for (const customer of batch) {
+      const existing = existingById.get(customer.userId);
       const isChanged =
         !existing ||
         existing.email !== customer.email ||
@@ -124,6 +135,16 @@ export async function GET(request: Request) {
         }).catch(() => {});
       }
     }
+
+    batch = [];
+  }
+
+  try {
+    for await (const customer of iterateAllCustomers(startPage)) {
+      batch.push(customer);
+      if (batch.length >= CUSTOMER_PAGE_SIZE) await flushBatch();
+    }
+    await flushBatch();
 
     // Reached the end of the Descope list without timing out — reset the cursor so the next
     // run starts a fresh full lap (picks up brand-new signups and re-checks already-synced
