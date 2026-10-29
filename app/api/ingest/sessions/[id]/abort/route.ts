@@ -19,6 +19,14 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     });
   }
 
-  await prisma.ingestJob.update({ where: { id: job.id }, data: { status: 'aborted' } });
+  // A client that gives up after exhausting retries passes { error } so the job shows as failed
+  // (with the reason) in Live ingest; a deliberate cancel sends no body and stays 'aborted'.
+  const body = await request.json().catch(() => null);
+  const error = typeof body?.error === 'string' ? body.error.slice(0, 500) : null;
+
+  await prisma.ingestJob.update({
+    where: { id: job.id },
+    data: error ? { status: 'failed', errorMessage: error } : { status: 'aborted' },
+  });
   return NextResponse.json({ status: 'ok' });
 }
