@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getCurrentUser, isAdmin } from '../../lib/auth';
+import { getCurrentUser, hasPermission, isAdmin } from '../../lib/auth';
 import { prisma } from '../../lib/db';
 import AppShell from '../../components/AppShell';
 import ConfigureClient from '../../components/ConfigureClient';
@@ -23,7 +23,7 @@ export default async function ConfigurePage() {
         </div>
       </div>
       <div className="card">
-        <ConfigureClient showDevices={isAdmin(user)} />
+        <ConfigureClient showDevices={isAdmin(user)} canDelete={hasPermission(user, 'media', 'delete')} />
       </div>
       <div className="card" style={{ marginTop: 20 }}>
         <MatchImportClient seasons={seasons} />
