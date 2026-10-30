@@ -3,6 +3,32 @@ import { createReadStream, statSync, openSync, readSync, closeSync } from 'node:
 import path from 'node:path';
 import { putToStorage } from './api.mjs';
 
+const MAX_ATTEMPTS = 5; // per part — backoff of ~1s, 2s, 4s, 8s between attempts
+const RETRY_BASE_DELAY_MS = 1000;
+const PROGRESS_REPORT_EVERY_PARTS = 10;
+
+// Network errors carry no status (fetch rejects); 403 from storage means the presigned URL
+// expired, which the next attempt fixes by presigning again.
+function isRetryable(err) {
+  if (err.status == null) return true;
+  return err.status >= 500 || err.status === 408 || err.status === 429
+    || (err.source === 'storage' && err.status === 403);
+}
+
+async function withRetry(label, fn) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (attempt >= MAX_ATTEMPTS || !isRetryable(err)) {
+        throw new Error(`${label} failed after ${attempt} attempt${attempt === 1 ? '' : 's'}: ${err.message}`);
+      }
+      const delay = RETRY_BASE_DELAY_MS * 2 ** (attempt - 1) * (0.5 + Math.random());
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
+
 export async function sha256File(filePath) {
   return new Promise((resolve, reject) => {
     const hash = createHash('sha256');
@@ -24,10 +50,16 @@ async function uploadMultipart(api, jobId, filePath, partSize, partsTotal, onPro
       const bytesRead = readSync(fd, buffer, 0, partSize, offset);
       const chunk = bytesRead === partSize ? buffer : buffer.subarray(0, bytesRead);
 
-      const { urls } = await api.getPartUrls(jobId, [partNumber]);
-      const eTag = await putToStorage(urls[0].url, chunk, 'application/octet-stream');
+      // Presigned just in time, so a retry also gets a fresh URL if the last one expired.
+      const eTag = await withRetry(`Part ${partNumber} of ${partsTotal}`, async () => {
+        const { urls } = await api.getPartUrls(jobId, [partNumber]);
+        return putToStorage(urls[0].url, chunk, 'application/octet-stream');
+      });
       parts.push({ partNumber, eTag });
       onProgress?.(partNumber, partsTotal);
+      if (partNumber % PROGRESS_REPORT_EVERY_PARTS === 0) {
+        api.reportProgress(jobId, partNumber).catch(() => {}); // display-only, never fatal
+      }
     }
   } finally {
     closeSync(fd);
@@ -60,19 +92,25 @@ export async function ingestOneFile(api, filePath, { channel, metadata }, onProg
 
   onProgress?.('uploading');
 
-  if (session.mode === 'multipart') {
-    const parts = await uploadMultipart(
-      api, session.jobId, filePath, session.partSize, session.partsTotal,
-      (done, total) => onProgress?.('uploading', { done, total }),
-    );
-    onProgress?.('finalizing');
-    const result = await api.completeSession(session.jobId, { parts });
-    return { status: 'ok', assetId: result.assetId };
+  // A transfer that gives up marks its job failed (best-effort) so it doesn't sit in Live ingest
+  // as "in progress" until the cron sweep. Once completeSession is called the server owns status.
+  let parts;
+  try {
+    if (session.mode === 'multipart') {
+      parts = await uploadMultipart(
+        api, session.jobId, filePath, session.partSize, session.partsTotal,
+        (done, total) => onProgress?.('uploading', { done, total }),
+      );
+    } else {
+      const buffer = await import('node:fs/promises').then((fs) => fs.readFile(filePath));
+      await withRetry('Upload', () => putToStorage(session.presignedUrl, buffer, contentType));
+    }
+  } catch (err) {
+    await api.abortSession(session.jobId, err.message).catch(() => {});
+    throw err;
   }
 
-  const buffer = await import('node:fs/promises').then((fs) => fs.readFile(filePath));
-  await putToStorage(session.presignedUrl, buffer, contentType);
   onProgress?.('finalizing');
-  const result = await api.completeSession(session.jobId);
+  const result = await api.completeSession(session.jobId, parts ? { parts } : undefined);
   return { status: 'ok', assetId: result.assetId };
 }
