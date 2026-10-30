@@ -36,7 +36,7 @@ type ImportResult = { total: number; created: number; updated: number };
 
 const POSITIONS = ['Goalkeeper', 'Defender', 'Midfielder', 'Forward'];
 
-function PlayersTab() {
+function PlayersTab({ canDelete }: { canDelete: boolean }) {
   const [v, setV] = useState(0);
   const { data: players, loading } = useFetch<Player[]>('/api/players', v);
   const { data: seasons } = useFetch<Season[]>('/api/seasons', 0);
@@ -321,9 +321,11 @@ function PlayersTab() {
                 <button className="btn-primary" type="button" onClick={savePlayer} disabled={saving} style={{ flex: 1, justifyContent: 'center' }}>
                   {saving ? <><span className="spinner" /> Saving…</> : 'Save changes'}
                 </button>
-                <button className="btn-danger" type="button" onClick={() => deletePlayer(selected.id)} disabled={saving}>
-                  Delete
-                </button>
+                {canDelete && (
+                  <button className="btn-danger" type="button" onClick={() => deletePlayer(selected.id)} disabled={saving}>
+                    Delete
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -340,7 +342,7 @@ const TIERS = [
   { value: 'bronze', label: 'Bronze' },
 ];
 
-function SponsorsTab() {
+function SponsorsTab({ canDelete }: { canDelete: boolean }) {
   const [v, setV] = useState(0);
   const { data: sponsors, loading } = useFetch<Sponsor[]>('/api/sponsors', v);
   const [form, setForm] = useState({ name: '', tier: '', logoUrl: '', aliases: '' });
@@ -520,9 +522,11 @@ function SponsorsTab() {
                 <button className="btn-primary" type="button" onClick={saveSponsor} disabled={saving} style={{ flex: 1, justifyContent: 'center' }}>
                   {saving ? <><span className="spinner" /> Saving…</> : 'Save changes'}
                 </button>
-                <button className="btn-danger" type="button" onClick={() => deleteSponsor(selected.id)} disabled={saving}>
-                  Delete
-                </button>
+                {canDelete && (
+                  <button className="btn-danger" type="button" onClick={() => deleteSponsor(selected.id)} disabled={saving}>
+                    Delete
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -532,7 +536,7 @@ function SponsorsTab() {
   );
 }
 
-function SeasonsTab() {
+function SeasonsTab({ canDelete }: { canDelete: boolean }) {
   const [v, setV] = useState(0);
   const { data: seasons, loading } = useFetch<Season[]>('/api/seasons', v);
   const [form, setForm] = useState({ name: '', startDate: '', endDate: '' });
@@ -568,7 +572,7 @@ function SeasonsTab() {
                 {s._count ? ' · ' + s._count.assets + ' assets · ' + s._count.collections + ' collections' : ''}
               </div>
             </div>
-            <button className="btn-danger" type="button" onClick={() => remove(s.id)}>Remove</button>
+            {canDelete && <button className="btn-danger" type="button" onClick={() => remove(s.id)}>Remove</button>}
           </div>
         ))}
         {!loading && !seasons?.length && (
@@ -596,7 +600,7 @@ function SeasonsTab() {
   );
 }
 
-function StadiumsTab() {
+function StadiumsTab({ canDelete }: { canDelete: boolean }) {
   const [v, setV] = useState(0);
   const { data: stadiums, loading } = useFetch<Stadium[]>('/api/stadiums', v);
   const [form, setForm] = useState({ name: '', city: '' });
@@ -624,7 +628,7 @@ function StadiumsTab() {
               <div className="config-item-title">{s.name}</div>
               <div className="config-item-sub">{s.city ?? 'No city'}</div>
             </div>
-            <button className="btn-danger" type="button" onClick={() => remove(s.id)}>Remove</button>
+            {canDelete && <button className="btn-danger" type="button" onClick={() => remove(s.id)}>Remove</button>}
           </div>
         ))}
         {!loading && !stadiums?.length && (
@@ -740,7 +744,9 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'devices',  label: 'Devices'  },
 ];
 
-export default function ConfigureClient({ showDevices = false }: { showDevices?: boolean }) {
+// canDelete mirrors the API's hasPermission(user, 'media', 'delete') gate on players/sponsors/
+// seasons/stadiums, so roles that can't delete (USER) don't see buttons that would only 401.
+export default function ConfigureClient({ showDevices = false, canDelete = false }: { showDevices?: boolean; canDelete?: boolean }) {
   const [tab, setTab] = useState<Tab>('players');
   const tabs = showDevices ? TABS : TABS.filter((t) => t.id !== 'devices');
 
@@ -758,10 +764,10 @@ export default function ConfigureClient({ showDevices = false }: { showDevices?:
           </button>
         ))}
       </div>
-      {tab === 'players'  && <PlayersTab />}
-      {tab === 'sponsors' && <SponsorsTab />}
-      {tab === 'seasons'  && <SeasonsTab />}
-      {tab === 'stadiums' && <StadiumsTab />}
+      {tab === 'players'  && <PlayersTab canDelete={canDelete} />}
+      {tab === 'sponsors' && <SponsorsTab canDelete={canDelete} />}
+      {tab === 'seasons'  && <SeasonsTab canDelete={canDelete} />}
+      {tab === 'stadiums' && <StadiumsTab canDelete={canDelete} />}
       {tab === 'devices'  && showDevices && <DevicesTab />}
     </div>
   );

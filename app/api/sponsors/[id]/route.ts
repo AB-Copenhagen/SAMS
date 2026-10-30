@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '../../../../lib/auth';
+import { getCurrentUser, hasPermission } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 import { invalidateSponsors } from '../../../../lib/lookup-cache';
 
@@ -25,7 +25,7 @@ export async function PUT(request: Request, props: { params: Promise<{ id: strin
 export async function DELETE(_: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  if (!hasPermission(user, 'media', 'delete')) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   await prisma.sponsor.delete({ where: { id: params.id } });
   invalidateSponsors();
   return NextResponse.json({ success: true });
