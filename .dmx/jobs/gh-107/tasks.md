@@ -3,7 +3,7 @@
 **Spec:** `.dmx/jobs/gh-107/spec.md`
 **Branch:** fix-gh-107-sqlite-busy-custom-collections
 **Ticket:** [gh-107](https://github.com/AB-Copenhagen/SAMS/issues/107)
-**Status:** In Progress
+**Status:** Complete
 
 ---
 
@@ -16,9 +16,10 @@
 - [x] Confirm the DELETE route (`app/api/collections/[id]/assets/[assetId]/route.ts`) isn't invoked in a way that races with the POST route in the same burst — it does a single `deleteMany` per request with no internal concurrency; the only races were client-side (fixed in Phase 1) and the bulk upsert loop (fixed here)
 
 ## Phase 3: Verify
-- [ ] Manually reproduce: add an asset to 3+ custom collections at once from the asset detail page, confirm no 500/toast
-- [ ] Manually reproduce: bulk-add 5+ assets to one custom collection from the Media Library, confirm no 500/toast
-- [ ] Re-check `vercel logs` after deploying to confirm no new `SQLITE_BUSY`/P2039 entries on this route
+- [~] Manually reproduce: add an asset to 3+ custom collections at once from the asset detail page, confirm no 500/toast — **skipped**: Claude-in-Chrome extension was disconnected; developer opted to rely on log monitoring instead
+- [~] Manually reproduce: bulk-add 5+ assets to one custom collection from the Media Library, confirm no 500/toast — **skipped**, same reason
+- [x] Preview deploy `fix-gh-107-sqlite-busy-custom-collections` built and went Ready (`https://sams-6xv8r0bo5-ab1889.vercel.app`)
+- [ ] Monitor `vercel logs` (preview, then production after merge) for any new `SQLITE_BUSY`/P2039 entries on `/api/collections/[id]/assets`
 
 ---
 _Generated manually (dmx MCP server not connected this session) — scaffolded to match the `.dmx/jobs/gh-*` convention from prior tickets._
