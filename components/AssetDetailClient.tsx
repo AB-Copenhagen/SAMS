@@ -280,15 +280,18 @@ export default function AssetDetailClient({
     setCustomCollectionIds(newIds);
     setCustomCollectionsError('');
     try {
-      const results = await Promise.all([
-        ...added.map((id) => fetch(`/api/collections/${id}/assets`, {
+      for (const id of added) {
+        const res = await fetch(`/api/collections/${id}/assets`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ assetId: asset.id }),
-        })),
-        ...removed.map((id) => fetch(`/api/collections/${id}/assets/${asset.id}`, { method: 'DELETE' })),
-      ]);
-      if (results.some((r) => !r.ok)) throw new Error();
+        });
+        if (!res.ok) throw new Error();
+      }
+      for (const id of removed) {
+        const res = await fetch(`/api/collections/${id}/assets/${asset.id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+      }
     } catch {
       setCustomCollectionsError('Failed to update custom collections — please try again.');
       setCustomCollectionIds(customCollectionIds);

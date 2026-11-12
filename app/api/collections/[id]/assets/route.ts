@@ -17,13 +17,16 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     : (body?.assetId ? [body.assetId] : []);
   if (assetIds.length === 0) return NextResponse.json({ message: 'assetId or assetIds is required' }, { status: 400 });
 
-  const memberships = await Promise.all(assetIds.map((assetId) =>
-    prisma.collectionAsset.upsert({
+  // Sequential, not Promise.all: concurrent writes against the Turso/libSQL-backed DB
+  // (single-writer semantics) were colliding and surfacing as SQLITE_BUSY 500s (gh-107).
+  const memberships = [];
+  for (const assetId of assetIds) {
+    memberships.push(await prisma.collectionAsset.upsert({
       where: { collectionId_assetId: { collectionId: params.id, assetId } },
       update: {},
       create: { collectionId: params.id, assetId, addedBy: user.email },
-    })
-  ));
+    }));
+  }
 
   return body?.assetIds
     ? NextResponse.json({ added: memberships.length })
