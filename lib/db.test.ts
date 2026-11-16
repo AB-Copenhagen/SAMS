@@ -24,17 +24,23 @@ describe('isRetryableBusyError', () => {
 });
 
 describe('getBusyRetryDelayMs', () => {
+  // Base delays are spaced so each attempt's jittered range (base/2 .. base) never overlaps
+  // the next attempt's — e.g. [50,100] then [125,250] — so this holds across the jitter draw.
   it('returns an increasing delay for each attempt', () => {
-    const first = getBusyRetryDelayMs(0)!;
-    const second = getBusyRetryDelayMs(1)!;
-    const third = getBusyRetryDelayMs(2)!;
-    expect(first).toBeGreaterThan(0);
-    expect(second).toBeGreaterThan(first);
-    expect(third).toBeGreaterThan(second);
+    const delays = [0, 1, 2, 3, 4, 5].map((attempt) => getBusyRetryDelayMs(attempt)!);
+    for (const delay of delays) expect(delay).toBeGreaterThan(0);
+    for (let i = 1; i < delays.length; i++) expect(delays[i]).toBeGreaterThan(delays[i - 1]);
+  });
+
+  it('stays within a jittered range of its base delay', () => {
+    // attempt 2's base is 500ms (see RETRY_BASE_DELAYS_MS in lib/db.ts)
+    const delay = getBusyRetryDelayMs(2)!;
+    expect(delay).toBeGreaterThanOrEqual(250);
+    expect(delay).toBeLessThanOrEqual(500);
   });
 
   it('returns undefined once attempts are exhausted', () => {
-    expect(getBusyRetryDelayMs(3)).toBeUndefined();
+    expect(getBusyRetryDelayMs(6)).toBeUndefined();
     expect(getBusyRetryDelayMs(10)).toBeUndefined();
   });
 });

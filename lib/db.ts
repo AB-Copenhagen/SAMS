@@ -2,7 +2,14 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaLibSql } from '@prisma/adapter-libsql';
 
 const SQLITE_BUSY_CODE = 'P2039';
-const RETRY_DELAYS_MS = [50, 150, 400];
+
+// gh-109's original budget (50/150/400ms, ~600ms total) was sized for a brief spike, but
+// production kept throwing SQLITE_BUSY from `/api/collections/[id]/assets` for minutes at a
+// stretch (gh-111) — the contention source (the `sync-customers`/`sync-customer-enrichment`
+// crons issuing thousands of sequential writes) holds the single Turso write lock for far
+// longer than 600ms can ride out. Widened to the same ~8s budget that already proved out
+// against this identical failure mode in `app/api/webhooks/vivenu/route.ts`.
+const RETRY_BASE_DELAYS_MS = [100, 250, 500, 1000, 2000, 4000];
 
 const WRITE_OPERATIONS = new Set([
   'create', 'createMany', 'createManyAndReturn',
@@ -15,10 +22,17 @@ export function isRetryableBusyError(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === SQLITE_BUSY_CODE;
 }
 
+// Jittered (not fixed) so concurrent requests retrying together don't resynchronize onto the
+// same instant and reproduce the same contention — same reasoning as vivenu's `jittered()`.
+function jittered(ms: number): number {
+  return ms / 2 + Math.random() * (ms / 2);
+}
+
 // Pure decision: how long to wait before retrying a given (zero-indexed) attempt, or `undefined`
 // once attempts are exhausted — kept separate from the actual IO retry loop below.
 export function getBusyRetryDelayMs(attempt: number): number | undefined {
-  return RETRY_DELAYS_MS[attempt];
+  const base = RETRY_BASE_DELAYS_MS[attempt];
+  return base === undefined ? undefined : jittered(base);
 }
 
 function sleep(ms: number): Promise<void> {

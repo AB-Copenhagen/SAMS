@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/cron/sync-customers",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 3 * * *"
     },
     {
       "path": "/api/cron/sync-goliath-segments",
@@ -18,7 +18,7 @@
     },
     {
       "path": "/api/cron/sync-customer-enrichment",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 4 * * *"
     }
   ]
 }
