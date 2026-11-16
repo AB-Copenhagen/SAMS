@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import type { PrismaClient } from '@prisma/client';
-import { createPrismaClient } from '../../../../lib/db';
+import { createPrismaClient, type AppPrismaClient } from '../../../../lib/db';
 import { listSegments, getSegmentMembers } from '../../../../lib/goliath';
 import { supersedeStaleRun } from '../../../../lib/customer-sync-run';
 
@@ -20,7 +19,7 @@ function authorized(request: Request): boolean {
   return request.headers.get('authorization') === `Bearer ${secret}`;
 }
 
-async function resolveByEmail(db: PrismaClient, email: string | null): Promise<string | null> {
+async function resolveByEmail(db: AppPrismaClient, email: string | null): Promise<string | null> {
   if (!email) return null;
   const customer = await db.customer.findFirst({ where: { email }, select: { id: true } });
   return customer?.id ?? null;
