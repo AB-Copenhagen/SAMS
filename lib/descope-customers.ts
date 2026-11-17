@@ -111,6 +111,38 @@ export async function* iterateAllCustomers(startPage = 0): AsyncGenerator<Descop
   }
 }
 
+// Lightweight companion to iterateAllCustomers, for gh-113's daily user-count snapshot: same
+// Search Users pagination, but yielding only userId with no per-customer DB round trip — always
+// starts at page 0 and always walks to the end. iterateAllCustomers's own walk resumes via a
+// cursor across cron invocations and isn't guaranteed to finish a full lap in one run (see
+// app/api/cron/sync-customers's maxDuration comment); this one has no per-item DB cost, so it
+// should reliably complete within a single run even when that heavier walk can't.
+export async function* iterateAllUserIds(): AsyncGenerator<string> {
+  let page = 0;
+  for (;;) {
+    const res = await fetch('https://api.descope.com/v2/mgmt/user/search', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${projectId()}:${managementKey()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ limit: PAGE_SIZE, page }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Descope user search failed: ${res.status} ${await res.text()}`);
+    }
+
+    const data = (await res.json()) as { users: { userId: string }[] };
+    if (!data.users?.length) return;
+
+    for (const raw of data.users) yield raw.userId;
+
+    if (data.users.length < PAGE_SIZE) return;
+    page++;
+  }
+}
+
 export type RecentLogin = { occurredAt: Date; ip: string | null; country: string | null };
 export type LoginEvent = { userId: string } & RecentLogin;
 

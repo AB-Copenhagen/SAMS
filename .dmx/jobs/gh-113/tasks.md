@@ -15,10 +15,10 @@
 
 ## Phase 2: Daily snapshot capture
 
-- [ ] In `lib/descope-customers.ts`, add `iterateAllUserIds()`: same `POST /v2/mgmt/user/search` pagination as `iterateAllCustomers()` but yielding only `userId` — no per-customer DB round trip, so it can reliably finish in one run even though `sync-customers`'s own walk can't (see spec Scope)
-- [ ] Add a pure, unit-testable diff function (e.g. `lib/descope-user-snapshot.ts`'s `computeSnapshotCounts(todayIds: Set<string>, previousIds: Set<string> | null)`) returning `{ totalCount, addedCount, lostCount }` — `previousIds === null` (first-ever run) should yield `addedCount = totalCount`, `lostCount = 0`
-- [ ] At the end of `app/api/cron/sync-customers/route.ts`'s run (after the existing `flushBatch`/resume-cursor logic, regardless of whether that walk completed a full lap): run `iterateAllUserIds()` to build today's ID set, load the most recent prior `DescopeUserSnapshot.idsJson` (parsed to a `Set`), compute counts via `computeSnapshotCounts`, and `upsert` (by `date`, idempotent against a same-day retry) a `DescopeUserSnapshot` row with today's counts and `idsJson`
-- [ ] In the same step, null out `idsJson` on any `DescopeUserSnapshot` row older than 90 days (aggregate counts stay)
+- [x] In `lib/descope-customers.ts`, add `iterateAllUserIds()`: same `POST /v2/mgmt/user/search` pagination as `iterateAllCustomers()` but yielding only `userId` — no per-customer DB round trip, so it can reliably finish in one run even though `sync-customers`'s own walk can't (see spec Scope)
+- [x] Add a pure, unit-testable diff function (`lib/descope-user-snapshot.ts`'s `computeSnapshotCounts(todayIds: Set<string>, previousIds: Set<string> | null)`) returning `{ totalCount, addedCount, lostCount }` — `previousIds === null` (first-ever run) yields `addedCount = totalCount`, `lostCount = 0`
+- [x] At the end of `app/api/cron/sync-customers/route.ts`'s run (its `finally` block, so it runs once per invocation regardless of whether the main walk completed a full lap): `captureDailySnapshot()` runs `iterateAllUserIds()` to build today's ID set, loads the most recent prior `DescopeUserSnapshot.idsJson` (parsed to a `Set`), computes counts via `computeSnapshotCounts`, and `upsert`s (by `date`, idempotent against a same-day retry) a `DescopeUserSnapshot` row with today's counts and `idsJson`. Failures are caught and logged, not propagated — a snapshot hiccup doesn't fail the customer sync run.
+- [x] In the same step, null out `idsJson` on any `DescopeUserSnapshot` row older than 90 days via `isSnapshotIdsStale` (aggregate counts stay)
 
 ## Phase 3: Backfill added-history
 
