@@ -48,18 +48,22 @@ export function dayStartUtc(d: Date): Date {
 // (heavier, resumable) walk completed a full lap — callers should catch and log, not propagate,
 // since a snapshot hiccup shouldn't fail the customer sync run itself.
 export async function captureDailySnapshot(db: AppPrismaClient, now = new Date()): Promise<void> {
+  const date = dayStartUtc(now);
+
   const todayIds = new Set<string>();
   for await (const id of iterateAllUserIds()) todayIds.add(id);
 
+  // `date: { lt: date }` excludes today's own row — without it, a same-day re-run (e.g. the
+  // cron retried after a timeout) would find the row *this same call* already wrote, diff
+  // today's id set against itself, and overwrite the first run's real counts with zeros.
   const previous = await db.descopeUserSnapshot.findFirst({
-    where: { idsJson: { not: null } },
+    where: { idsJson: { not: null }, date: { lt: date } },
     orderBy: { date: 'desc' },
     select: { idsJson: true },
   });
   const previousIds = previous?.idsJson ? new Set<string>(JSON.parse(previous.idsJson)) : null;
 
   const { totalCount, addedCount, lostCount } = computeSnapshotCounts(todayIds, previousIds);
-  const date = dayStartUtc(now);
   const idsJson = JSON.stringify([...todayIds]);
 
   await db.descopeUserSnapshot.upsert({
