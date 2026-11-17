@@ -369,6 +369,24 @@ model CustomerSyncRun {
   @@index([source, startedAt])
 }
 
+// One row per calendar day: the total Descope (MyAB) user count plus how many were added/lost
+// since the prior row, written at the end of app/api/cron/sync-customers's run from a dedicated
+// ID-only Descope walk (see lib/descope-user-snapshot.ts) — the local Customer table can't be
+// used for "current total" since rows are never deleted on Descope-side removal (see gh-113).
+// totalCount/addedCount/lostCount are nullable so a backfilled pre-feature row can represent
+// "unknown" (only addedCount is recoverable from Customer.descopeCreatedAt) rather than a
+// misleading 0. idsJson is nulled out after 90 days (see pruning in the cron) — only needed to
+// diff against the next day, not kept indefinitely; the counts above are kept forever.
+model DescopeUserSnapshot {
+  id         String    @id @default(cuid())
+  date       DateTime  @unique
+  totalCount Int?
+  addedCount Int?
+  lostCount  Int?
+  idsJson    String?
+  createdAt  DateTime  @default(now())
+}
+
 // Per-admin-staff display preferences. id = the signed-session user id (Descope user id) — no
 // FK, since staff identity lives entirely in Descope/the session cookie (see lib/auth.ts),
 // not a local User table.

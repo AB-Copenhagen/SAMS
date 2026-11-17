@@ -9,9 +9,9 @@
 
 ## Phase 1: Schema
 
-- [ ] Add a `DescopeUserSnapshot` model to `prisma/schema.prisma`: `date` (`DateTime`, `@unique`, day granularity), `totalCount` (`Int?`), `addedCount` (`Int?`), `lostCount` (`Int?`), `idsJson` (`String?`, null once pruned), `createdAt` (`@default(now())`) — nullable count fields so pre-feature backfilled rows can represent "unknown" rather than a misleading 0
-- [ ] Add `app/api/system/migrate-descope-user-snapshot/route.ts`, a one-shot admin `POST` route mirroring `app/api/system/migrate-staff-preferences/route.ts` (`CREATE TABLE IF NOT EXISTS "DescopeUserSnapshot" (...)`, `isAdmin` gate, idempotent)
-- [ ] Run `npx prisma generate` locally after the schema change
+- [x] Add a `DescopeUserSnapshot` model to `prisma/schema.prisma`: `date` (`DateTime`, `@unique`, day granularity), `totalCount` (`Int?`), `addedCount` (`Int?`), `lostCount` (`Int?`), `idsJson` (`String?`, null once pruned), `createdAt` (`@default(now())`) — nullable count fields so pre-feature backfilled rows can represent "unknown" rather than a misleading 0
+- [x] Add `app/api/system/migrate-descope-user-snapshot/route.ts`, a one-shot admin `POST` route mirroring `app/api/system/migrate-staff-preferences/route.ts` (`CREATE TABLE IF NOT EXISTS "DescopeUserSnapshot" (...)`, `isAdmin` gate, idempotent)
+- [x] Run `npx prisma generate` locally after the schema change
 
 ## Phase 2: Daily snapshot capture
 
