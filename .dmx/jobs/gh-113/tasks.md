@@ -32,9 +32,9 @@
 
 ## Phase 5: Tests and verification
 
-- [ ] Unit test `computeSnapshotCounts` (added/lost/total arithmetic, the `previousIds === null` first-run case, an unchanged-set case)
-- [ ] Update `.dmx/techContext.md` with the new `DescopeUserSnapshot` mechanism and the ID-only-walk rationale
-- [ ] Run the full test suite and `npx tsc --noEmit`
+- [x] Unit test `computeSnapshotCounts` (`lib/descope-user-snapshot.test.ts`): first-run (`previousIds === null`), unchanged-set, added+lost arithmetic, and today-empty
+- [x] Update `.dmx/techContext.md` with the new `DescopeUserSnapshot` mechanism and the ID-only-walk rationale
+- [x] Run the full test suite and `npx tsc --noEmit` — 65/65 tests pass, `tsc` clean
 - [ ] After deploy: call the Phase 1 migrate route once, then the Phase 3 backfill route once, both against production; confirm the next `sync-customers` run writes a same-day `DescopeUserSnapshot` row with non-null counts
 
 ---
