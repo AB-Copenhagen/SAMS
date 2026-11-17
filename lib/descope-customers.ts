@@ -111,6 +111,18 @@ export async function* iterateAllCustomers(startPage = 0): AsyncGenerator<Descop
   }
 }
 
+// Lightweight companion to iterateAllCustomers, for gh-113's daily user-count snapshot: a
+// fresh, independent call to iterateAllCustomers() (always starts at page 0, always walks to
+// the end) has no DB cost of its own — the per-customer DB round trip that makes
+// app/api/cron/sync-customers's own walk unable to guarantee finishing a full lap in one run
+// (see that route's maxDuration comment) comes entirely from *its* caller's flushBatch, not
+// from this fetch/parse loop. So this just discards every field but userId, instead of
+// duplicating the Search Users fetch/pagination/auth logic above — avoids the two walks
+// silently drifting apart if that logic ever changes.
+export async function* iterateAllUserIds(): AsyncGenerator<string> {
+  for await (const customer of iterateAllCustomers()) yield customer.userId;
+}
+
 export type RecentLogin = { occurredAt: Date; ip: string | null; country: string | null };
 export type LoginEvent = { userId: string } & RecentLogin;
 
