@@ -22,7 +22,7 @@
 
 ## Phase 3: Backfill added-history
 
-- [ ] Add `app/api/system/backfill-descope-user-snapshot/route.ts` (one-shot admin `POST`, same auth pattern as other `app/api/system/migrate-*` routes): group existing `Customer.descopeCreatedAt` by day, and for each day with no existing `DescopeUserSnapshot` row, create one with `addedCount` set and `totalCount`/`lostCount`/`idsJson` left `null` (unknown — can't be reconstructed, per spec)
+- [x] Add `app/api/system/backfill-descope-user-snapshot/route.ts` (one-shot admin `POST`, same auth pattern as other `app/api/system/migrate-*` routes): groups existing `Customer.descopeCreatedAt` by day (via `dayStartUtc`), and for each day with no existing `DescopeUserSnapshot` row, creates one with `addedCount` set and `totalCount`/`lostCount`/`idsJson` left `null` (unknown — can't be reconstructed, per spec). Idempotent: days that already have a row (backfilled or from the live cron) are left untouched.
 
 ## Phase 4: CRM chart + table
 
