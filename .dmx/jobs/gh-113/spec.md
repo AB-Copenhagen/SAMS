@@ -20,7 +20,7 @@ ticketing: github-issues
 We want a daily-granularity view of total Descope user count over time, broken into existing/added/lost, with a chart and a metrics table in the CRM.
 
 ## Scope
-- Factor the full Descope user-ID walk (`iterateAllCustomers()`) so the daily `sync-customers` cron run can also capture today's complete ID set — no second full Descope API scan.
+- Add a dedicated, lightweight ID-only Descope walk (collects `userId` only, no per-customer DB upsert) run at the end of the same `sync-customers` cron invocation. `sync-customers`'s own walk can't be reused directly: it resumes via a cursor across runs (`lib/descope-customers.ts:78-86`) and isn't guaranteed to complete a full lap in one daily invocation (~170ms/customer × ~4,800 users ≈ 816s, already near the 800s `maxDuration` ceiling) — a dedicated ID-only walk, with no per-customer DB round trip, should reliably finish in one run instead.
 - At the end of that same cron run, diff today's ID set against yesterday's stored set and persist a new daily snapshot: `date`, `totalCount`, `addedCount`, `lostCount`, and today's raw ID list (for tomorrow's diff).
 - Backfill the `addedCount`/added-history series from existing `Customer.descopeCreatedAt` data back to each account's real creation date. `lostCount`/accurate `totalCount` history still only starts from when this snapshot logic first runs (no way around that, per Context).
 - Prune raw per-day ID lists after 90 days; aggregate counts (`totalCount`/`addedCount`/`lostCount`) are kept forever.
@@ -35,9 +35,9 @@ We want a daily-granularity view of total Descope user count over time, broken i
 - Re-deriving "lost" for periods before this feature ships
 
 ## Technical Approach
-- `lib/descope-customers.ts`: factor `iterateAllCustomers()` (or add a thin wrapper) so `app/api/cron/sync-customers/route.ts` can collect the full set of Descope user IDs it already walks, without a second scan.
+- `lib/descope-customers.ts`: add a new `iterateAllUserIds()` (or similar) — same `POST /v2/mgmt/user/search` pagination as `iterateAllCustomers()`, but yielding only `userId`, so there's no per-customer DB round trip and the walk can reliably complete within one cron invocation even when `sync-customers`'s own (heavier, resumable) walk can't.
 - `prisma/schema.prisma`: add a `DescopeUserSnapshot` model — `date` (unique, day granularity), `totalCount`, `addedCount`, `lostCount`, `idsJson` (nullable — null once pruned), `createdAt`.
-- At the end of `sync-customers`'s run: diff today's ID set against the most recent prior `DescopeUserSnapshot.idsJson` to compute `addedCount`/`lostCount` for days after this ships; compute `totalCount` directly from today's ID set length (not from the `Customer` table). Write one new `DescopeUserSnapshot` row.
+- At the end of `sync-customers`'s run: run the new ID-only walk, diff today's ID set against the most recent prior `DescopeUserSnapshot.idsJson` to compute `addedCount`/`lostCount`; compute `totalCount` directly from today's ID set length (not from the `Customer` table). Write one new `DescopeUserSnapshot` row.
 - A small cleanup step (same cron run, or folded into the existing reconciliation pattern) nulls out `idsJson` on snapshots older than 90 days.
 - One-time backfill (migration script or one-shot admin route, per this repo's "no `prisma migrate`" convention) to populate historical `DescopeUserSnapshot` rows' `addedCount` from existing `Customer.descopeCreatedAt` data — `totalCount`/`lostCount` left null/0 for pre-feature dates since they can't be reconstructed.
 - `app/customers/reports/page.tsx` / `lib/customer-reports.ts`: new query reading `DescopeUserSnapshot` rows, a `StackedBarChart` (added vs. lost per day) plus a plain table, following existing page conventions.
@@ -48,7 +48,7 @@ We want a daily-granularity view of total Descope user count over time, broken i
 <!-- Answer each question before running /dmx/plan. -->
 
 1. Local `Customer` rows are never deleted on Descope-side removal, so the live `Customer` table can't tell us today's actual Descope total — only Descope itself can. How should daily added/lost be computed?
-   Answer: Diff full ID sets day-over-day — fetch today's complete Descope user-ID set (piggybacking on the existing `sync-customers` walk, no extra API scan), store it, and diff against yesterday's stored set.
+   Answer: Diff full ID sets day-over-day — fetch today's complete Descope user-ID set and diff against yesterday's stored set. Revised after research: can't literally piggyback on `sync-customers`'s own walk (it doesn't reliably complete a full lap in one run — see Scope); instead a dedicated lightweight ID-only walk runs at the end of the same cron invocation.
 
 2. Should the "added" series be backfilled from existing `Customer.descopeCreatedAt` data back to each account's real creation date?
    Answer: Yes. "Lost" and accurate "total" still only start from when the snapshot logic first runs.
