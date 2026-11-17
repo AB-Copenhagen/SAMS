@@ -26,9 +26,9 @@
 
 ## Phase 4: CRM chart + table
 
-- [ ] In `lib/customer-reports.ts`, add `getDescopeUserSnapshots()` + a `getCachedDescopeUserSnapshots()` wrapper (same `unstable_cache` pattern as `getCachedCustomerGrowth`), reading `DescopeUserSnapshot` ordered by `date`
-- [ ] In `app/customers/reports/page.tsx`, add a new `card` section: a `StackedBarChart` of added vs. lost per day (only for rows with non-null `addedCount`/`lostCount`), with a short explanatory note (matching the existing tickets-sold card's style) that history before this feature shipped only has "added," not "lost" or an exact "total"
-- [ ] Below the chart, add a metrics table (date / total / added / lost columns, `asset-table`/`asset-table-wrap` conventions), rendering `—` for `null` total/lost on backfilled pre-feature dates
+- [x] In `lib/customer-reports.ts`, add `getDescopeUserSnapshotsUncached()` + a `getCachedDescopeUserSnapshots()` wrapper (same `unstable_cache` pattern as `getCachedCustomerGrowth`), reading `DescopeUserSnapshot` ordered by `date`
+- [x] In `app/customers/reports/page.tsx`, add a new `card` section: a `StackedBarChart` of added vs. lost per day (only for rows with non-null `addedCount`/`lostCount`, capped to the last 60 days so the chart doesn't degrade as rows accumulate forever — same reasoning as the existing match-attendance card's `.slice(-10)`), with a short explanatory note that history before this feature shipped only has "added," not "lost" or an exact "total". Also added optional `emptyMessage`/`ariaLabel` props to `components/charts/StackedBarChart.tsx` (previously hardcoded to match-attendance copy), defaulted to the existing text so that call site is unaffected.
+- [x] Below the chart, add a metrics table (date / total / added / lost columns, `asset-table`/`asset-table-wrap` conventions), rendering `—` for `null` total/lost on backfilled pre-feature dates
 
 ## Phase 5: Tests and verification
 

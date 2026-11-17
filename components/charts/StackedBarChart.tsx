@@ -25,9 +25,17 @@ function topRoundedRectPath(x: number, width: number, top: number, bottom: numbe
   ].join(' ');
 }
 
-export default function StackedBarChart({ data }: { data: StackedBarDatum[] }) {
+export default function StackedBarChart({
+  data,
+  emptyMessage = 'No matches yet.',
+  ariaLabel = 'Tickets sold vs checked in',
+}: {
+  data: StackedBarDatum[];
+  emptyMessage?: string;
+  ariaLabel?: string;
+}) {
   if (data.length === 0) {
-    return <p style={{ color: '#8890b4', fontSize: 13 }}>No matches yet.</p>;
+    return <p style={{ color: '#8890b4', fontSize: 13 }}>{emptyMessage}</p>;
   }
 
   const max = Math.max(1, ...data.map((d) => d.segments.reduce((sum, s) => sum + s.value, 0)));
@@ -48,7 +56,7 @@ export default function StackedBarChart({ data }: { data: StackedBarDatum[] }) {
           ))}
         </div>
       )}
-      <svg viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`} width="100%" height={VIEW_HEIGHT} role="img" aria-label="Tickets sold vs checked in">
+      <svg viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`} width="100%" height={VIEW_HEIGHT} role="img" aria-label={ariaLabel}>
         {[0, 0.25, 0.5, 0.75, 1].map((step) => {
           const y = BASELINE_Y - step * plotHeight;
           return <line key={step} x1={0} y1={y} x2={VIEW_WIDTH} y2={y} stroke="#edf0f9" strokeWidth={1} />;

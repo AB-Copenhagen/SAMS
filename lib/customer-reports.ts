@@ -236,9 +236,33 @@ async function getMatchActivityUncached(eventIds: string[]): Promise<MatchActivi
 // eventIds, so each match (and the merged-duplicate-event id set behind it) gets its own entry.
 export const getCachedMatchActivity = unstable_cache(getMatchActivityUncached, ['match-activity'], { revalidate: 30 });
 
+// gh-113: daily total/added/lost Descope (MyAB) user counts — see DescopeUserSnapshot and
+// lib/descope-user-snapshot.ts. totalCount/lostCount are null on rows backfilled from
+// Customer.descopeCreatedAt (before this feature could track them); addedCount is always known.
+export type DescopeUserSnapshotRow = {
+  date: string; // "YYYY-MM-DD"
+  totalCount: number | null;
+  addedCount: number | null;
+  lostCount: number | null;
+};
+
+async function getDescopeUserSnapshotsUncached(): Promise<DescopeUserSnapshotRow[]> {
+  const rows = await prisma.descopeUserSnapshot.findMany({
+    orderBy: { date: 'asc' },
+    select: { date: true, totalCount: true, addedCount: true, lostCount: true },
+  });
+  return rows.map((r) => ({
+    date: r.date.toISOString().slice(0, 10),
+    totalCount: r.totalCount,
+    addedCount: r.addedCount,
+    lostCount: r.lostCount,
+  }));
+}
+
 // 300s TTL, same as getCachedCustomerDashboard — these are report views, not live counters.
 export const getCachedSpendDistribution = unstable_cache(getSpendDistributionUncached, ['report-spend-distribution'], { revalidate: 300 });
 export const getCachedMatchAttendance = unstable_cache(getMatchAttendanceUncached, ['report-match-attendance'], { revalidate: 300 });
 export const getCachedAttendanceCohorts = unstable_cache(getAttendanceCohortsUncached, ['report-attendance-cohorts'], { revalidate: 300 });
 export const getCachedCustomerGrowth = unstable_cache(getCustomerGrowthByMonthUncached, ['report-customer-growth'], { revalidate: 300 });
 export const getCachedSeasonPassRate = unstable_cache(getSeasonPassRateUncached, ['report-season-pass-rate'], { revalidate: 300 });
+export const getCachedDescopeUserSnapshots = unstable_cache(getDescopeUserSnapshotsUncached, ['report-descope-user-snapshots'], { revalidate: 300 });
