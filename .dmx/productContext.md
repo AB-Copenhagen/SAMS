@@ -26,6 +26,7 @@ SAMS solves both by being the single system of record: a DAM that gets media tag
 **Shared admin shell (DAM + CRM):**
 - A persistent top header (name, role, profile link, sign-out) spans every authenticated staff page; it replaced an earlier sidebar-footer block. Global search lives in the header as an always-visible, instant-results input rather than a Cmd+K-triggered modal — the modal's keyboard shortcut was dropped after reports it was unreliable.
 - Public share views (`/s/[token]`) stay outside this shell entirely.
+- Staff sessions in this shell are recorded for debugging via PostHog session replay (gh-115) — masked (no PII shown in recordings) and sampled at 10%, EU-hosted for GDPR. Public share views are never recorded, since they never render this shell.
 
 ## Who uses it
 
