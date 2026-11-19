@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createPrismaClient } from '../../../../lib/db';
 import { supersedeStaleRun } from '../../../../lib/customer-sync-run';
 import { refreshCustomerExternalData } from '../../../../lib/customer-enrichment';
+import { captureServerException } from '../../../../lib/posthog-server';
 
 const RESUME_CURSOR_KEY = 'customer-enrichment-resume-offset';
 const DB_PAGE_SIZE = 500;
@@ -99,6 +100,7 @@ export async function GET(request: Request) {
       where: { id: run.id },
       data: { status: 'error', finishedAt, processed, errorMessage: err instanceof Error ? err.message : String(err) },
     });
+    await captureServerException(err, { route: 'cron/sync-customer-enrichment' });
     return NextResponse.json({ message: 'Sync failed' }, { status: 500 });
   } finally {
     await db.$disconnect();

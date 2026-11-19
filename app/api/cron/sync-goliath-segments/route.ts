@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createPrismaClient, type AppPrismaClient } from '../../../../lib/db';
 import { listSegments, getSegmentMembers } from '../../../../lib/goliath';
 import { supersedeStaleRun } from '../../../../lib/customer-sync-run';
+import { captureServerException } from '../../../../lib/posthog-server';
 
 // See app/api/cron/sync-customers' comment on the same constant — same risk (a platform kill
 // mid-run can't be caught, leaving the CustomerSyncRun stuck in "running") once this club has
@@ -99,6 +100,7 @@ export async function GET(request: Request) {
       where: { id: run.id },
       data: { status: 'error', finishedAt, errorMessage: err instanceof Error ? err.message : String(err) },
     });
+    await captureServerException(err, { route: 'cron/sync-goliath-segments' });
     return NextResponse.json({ message: 'Sync failed' }, { status: 500 });
   } finally {
     await db.$disconnect();
