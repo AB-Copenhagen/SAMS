@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import type { User } from '../lib/auth';
 import TopHeader from './TopHeader';
 import SidebarShell from './SidebarShell';
+import PostHogProvider from './PostHogProvider';
 
 export default function AppShell({
   user,
@@ -23,16 +24,18 @@ export default function AppShell({
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   return (
-    <div className="app-shell">
-      <TopHeader user={user} onToggleSidebar={() => setSidebarOpen((o) => !o)} />
+    <PostHogProvider user={user}>
+      <div className="app-shell">
+        <TopHeader user={user} onToggleSidebar={() => setSidebarOpen((o) => !o)} />
 
-      <div className="app-shell-body">
-        <SidebarShell user={user} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <div className="app-shell-body">
+          <SidebarShell user={user} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-        <div className="main-content">
-          <div className={`page-body${wide ? ' page-body-wide' : ''}`}>{children}</div>
+          <div className="main-content">
+            <div className={`page-body${wide ? ' page-body-wide' : ''}`}>{children}</div>
+          </div>
         </div>
       </div>
-    </div>
+    </PostHogProvider>
   );
 }
