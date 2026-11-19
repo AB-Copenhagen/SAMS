@@ -29,6 +29,7 @@
     "next": "16.4.5",
     "oidc-client-ts": "^3.5.0",
     "posthog-js": "^1.453.0",
+    "posthog-node": "^6.0.4",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "react-easy-crop": "^6.2.3",

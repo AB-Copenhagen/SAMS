@@ -3,6 +3,7 @@ import { createClient as createLibsqlClient, type Client as LibsqlClient } from 
 import { createPrismaClient } from '../../../../lib/db';
 import { abortMultipartUpload } from '../../../../lib/wasabi';
 import { publishJob } from '../../../../lib/qstash';
+import { captureServerException } from '../../../../lib/posthog-server';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -62,6 +63,7 @@ export async function GET(request: Request) {
       },
     });
     console.error('[cron/process-ingest-jobs] run failed:', err);
+    await captureServerException(err, { route: 'cron/process-ingest-jobs' });
     return NextResponse.json({ message: 'Cron run failed' }, { status: 500 });
   } finally {
     await db.$disconnect();

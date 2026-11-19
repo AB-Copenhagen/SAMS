@@ -35,6 +35,18 @@ function getClient(): typeof posthog | null {
   return client;
 }
 
+export function getPostHogClient(): typeof posthog | null {
+  return getClient();
+}
+
 export function identifyStaffUser(identity: StaffIdentity): void {
-  getClient()?.identify(identity.id, { role: identity.role });
+  const instance = getClient();
+  if (!instance) return;
+
+  instance.identify(identity.id, { role: identity.role });
+
+  // The PostHog project's own "record sessions" default is now off (gh-118) — it's shared with
+  // the public www.ab.dk site, which isn't recorded. Force recording on for this staff-app
+  // client explicitly rather than relying on that project default.
+  instance.startSessionRecording();
 }

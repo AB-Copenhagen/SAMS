@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createPrismaClient } from '../../../../lib/db';
 import { fetchRecentLogins } from '../../../../lib/descope-customers';
 import { supersedeStaleRun } from '../../../../lib/customer-sync-run';
+import { captureServerException } from '../../../../lib/posthog-server';
 
 // Same per-item-loop shape as sync-customers (one or two Turso round-trips per login event,
 // up to 500 events per run — see fetchRecentLogins), so it carries the identical timeout risk
@@ -78,6 +79,7 @@ export async function GET(request: Request) {
       where: { id: run.id },
       data: { status: 'error', finishedAt, errorMessage: err instanceof Error ? err.message : String(err) },
     });
+    await captureServerException(err, { route: 'cron/sync-descope-logins' });
     return NextResponse.json({ message: 'Sync failed' }, { status: 500 });
   } finally {
     await db.$disconnect();

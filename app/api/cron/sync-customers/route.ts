@@ -3,6 +3,7 @@ import { createPrismaClient } from '../../../../lib/db';
 import { iterateAllCustomers, CUSTOMER_PAGE_SIZE, type DescopeCustomer } from '../../../../lib/descope-customers';
 import { supersedeStaleRun } from '../../../../lib/customer-sync-run';
 import { captureDailySnapshot } from '../../../../lib/descope-user-snapshot';
+import { captureServerException } from '../../../../lib/posthog-server';
 
 const RESUME_CURSOR_KEY = 'descope-customers-resume-page';
 
@@ -165,15 +166,17 @@ export async function GET(request: Request) {
       where: { id: run.id },
       data: { status: 'error', finishedAt, processed, errorMessage: err instanceof Error ? err.message : String(err) },
     });
+    await captureServerException(err, { route: 'cron/sync-customers' });
     return NextResponse.json({ message: 'Sync failed' }, { status: 500 });
   } finally {
     // Runs once per invocation regardless of whether the walk above completed a full lap (see
     // lib/descope-user-snapshot.ts) — a separate, lightweight ID-only Descope walk, so it
     // doesn't depend on this run's resume-cursor progress. Caught here, not propagated: a
     // snapshot hiccup shouldn't turn into a failed customer sync run.
-    await captureDailySnapshot(db).catch((err) =>
-      console.error('[cron/sync-customers] DescopeUserSnapshot capture failed:', err)
-    );
+    await captureDailySnapshot(db).catch(async (err) => {
+      console.error('[cron/sync-customers] DescopeUserSnapshot capture failed:', err);
+      await captureServerException(err, { route: 'cron/sync-customers', stage: 'captureDailySnapshot' });
+    });
     await db.$disconnect();
   }
 }
