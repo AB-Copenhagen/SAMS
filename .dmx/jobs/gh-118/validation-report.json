@@ -1,0 +1,54 @@
+{
+  "commit": "5bbf875d6abbef36796c8e17750c636b8b8a3111",
+  "scope_items": [
+    {
+      "item": "lib/posthog.ts: explicitly start session recording for the staff app",
+      "verdict": "covered",
+      "evidence": "lib/posthog.ts:51"
+    },
+    {
+      "item": "app/global-error.tsx: global error boundary reporting uncaught client exceptions via posthog.captureException",
+      "verdict": "covered",
+      "evidence": "app/global-error.tsx:10"
+    },
+    {
+      "item": "Session recording stays staff-only (never /s/[token] or /login); client-side error capture is app-wide by design (Q1)",
+      "verdict": "covered",
+      "evidence": "no AppShell/PostHogProvider reference in app/s/ or app/login; app/global-error.tsx:10 has no staff-only gate, as decided"
+    },
+    {
+      "item": "Server-side error reporting wired into the 5 cron routes' catch blocks",
+      "verdict": "covered",
+      "evidence": "app/api/cron/sync-customers/route.ts:169,178; sync-customer-enrichment/route.ts:103; process-ingest-jobs/route.ts:66; sync-descope-logins/route.ts:82; sync-goliath-segments/route.ts:103"
+    },
+    {
+      "item": "Best-effort masking on captured exception messages/stacks",
+      "verdict": "covered",
+      "evidence": "lib/posthog-redact.ts:8,14; used at app/global-error.tsx:10 and lib/posthog-server.ts:27"
+    },
+    {
+      "item": ".dmx/techContext.md documents explicit session recording and server-side error capture",
+      "verdict": "covered",
+      "evidence": ".dmx/techContext.md PostHog row"
+    }
+  ],
+  "scope_creep": [],
+  "regressions": [],
+  "edge_cases": [
+    {
+      "description": "captureServerException called with a non-Error thrown value",
+      "addressed": true,
+      "evidence": "lib/posthog-server.ts:27 (error instanceof Error ? redactError(error) : new Error(redactErrorMessage(String(error))))"
+    },
+    {
+      "description": "PostHog capture call itself failing or the client being uninitialized (missing env vars)",
+      "addressed": true,
+      "evidence": "lib/posthog-server.ts:14 (getClient returns null) and :29-33 (try/catch swallows capture failures)"
+    },
+    {
+      "description": "No timeout on the server-side captureExceptionImmediate network call inside an already-failing route's error path",
+      "addressed": false,
+      "evidence": "lib/posthog-server.ts:30"
+    }
+  ]
+}
