@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo, type ComponentType, type CSSProperties } from 'react';
+import posthog from 'posthog-js';
 import { useRouter } from 'next/navigation';
 import ReactEasyCrop, { type Area } from 'react-easy-crop';
 
@@ -129,6 +130,12 @@ export default function PhotoEditor({
         const body = await res.json().catch(() => ({})) as { message?: string };
         throw new Error(body.message ?? 'Save failed');
       }
+      posthog.capture('photo_edit_saved', {
+        has_crop: Boolean(croppedAreaPixels),
+        filter: params.filter ?? 'none',
+        auto_correct: params.autoCorrect,
+        aspect_ratio: aspect ?? 'original',
+      });
       router.refresh();
       onClose();
     } catch (err) {
@@ -145,6 +152,7 @@ export default function PhotoEditor({
     try {
       const res = await fetch(`/api/assets/${assetId}/edit`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Revert failed');
+      posthog.capture('photo_edit_reverted');
       router.refresh();
       onClose();
     } catch (err) {

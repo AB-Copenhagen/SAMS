@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import posthog from 'posthog-js';
 import { useRouter } from 'next/navigation';
 
 type Season = { id: string; name: string };
@@ -35,6 +36,7 @@ export default function CollectionEditForm({ id, name, date, opponent, venue, se
     try {
       const res = await fetch(`/api/collections/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+      posthog.capture('collection_deleted', { is_custom: isCustom });
       router.push(isCustom ? '/collections?view=custom' : '/collections');
       router.refresh();
     } catch (e) {
@@ -60,6 +62,10 @@ export default function CollectionEditForm({ id, name, date, opponent, venue, se
         }),
       });
       if (!res.ok) throw new Error(`Save failed (${res.status})`);
+      posthog.capture('collection_updated', {
+        is_custom: isCustom,
+        has_season: Boolean(form.seasonId),
+      });
       setEditing(false);
       router.refresh();
     } catch (e) {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import posthog from 'posthog-js';
 import { uploadViaIngestApi } from '../lib/client-ingest';
 
 const UPLOAD_CONCURRENCY = 3;
@@ -78,6 +79,11 @@ export default function MobileIngestForm() {
         (progress) => setItem({ status: 'uploading', progress }),
       );
       setItem(result.duplicate ? { status: 'duplicate' } : { status: 'done' });
+      posthog.capture('media_upload_completed', {
+        channel: 'mobile',
+        media_type: item.file.type.startsWith('video/') ? 'video' : 'image',
+        is_duplicate: result.duplicate,
+      });
     } catch (err) {
       setItem({ status: 'error', errorMsg: err instanceof Error ? err.message : 'Upload failed' });
     }

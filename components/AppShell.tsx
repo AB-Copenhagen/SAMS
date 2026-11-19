@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import posthog from 'posthog-js';
 import type { User } from '../lib/auth';
 import TopHeader from './TopHeader';
 import SidebarShell from './SidebarShell';
+
+let identifiedUserId: string | null = null;
 
 export default function AppShell({
   user,
@@ -21,6 +24,19 @@ export default function AppShell({
   const pathname = usePathname();
 
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
+
+  useEffect(() => {
+    if (identifiedUserId === user.id && posthog.get_distinct_id() === user.id) return;
+
+    if (identifiedUserId) posthog.reset();
+
+    posthog.identify(user.id, {
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    });
+    identifiedUserId = user.id;
+  }, [user]);
 
   return (
     <div className="app-shell">

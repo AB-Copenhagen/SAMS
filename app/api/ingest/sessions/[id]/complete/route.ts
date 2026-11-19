@@ -1,4 +1,6 @@
-import { NextResponse } from 'next/server';
+import { SeverityNumber } from '@opentelemetry/api-logs';
+import { after, NextResponse } from 'next/server';
+import { flushPostHogLogs, posthogLogger } from '../../../../../../instrumentation';
 import { getIngestActor } from '../../../../../../lib/device-auth';
 import { prisma } from '../../../../../../lib/db';
 import { completeMultipartUpload, getPublicUrl, type UploadedPart } from '../../../../../../lib/wasabi';
@@ -7,6 +9,12 @@ import { publishJob } from '../../../../../../lib/qstash';
 import { matchCollectionByCaptureDate, resolveEventFieldDefaults } from '../../../../../../lib/collections';
 
 export const maxDuration = 60;
+
+function flushLogsAfterResponse() {
+  after(async () => {
+    await flushPostHogLogs();
+  });
+}
 
 export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -25,10 +33,26 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
 
   const body = await request.json().catch(() => ({}));
   const { parts, exifJson } = body as { parts?: UploadedPart[]; exifJson?: string | null };
+  const mediaType = job.fileType.startsWith('image/') ? 'image' : job.fileType.startsWith('video/') ? 'video' : 'other';
+
+  posthogLogger?.emit({
+    body: 'ingest_completion_started',
+    severityNumber: SeverityNumber.INFO,
+    attributes: {
+      media_type: mediaType,
+      multipart_upload: Boolean(job.uploadId),
+    },
+  });
 
   try {
     if (job.uploadId) {
       if (!parts?.length) {
+        posthogLogger?.emit({
+          body: 'ingest_completion_missing_parts',
+          severityNumber: SeverityNumber.WARN,
+          attributes: { media_type: mediaType },
+        });
+        flushLogsAfterResponse();
         return NextResponse.json({ message: 'parts is required to complete a multipart upload' }, { status: 400 });
       }
       await completeMultipartUpload(job.objectKey, job.uploadId, parts);
@@ -41,6 +65,12 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
       where: { id: job.id },
       data: { status: 'failed', errorMessage: err instanceof Error ? err.message : String(err) },
     });
+    posthogLogger?.emit({
+      body: 'ingest_completion_storage_failed',
+      severityNumber: SeverityNumber.ERROR,
+      attributes: { media_type: mediaType },
+    });
+    flushLogsAfterResponse();
     return NextResponse.json({ message: 'Failed to finalize storage upload' }, { status: 500 });
   }
 
@@ -92,6 +122,12 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
       where: { id: job.id },
       data: { status: 'failed', errorMessage: err instanceof Error ? err.message : String(err) },
     });
+    posthogLogger?.emit({
+      body: 'ingest_completion_asset_creation_failed',
+      severityNumber: SeverityNumber.ERROR,
+      attributes: { media_type: mediaType },
+    });
+    flushLogsAfterResponse();
     return NextResponse.json({ message: 'Database write failed: ' + (err instanceof Error ? err.message : String(err)) }, { status: 500 });
   }
 
@@ -116,6 +152,17 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     enqueueJobs.push(publishJob('/api/jobs/generate-thumbnail', { assetId: asset.id }).catch((err) => console.error('[ingest/complete] failed to enqueue generate-thumbnail job:', err)));
   }
   await Promise.all(enqueueJobs);
+
+  posthogLogger?.emit({
+    body: 'ingest_completion_succeeded',
+    severityNumber: SeverityNumber.INFO,
+    attributes: {
+      media_type: mediaType,
+      multipart_upload: Boolean(job.uploadId),
+      background_jobs_requested: enqueueJobs.length,
+    },
+  });
+  flushLogsAfterResponse();
 
   return NextResponse.json({ status: 'ok', assetId: asset.id, job: { ...job, status: 'complete', assetId: asset.id } });
 }

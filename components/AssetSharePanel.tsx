@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import posthog from 'posthog-js';
 import { useRouter } from 'next/navigation';
 
 interface Props {
@@ -36,6 +37,12 @@ export default function AssetSharePanel({ id, isPublic, shareToken, appBaseUrl, 
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      posthog.capture('asset_sharing_updated', {
+        public_link_enabled: body.isPublic === true,
+        public_link_disabled: body.isPublic === false,
+        link_regenerated: body.regenerateToken === true,
+        expiry_changed: Object.prototype.hasOwnProperty.call(body, 'expiresAt'),
+      });
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Request failed');
@@ -47,6 +54,7 @@ export default function AssetSharePanel({ id, isPublic, shareToken, appBaseUrl, 
   async function copyLink() {
     if (!shareUrl) return;
     await navigator.clipboard.writeText(shareUrl);
+    posthog.capture('asset_share_link_copied');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }

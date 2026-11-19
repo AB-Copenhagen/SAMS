@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import posthog from 'posthog-js';
 import type { ParsedMatch } from '../lib/api-football';
 
 type MatchRow = ParsedMatch & { exists: boolean };
@@ -77,6 +78,11 @@ export default function MatchImportClient({ seasons }: { seasons: Season[] }) {
       });
       if (!res.ok) throw new Error(`Import failed (${res.status})`);
       const data = await res.json() as { created: number; skipped: number };
+      posthog.capture('matches_imported', {
+        selected_count: toImport.length,
+        created_count: data.created,
+        skipped_count: data.skipped,
+      });
       setResult(data);
 
       // Refresh to mark imported rows

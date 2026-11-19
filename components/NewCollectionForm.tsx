@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import posthog from 'posthog-js';
 import { useRouter } from 'next/navigation';
 import { COLLECTION_TYPES } from '../lib/collection-types';
 
@@ -24,6 +25,10 @@ export default function NewCollectionForm({ seasons }: { seasons: Season[] }) {
     });
     setSaving(false);
     if (res.ok) {
+      posthog.capture('collection_created', {
+        collection_type: form.type,
+        has_season: Boolean(form.seasonId),
+      });
       setOpen(false);
       setForm({ name: '', type: 'game', date: '', opponent: '', venue: '', seasonId: '' });
       router.refresh();

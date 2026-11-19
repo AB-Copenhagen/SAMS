@@ -6,3 +6,4 @@ out
 prisma/dev.db
 .vercel
 .DS_Store
+.env

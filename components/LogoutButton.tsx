@@ -2,12 +2,14 @@
 
 import { useDescope } from '@descope/react-sdk';
 import { useRouter } from 'next/navigation';
+import posthog from 'posthog-js';
 
 export default function LogoutButton() {
   const sdk = useDescope();
   const router = useRouter();
 
   async function handleLogout() {
+    posthog.reset();
     await fetch('/api/auth/logout', { method: 'POST' });
     await sdk.logout();
     router.push('/login');

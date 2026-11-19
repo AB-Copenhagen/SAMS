@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, type CSSProperties } from 'react';
+import posthog from 'posthog-js';
 import EntityMultiSelect, { type EntityOption } from './EntityMultiSelect';
 import TagInput from './TagInput';
 import { useSwipe } from '../lib/useSwipe';
@@ -243,6 +244,15 @@ export default function ReviewWorkflowClient({
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error('Save failed');
+      posthog.capture('asset_reviewed', {
+        rating,
+        is_first_review: wasFirstReview,
+        player_tag_count: playerIds.length,
+        sponsor_tag_count: sponsorIds.length,
+        tag_count: tags.length,
+        has_season: Boolean(seasonIdValue),
+        has_collection: Boolean(collectionIdValue),
+      });
     } catch {
       setDrafts((prev) => {
         const next = new Map(prev);
@@ -288,6 +298,10 @@ export default function ReviewWorkflowClient({
     try {
       const res = await fetch(`/api/assets/${item.id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Delete failed');
+      posthog.capture('asset_review_deleted', {
+        was_unreviewed: wasUnreviewed,
+        media_type: item.fileType.startsWith('video/') ? 'video' : 'image',
+      });
     } catch {
       if (wasUnreviewed) setRemaining((n) => n + 1);
       if (priorDraft) setDrafts((prev) => new Map(prev).set(item.id, priorDraft));

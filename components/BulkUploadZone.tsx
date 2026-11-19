@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import posthog from 'posthog-js';
 import TagInput from './TagInput';
 import { uploadViaIngestApi } from '../lib/client-ingest';
 
@@ -215,6 +216,11 @@ export default function BulkUploadZone() {
         (statusMsg) => setStatus({ statusMsg }),
       );
       setStatus(result.duplicate ? { status: 'duplicate', statusMsg: undefined } : { status: 'done', statusMsg: undefined });
+      posthog.capture('media_upload_completed', {
+        channel: 'browser',
+        media_type: item.file.type.startsWith('video/') ? 'video' : 'image',
+        is_duplicate: result.duplicate,
+      });
     } catch (err) {
       setStatus({ status: 'error', errorMsg: err instanceof Error ? err.message : 'Upload failed' });
     }
