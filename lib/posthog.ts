@@ -39,6 +39,13 @@ export function getPostHogClient(): typeof posthog | null {
   return getClient();
 }
 
+// capture_pageview stays false at init (gh-120) — Next.js App Router navigates client-side via
+// the History API, so the built-in full-page-load pageview capture would miss most navigation.
+// Callers fire this manually on route change instead (see PostHogProvider).
+export function capturePageview(): void {
+  getClient()?.capture('$pageview');
+}
+
 export function identifyStaffUser(identity: StaffIdentity): void {
   const instance = getClient();
   if (!instance) return;

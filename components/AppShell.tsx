@@ -24,7 +24,7 @@ export default function AppShell({
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   return (
-    <PostHogProvider user={user}>
+    <PostHogProvider user={user} pathname={pathname}>
       <div className="app-shell">
         <TopHeader user={user} onToggleSidebar={() => setSidebarOpen((o) => !o)} />
 
