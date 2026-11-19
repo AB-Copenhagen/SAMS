@@ -11,3 +11,4 @@
 ## Session Notes
 
 - Added manual `capturePageview()` wired to route changes via `PostHogProvider`'s new `pathname` prop; `autocapture` stays off. Phase 1 (only phase) complete.
+- PR opened for: Enable PostHog web analytics (pageviews and events)
