@@ -76,7 +76,7 @@ export default async function AssetDetailPage(props: { params: Promise<{ id: str
     }
   }
 
-  const [seasons, collections, stadiums, allPlayers, allSponsors, playerTags, sponsorTags, customCollectionMemberships, signedUrl] = await Promise.all([
+  const [seasons, collections, stadiums, allPlayers, allSponsors, playerTags, sponsorTags, customCollectionMemberships, signedUrl, embedTokens] = await Promise.all([
     getCachedSeasons(),
     getCachedCollections(),
     getCachedStadiums(),
@@ -88,6 +88,11 @@ export default async function AssetDetailPage(props: { params: Promise<{ id: str
     prisma.assetSponsorTag.findMany({ where: { assetId: params.id, status: 'confirmed' }, select: { sponsorId: true }, distinct: ['sponsorId'] }),
     prisma.collectionAsset.findMany({ where: { assetId: params.id }, select: { collectionId: true } }),
     getPresignedUrl(asset.editedKey ?? asset.objectKey),
+    prisma.embedToken.findMany({
+      where: { targetType: 'asset', targetId: params.id, revokedAt: null },
+      orderBy: { createdAt: 'desc' },
+      select: { token: true, createdAt: true, createdBy: true },
+    }),
   ]);
   const players = allPlayers.filter((p) => p.active);
   const sponsors = allSponsors.filter((s) => s.active);
@@ -146,6 +151,7 @@ export default async function AssetDetailPage(props: { params: Promise<{ id: str
         initialPlayerIds={playerTags.map((t) => t.playerId)}
         initialSponsorIds={sponsorTags.map((t) => t.sponsorId)}
         initialCustomCollectionIds={customCollectionMemberships.map((m) => m.collectionId)}
+        embedTokens={embedTokens.map((t) => ({ token: t.token, createdAt: t.createdAt.toISOString(), createdBy: t.createdBy }))}
       />
     </AppShell>
   );
