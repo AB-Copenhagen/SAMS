@@ -134,6 +134,8 @@ export default async function AssetDetailPage(props: { params: Promise<{ id: str
           isPublic:         asset.isPublic,
           shareToken:       asset.shareToken        ?? null,
           expiresAt:        asset.expiresAt ? asset.expiresAt.toISOString() : null,
+          hlsKey:           asset.hlsKey            ?? null,
+          hlsStatus:        asset.hlsStatus,
         }}
         appBaseUrl={appBaseUrl}
         signedUrl={signedUrl}

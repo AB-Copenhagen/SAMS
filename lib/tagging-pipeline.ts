@@ -4,6 +4,7 @@ import { upsertPlayerTag, upsertSponsorTag, addConfirmedStringTag } from './asse
 import { matchSponsorTokens } from './sponsor-matching';
 import { generateThumbnail } from './thumbnail';
 import { generateVideoThumbnail } from './video-thumbnail';
+import { generateVideoHls } from './video-hls';
 
 // Single-asset processing bodies shared by the QStash job endpoints (app/api/jobs/*) and the
 // reconciliation sweep in app/api/cron/process-ingest-jobs — one copy of the actual tagging logic,
@@ -60,4 +61,14 @@ export async function processThumbnail(assetId: string, db: AppPrismaClient): Pr
 
   const thumbnailKey = await generateThumbnail(asset.objectKey);
   await db.asset.update({ where: { id: assetId }, data: { thumbnailKey, thumbnailStatus: 'done' } });
+}
+
+// Video-only — enqueued only for fileType.startsWith('video/') at ingest completion
+// (app/api/ingest/sessions/[id]/complete), so no fileType branch here like processThumbnail has.
+export async function processHls(assetId: string, db: AppPrismaClient): Promise<void> {
+  const asset = await db.asset.findUnique({ where: { id: assetId }, select: { objectKey: true } });
+  if (!asset) return; // asset was deleted since the job was enqueued — nothing to do
+
+  const { hlsKey } = await generateVideoHls(asset.objectKey);
+  await db.asset.update({ where: { id: assetId }, data: { hlsKey, hlsStatus: 'done' } });
 }

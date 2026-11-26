@@ -10,6 +10,7 @@ import IdentifyPlayersButton from './IdentifyPlayersButton';
 import EntityMultiSelect, { type EntityOption } from './EntityMultiSelect';
 import type { EditParamsState } from './PhotoEditor';
 import AssetSharePanel from './AssetSharePanel';
+import VideoPlayer from './VideoPlayer';
 
 // Pulls in react-easy-crop — code-split out of the initial bundle so every asset detail page
 // view (the most-visited admin page) doesn't pay for it unless "Edit and Download" is clicked.
@@ -77,6 +78,8 @@ type AssetProps = {
   isPublic: boolean;
   shareToken: string | null;
   expiresAt: string | null;
+  hlsKey: string | null;
+  hlsStatus: string;
 };
 
 function formatBytes(b: number) {
@@ -310,7 +313,11 @@ export default function AssetDetailClient({
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           <div className="asset-detail-media" style={{ position: 'relative' }}>
             {isVideo ? (
-              <video src={signedUrl} controls />
+              <VideoPlayer
+                src={signedUrl}
+                hlsSrc={asset.hlsStatus === 'done' && asset.hlsKey ? `/api/assets/${asset.id}/hls/master.m3u8` : null}
+                controls
+              />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={signedUrl} alt={asset.title || asset.objectKey} />

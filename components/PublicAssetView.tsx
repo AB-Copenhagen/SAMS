@@ -5,7 +5,7 @@ import type { PublicAsset } from '../lib/collections';
 import { buildShareCaption } from '../lib/social';
 import { DOWNLOAD_PRESETS, exportUrl, isImage, originalUrl } from '../lib/public-asset-share';
 
-export { DOWNLOAD_PRESETS, isImage, originalUrl, exportUrl, quickDownloadUrl, previewUrl } from '../lib/public-asset-share';
+export { DOWNLOAD_PRESETS, isImage, originalUrl, exportUrl, quickDownloadUrl, previewUrl, hlsUrl } from '../lib/public-asset-share';
 
 function useShareFilesCapable(): boolean {
   const [capable, setCapable] = useState(false);

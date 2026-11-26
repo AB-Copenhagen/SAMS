@@ -40,6 +40,13 @@ model Asset {
   thumbnailKey       String?
   thumbnailStatus    String      @default("pending")
   thumbnailAttempts  Int         @default(0)
+  hlsKey             String?
+  // "skipped" default: unlike thumbnailStatus, HLS only applies to new video uploads going
+  // forward (no backfill, see .dmx/jobs/gh-122/spec.md) — new video Asset rows are set to
+  // "pending" explicitly at creation, same as thumbnailStatus/faceTagStatus are for non-applicable
+  // file types.
+  hlsStatus          String      @default("skipped")
+  hlsAttempts        Int         @default(0)
   durationMs         Int?
   videoWidth         Int?
   videoHeight        Int?
@@ -182,6 +189,8 @@ model CronRun {
   thumbsSkipped      Int       @default(0)
   thumbsFailed       Int       @default(0)
   thumbsStillPending Int       @default(0)
+  hlsStillPending    Int       @default(0)
+  hlsSkipped         Int       @default(0)
   uploadsAborted     Int       @default(0)
 
   @@index([startedAt])

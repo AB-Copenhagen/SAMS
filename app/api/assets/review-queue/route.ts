@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       where,
       orderBy: { uploadedAt: 'asc' },
       take: limit,
-      select: { id: true, title: true, uploadedAt: true, manualTagsJson: true, fileType: true, thumbnailKey: true, thumbnailStatus: true, seasonId: true, collectionId: true, eventDate: true, exifJson: true },
+      select: { id: true, title: true, uploadedAt: true, manualTagsJson: true, fileType: true, thumbnailKey: true, thumbnailStatus: true, hlsStatus: true, seasonId: true, collectionId: true, eventDate: true, exifJson: true },
     }),
     prisma.asset.count({ where: REVIEWABLE_ASSET_WHERE }),
   ]);
@@ -63,6 +63,7 @@ export async function POST(request: Request) {
       fileType: a.fileType,
       thumbnailKey: a.thumbnailKey,
       thumbnailStatus: a.thumbnailStatus,
+      hlsStatus: a.hlsStatus,
       seasonId: a.seasonId,
       collectionId: a.collectionId,
       dateTaken: extractDateTaken(a.exifJson) ?? (a.eventDate ? a.eventDate.toISOString() : null),

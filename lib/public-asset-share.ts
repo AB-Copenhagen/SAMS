@@ -22,6 +22,13 @@ export function exportUrl(token: string, assetId: string, preset: string) {
   return `/api/share/${token}/assets/${assetId}/export?preset=${preset}`;
 }
 
+/** HLS master manifest, through app/api/share/[token]/assets/[assetId]/hls/[...path] — only call
+ * this once `asset.hlsStatus === 'done'`; pre-ticket videos (no backfill) and in-flight transcodes
+ * fall back to originalUrl. */
+export function hlsUrl(token: string, assetId: string) {
+  return `/api/share/${token}/assets/${assetId}/hls/master.m3u8`;
+}
+
 /**
  * Cached, redirect-based 1920px preview for inline display (the lightbox) — distinct from
  * exportUrl, which always live-renders and forces a download for the explicit "Download as…"

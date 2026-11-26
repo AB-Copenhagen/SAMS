@@ -31,6 +31,8 @@ export async function POST(request: Request) {
       await db.asset.update({ where: { id: assetId }, data: { faceTagStatus: 'failed' } });
     } else if (payload.url.endsWith('/api/jobs/generate-thumbnail')) {
       await db.asset.update({ where: { id: assetId }, data: { thumbnailStatus: 'failed' } });
+    } else if (payload.url.endsWith('/api/jobs/transcode-video')) {
+      await db.asset.update({ where: { id: assetId }, data: { hlsStatus: 'failed' } });
     }
     return NextResponse.json({ status: 'ok' });
   } finally {

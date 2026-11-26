@@ -53,7 +53,7 @@ export type AssetWithTags = Prisma.AssetGetPayload<{ include: typeof CONFIRMED_T
 const GALLERY_LIST_SELECT = {
   id: true, title: true, description: true, shareText: true,
   eventName: true, eventDate: true, location: true, category: true,
-  fileType: true, fileSize: true, thumbnailKey: true, thumbnailStatus: true,
+  fileType: true, fileSize: true, thumbnailKey: true, thumbnailStatus: true, hlsStatus: true,
   durationMs: true, videoWidth: true, videoHeight: true,
   uploadedAt: true, exifJson: true, rating: true,
   playerTags: {
@@ -284,6 +284,7 @@ export type PublicAsset = {
   fileSize: number;
   thumbnailKey: string | null;
   thumbnailStatus: string;
+  hlsStatus: string;
   eventDate: Date | null;
   eventName: string | null;
   location: string | null;
@@ -315,6 +316,7 @@ export function sanitizePublicAsset(asset: GalleryListAsset): PublicAsset {
     fileSize: asset.fileSize,
     thumbnailKey: asset.thumbnailKey,
     thumbnailStatus: asset.thumbnailStatus,
+    hlsStatus: asset.hlsStatus,
     eventDate: asset.eventDate,
     eventName: asset.eventName,
     location: asset.location,
