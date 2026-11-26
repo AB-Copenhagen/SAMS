@@ -2,6 +2,7 @@ import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import { Prisma, type Collection } from '@prisma/client';
 import { prisma } from './db';
 import { isShareUnlocked } from './share-auth';
+import { getPlaylistWithItems, type PlaylistWithItems } from './playlists';
 
 const SHARE_TOKEN_BYTES = 18; // ~24 base62 chars
 
@@ -426,8 +427,10 @@ export function collectionEmbeddable(collection: Pick<Collection, 'sharePassword
   return !collection.sharePasswordHash;
 }
 
+export type EmbedTargetType = 'asset' | 'collection' | 'playlist';
+
 export async function generateEmbedToken(
-  targetType: 'asset' | 'collection',
+  targetType: EmbedTargetType,
   targetId: string,
   createdBy: string,
 ): Promise<string> {
@@ -447,7 +450,7 @@ export async function revokeEmbedToken(token: string): Promise<void> {
  * member clicking "Generate" when a link already exists) doesn't silently proliferate rows.
  */
 export async function getOrCreateEmbedToken(
-  targetType: 'asset' | 'collection',
+  targetType: EmbedTargetType,
   targetId: string,
   createdBy: string,
 ): Promise<string> {
@@ -491,6 +494,7 @@ async function loadCollectionWithRules(collectionId: string): Promise<Collection
 export type EmbedTarget =
   | { kind: 'asset'; asset: AssetWithTags }
   | { kind: 'collection'; collection: CollectionWithRules }
+  | { kind: 'playlist'; playlist: PlaylistWithItems }
   | null;
 
 /**
@@ -498,6 +502,8 @@ export type EmbedTarget =
  * role for `/s/[token]`. Unlike resolveShareTarget there's no password-gate branch: a
  * password-protected collection is never embeddable at all (collectionEmbeddable is checked at
  * issuance, not here) — a collection target reaching this point is always directly renderable.
+ * A playlist target is likewise always renderable — its items are validated video-only at
+ * add-time (lib/playlists.ts's addPlaylistItem), nothing to re-check here.
  */
 export async function resolveEmbedTarget(token: string): Promise<EmbedTarget> {
   const embed = await resolveEmbedTokenRow(token);
@@ -506,6 +512,11 @@ export async function resolveEmbedTarget(token: string): Promise<EmbedTarget> {
   if (embed.targetType === 'asset') {
     const asset = await prisma.asset.findUnique({ where: { id: embed.targetId }, include: CONFIRMED_TAGS_INCLUDE });
     return asset ? { kind: 'asset', asset } : null;
+  }
+
+  if (embed.targetType === 'playlist') {
+    const playlist = await getPlaylistWithItems(embed.targetId);
+    return playlist ? { kind: 'playlist', playlist } : null;
   }
 
   const collection = await loadCollectionWithRules(embed.targetId);
@@ -529,6 +540,16 @@ export async function resolveEmbedAssetTarget(token: string, assetId: string): P
 
   if (embed.targetType === 'asset') {
     if (embed.targetId !== assetId) return null;
+    const asset = await prisma.asset.findUnique({ where: { id: assetId }, include: CONFIRMED_TAGS_INCLUDE });
+    return asset ? { kind: 'found', asset } : null;
+  }
+
+  if (embed.targetType === 'playlist') {
+    const membership = await prisma.playlistItem.findUnique({
+      where: { playlistId_assetId: { playlistId: embed.targetId, assetId } },
+      select: { id: true },
+    });
+    if (!membership) return null;
     const asset = await prisma.asset.findUnique({ where: { id: assetId }, include: CONFIRMED_TAGS_INCLUDE });
     return asset ? { kind: 'found', asset } : null;
   }

@@ -78,6 +78,23 @@ export const NAV_SECTIONS: NavSectionDef[] = [
           </Icon>
         ),
       },
+      {
+        href: '/playlists',
+        label: 'Playlists',
+        isActive: (p) => p.startsWith('/playlists'),
+        icon: (
+          <Icon>
+            <path d="M21 15V6" />
+            <path d="M18.5 18a2.5 2.5 0 1 0 2.5-2.5" />
+            <path d="M8 6h13" />
+            <path d="M8 12h13" />
+            <path d="M8 18h5" />
+            <path d="M3 6h.01" />
+            <path d="M3 12h.01" />
+            <path d="M3 18h.01" />
+          </Icon>
+        ),
+      },
     ],
   },
   {

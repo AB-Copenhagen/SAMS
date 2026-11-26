@@ -9,6 +9,7 @@ import { attachThumbnailUrls } from '../../../lib/thumbnail';
 import VideoPlayer from '../../../components/VideoPlayer';
 import EmbedGallery from '../../../components/EmbedGallery';
 import EmbedBridge from '../../../components/EmbedBridge';
+import EmbedPlaylistPlayer from '../../../components/EmbedPlaylistPlayer';
 
 // Chromeless by construction, not by an explicit opt-out: AppShell (the staff header/nav) is only
 // ever rendered where a page imports it directly (see app/media/[id]/page.tsx) — same reason
@@ -42,6 +43,17 @@ export default async function EmbedPage(props: { params: Promise<{ token: string
           />
         )}
       </div>
+    );
+  }
+
+  if (target.kind === 'playlist') {
+    const { playlist } = target;
+    if (playlist.items.length === 0) notFound(); // nothing to play — shouldn't normally happen, addPlaylistItem/resolveEmbedTarget don't filter an empty playlist out themselves
+    return (
+      <EmbedPlaylistPlayer
+        token={token}
+        items={playlist.items.map((i) => ({ id: i.asset.id, hlsStatus: i.asset.hlsStatus }))}
+      />
     );
   }
 
