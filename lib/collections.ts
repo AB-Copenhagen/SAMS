@@ -413,3 +413,124 @@ export async function resolveShareTarget(token: string, assetId: string): Promis
   const asset = await getAssetByShareToken(token);
   return asset && asset.id === assetId ? { kind: 'found', asset } : null;
 }
+
+// --- Embed tokens (gh-123) -------------------------------------------------------------------
+// A separate grant from Asset.shareToken/Collection.shareToken: independently issued, revoked,
+// and — unlike a share link — never subject to the target's own `expiresAt` (embeds are meant to
+// stay live once published on a 3rd-party page, per spec; expiry/revocation is EmbedToken's own
+// `revokedAt`, set once and checked here, not the share link's).
+
+/** A collection must not be password-gated to be embeddable — an iframe has no good UX for a
+ * mid-embed password prompt. Call before generating a token for a collection target. */
+export function collectionEmbeddable(collection: Pick<Collection, 'sharePasswordHash'>): boolean {
+  return !collection.sharePasswordHash;
+}
+
+export async function generateEmbedToken(
+  targetType: 'asset' | 'collection',
+  targetId: string,
+  createdBy: string,
+): Promise<string> {
+  const token = generateShareToken();
+  await prisma.embedToken.create({ data: { token, targetType, targetId, createdBy } });
+  return token;
+}
+
+export async function revokeEmbedToken(token: string): Promise<void> {
+  await prisma.embedToken.updateMany({ where: { token }, data: { revokedAt: new Date() } });
+}
+
+/**
+ * Reuses an already-active embed token for this exact target if one exists, minting a new one
+ * only if none does — shared by the self-serve issuance route (app/api/embed-tokens) and the
+ * oEmbed endpoint (app/api/oembed), so pasting the same share link into a CMS twice (or a staff
+ * member clicking "Generate" when a link already exists) doesn't silently proliferate rows.
+ */
+export async function getOrCreateEmbedToken(
+  targetType: 'asset' | 'collection',
+  targetId: string,
+  createdBy: string,
+): Promise<string> {
+  const existing = await prisma.embedToken.findFirst({
+    where: { targetType, targetId, revokedAt: null },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (existing) return existing.token;
+  return generateEmbedToken(targetType, targetId, createdBy);
+}
+
+/** Looks up a non-revoked EmbedToken row — shared by resolveEmbedTarget and
+ * resolveEmbedAssetTarget so both token-resolution paths treat "revoked" and "doesn't exist"
+ * identically (never a distinct state that would confirm a link once worked). */
+async function resolveEmbedTokenRow(token: string) {
+  const embed = await prisma.embedToken.findUnique({ where: { token } });
+  return embed && !embed.revokedAt ? embed : null;
+}
+
+/** Public, not-password-gated collection with its auto-include rules loaded — needed by both
+ * the gallery-grid resolution (resolveEmbedTarget) and the per-asset membership check
+ * (resolveEmbedAssetTarget), so both go through the same `CollectionWithRules` shape
+ * assetBelongsToCollection already expects. */
+async function getEmbeddableCollection(collectionId: string): Promise<CollectionWithRules | null> {
+  const collection = await prisma.collection.findUnique({
+    where: { id: collectionId },
+    include: { playerRules: true, sponsorRules: true },
+  });
+  return collection && collection.isPublic ? collection : null;
+}
+
+export type EmbedTarget =
+  | { kind: 'asset'; asset: AssetWithTags }
+  | { kind: 'collection'; collection: CollectionWithRules }
+  | null;
+
+/**
+ * Single entry point for resolving a public `/embed/[token]` URL — mirrors resolveShareTarget's
+ * role for `/s/[token]`. Unlike resolveShareTarget there's no password-gate branch: a
+ * password-protected collection is never embeddable at all (collectionEmbeddable is checked at
+ * issuance, not here) — a collection target reaching this point is always directly renderable.
+ */
+export async function resolveEmbedTarget(token: string): Promise<EmbedTarget> {
+  const embed = await resolveEmbedTokenRow(token);
+  if (!embed) return null;
+
+  if (embed.targetType === 'asset') {
+    const asset = await prisma.asset.findUnique({ where: { id: embed.targetId }, include: CONFIRMED_TAGS_INCLUDE });
+    return asset && asset.isPublic ? { kind: 'asset', asset } : null;
+  }
+
+  const collection = await getEmbeddableCollection(embed.targetId);
+  return collection ? { kind: 'collection', collection } : null;
+}
+
+export type EmbedAssetTarget = { kind: 'found'; asset: AssetWithTags } | null;
+
+/**
+ * Single entry point for resolving one asset within an `/embed/[token]` context (the embed's
+ * asset-serving proxy routes) — mirrors resolveShareTarget's dual collection/direct-asset
+ * resolution, sourced from an EmbedToken instead of a share token. For a collection-targeted
+ * embed, `assetId` must actually belong to that collection (reuses the same
+ * assetBelongsToCollection check and applyShareFilters gate resolveShareTarget uses) — this is
+ * what stops an embed from being used to fetch an arbitrary asset outside its collection by
+ * guessing an id.
+ */
+export async function resolveEmbedAssetTarget(token: string, assetId: string): Promise<EmbedAssetTarget> {
+  const embed = await resolveEmbedTokenRow(token);
+  if (!embed) return null;
+
+  if (embed.targetType === 'asset') {
+    if (embed.targetId !== assetId) return null;
+    const asset = await prisma.asset.findUnique({ where: { id: assetId }, include: CONFIRMED_TAGS_INCLUDE });
+    return asset && asset.isPublic ? { kind: 'found', asset } : null;
+  }
+
+  const collection = await getEmbeddableCollection(embed.targetId);
+  if (!collection) return null;
+
+  const asset = await prisma.asset.findUnique({ where: { id: assetId }, include: CONFIRMED_TAGS_INCLUDE });
+  if (!asset) return null;
+  if (!(await assetBelongsToCollection(asset, collection))) return null;
+  if (applyShareFilters([asset], collection).length === 0) return null;
+
+  return { kind: 'found', asset };
+}

@@ -11,6 +11,24 @@ const nextConfig = {
   // sharp's JS wrapper breaks the relative-path lookup its native binding uses to find the
   // co-located libvips shared library at runtime (ERR_DLOPEN_FAILED on Vercel's Linux runtime).
   serverExternalPackages: ['exifr', 'sharp'],
+  // gh-123: restrict who may frame /embed/[token] via CSP frame-ancestors — not X-Frame-Options,
+  // which has no working per-domain allowlist (see that header's own docs: "superseded by CSP's
+  // frame-ancestors"). This repo has no middleware.ts (security-checklist skill), so this has to
+  // be static header config here, not a middleware gate. Single launch destination per spec
+  // (www.ab.dk); env-var-driven so a non-production environment can allowlist a different origin
+  // for testing without a code change, not because multiple destinations are supported yet — a
+  // domain-management UI for more than one is explicitly out of scope for this ticket.
+  async headers() {
+    const allowedEmbedOrigin = process.env.EMBED_ALLOWED_ORIGIN ?? 'https://www.ab.dk';
+    return [
+      {
+        source: '/embed/:token',
+        headers: [
+          { key: 'Content-Security-Policy', value: `frame-ancestors ${allowedEmbedOrigin}` },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

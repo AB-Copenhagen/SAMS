@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import { applyShareFilters, getPublicCollectionByToken, resolveCollectionGalleryAssets, sanitizePublicAsset } from '../../../lib/collections';
@@ -6,6 +7,20 @@ import { logShareEvent } from '../../../lib/share-analytics';
 import { attachThumbnailUrls } from '../../../lib/thumbnail';
 import SharePasswordForm from '../../../components/SharePasswordForm';
 import PublicAssetGallery from '../../../components/PublicAssetGallery';
+
+// oEmbed discovery (gh-123) — a CMS that supports oEmbed auto-embeds a pasted share link by
+// first fetching this. Not gated on whether the link actually resolves (password/expiry/404):
+// app/api/oembed itself 404s for anything invalid, same as visiting the share link would.
+export async function generateMetadata(props: { params: Promise<{ token: string }> }): Promise<Metadata> {
+  const { token } = await props.params;
+  const appBaseUrl = (process.env.PUBLIC_SHARE_BASE_URL ?? process.env.APP_BASE_URL ?? '').replace(/\/$/, '');
+  const shareUrl = `${appBaseUrl}/s/${token}`;
+  return {
+    alternates: {
+      types: { 'application/json+oembed': `/api/oembed?url=${encodeURIComponent(shareUrl)}` },
+    },
+  };
+}
 
 export default async function SharedCollectionPage(props: { params: Promise<{ token: string }> }) {
   const { token } = await props.params;

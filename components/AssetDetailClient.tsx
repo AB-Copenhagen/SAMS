@@ -10,6 +10,7 @@ import IdentifyPlayersButton from './IdentifyPlayersButton';
 import EntityMultiSelect, { type EntityOption } from './EntityMultiSelect';
 import type { EditParamsState } from './PhotoEditor';
 import AssetSharePanel from './AssetSharePanel';
+import EmbedPanel from './EmbedPanel';
 import VideoPlayer from './VideoPlayer';
 
 // Pulls in react-easy-crop — code-split out of the initial bundle so every asset detail page
@@ -166,6 +167,7 @@ export default function AssetDetailClient({
   initialPlayerIds = [],
   initialSponsorIds = [],
   initialCustomCollectionIds = [],
+  embedTokens = [],
 }: {
   asset: AssetProps;
   nav?: AssetNav | null;
@@ -179,6 +181,7 @@ export default function AssetDetailClient({
   initialPlayerIds?: string[];
   initialSponsorIds?: string[];
   initialCustomCollectionIds?: string[];
+  embedTokens?: { token: string; createdAt: string; createdBy: string }[];
 }) {
   const router = useRouter();
 
@@ -578,6 +581,8 @@ export default function AssetDetailClient({
         </div>
 
         <AssetSharePanel id={asset.id} isPublic={asset.isPublic} shareToken={asset.shareToken} appBaseUrl={appBaseUrl} expiresAt={asset.expiresAt} />
+
+        <EmbedPanel targetType="asset" targetId={asset.id} appBaseUrl={appBaseUrl} initialTokens={embedTokens} />
 
         <div className="card">
           <div className="card-header" style={{ marginBottom: 12 }}>Detected tags</div>

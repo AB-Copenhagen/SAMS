@@ -9,6 +9,7 @@ import { attachThumbnailUrls } from '../../../lib/thumbnail';
 import AppShell from '../../../components/AppShell';
 import CollectionEditForm from '../../../components/CollectionEditForm';
 import CollectionSharePanel from '../../../components/CollectionSharePanel';
+import EmbedPanel from '../../../components/EmbedPanel';
 import CollectionRulesEditor from '../../../components/CollectionRulesEditor';
 import CollectionAssetPicker from '../../../components/CollectionAssetPicker';
 import AssetGallery from '../../../components/AssetGallery';
@@ -49,6 +50,12 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
   const seasons = isCustom ? [] : await getCachedSeasons();
 
   const appBaseUrl = (process.env.PUBLIC_SHARE_BASE_URL ?? process.env.APP_BASE_URL ?? '').replace(/\/$/, '');
+
+  const embedTokens = await prisma.embedToken.findMany({
+    where: { targetType: 'collection', targetId: collection.id, revokedAt: null },
+    orderBy: { createdAt: 'desc' },
+    select: { token: true, createdAt: true, createdBy: true },
+  });
 
   return (
     <AppShell user={user} wide>
@@ -113,6 +120,14 @@ export default async function CollectionPage(props: { params: Promise<{ id: stri
           shareMinRating={collection.shareMinRating}
           shareDateRangeDays={collection.shareDateRangeDays}
           expiresAt={collection.expiresAt}
+        />
+
+        <EmbedPanel
+          targetType="collection"
+          targetId={collection.id}
+          appBaseUrl={appBaseUrl}
+          initialTokens={embedTokens.map((t) => ({ token: t.token, createdAt: t.createdAt.toISOString(), createdBy: t.createdBy }))}
+          passwordProtected={Boolean(collection.sharePasswordHash)}
         />
         {isCustom && (
           <>

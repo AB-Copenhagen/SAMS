@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import { resolveShareTarget, sanitizePublicAsset } from '../../../../lib/collections';
@@ -6,6 +7,19 @@ import { logShareEvent } from '../../../../lib/share-analytics';
 import SharePasswordForm from '../../../../components/SharePasswordForm';
 import { SaveShareMenu } from '../../../../components/PublicAssetView';
 import VideoPlayer from '../../../../components/VideoPlayer';
+
+// oEmbed discovery (gh-123) — see app/s/[token]/page.tsx's generateMetadata for why this isn't
+// gated on whether the link actually resolves.
+export async function generateMetadata(props: { params: Promise<{ token: string; assetId: string }> }): Promise<Metadata> {
+  const { token, assetId } = await props.params;
+  const appBaseUrl = (process.env.PUBLIC_SHARE_BASE_URL ?? process.env.APP_BASE_URL ?? '').replace(/\/$/, '');
+  const shareUrl = `${appBaseUrl}/s/${token}/${assetId}`;
+  return {
+    alternates: {
+      types: { 'application/json+oembed': `/api/oembed?url=${encodeURIComponent(shareUrl)}` },
+    },
+  };
+}
 
 export default async function SharedAssetPage(props: { params: Promise<{ token: string; assetId: string }> }) {
   const { token, assetId } = await props.params;

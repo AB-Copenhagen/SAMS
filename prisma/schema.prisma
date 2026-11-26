@@ -158,6 +158,22 @@ model IngestJob {
   @@index([deviceId, updatedAt])
 }
 
+// Distinct from Asset.shareToken/Collection.shareToken (gh-123): a share link is one-per-asset
+// (or per-collection) and single-purpose (direct visit); an embed is a separate, independently
+// revocable grant — a video/collection can have an active share link and an active embed at the
+// same time, or several outstanding embeds, none of which share the share link's expiresAt.
+model EmbedToken {
+  id         String    @id @default(cuid())
+  token      String    @unique
+  targetType String    // "asset" | "collection"
+  targetId   String
+  createdBy  String
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
+
+  @@index([targetType, targetId])
+}
+
 model ShareEvent {
   id           String   @id @default(cuid())
   kind         String   // "view" | "download"
