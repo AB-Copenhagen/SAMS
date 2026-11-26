@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import type { PublicAsset } from '../lib/collections';
-import { SaveShareMenu, isImage, originalUrl, previewUrl, quickDownloadUrl } from './PublicAssetView';
+import { SaveShareMenu, isImage, originalUrl, previewUrl, quickDownloadUrl, hlsUrl } from './PublicAssetView';
+import VideoPlayer from './VideoPlayer';
 
 interface Props {
   token: string;
@@ -307,9 +308,10 @@ export default function PublicAssetGallery({ token, assets }: Props) {
                   )}
                 </>
               ) : (
-                <video
+                <VideoPlayer
                   key={lightboxAsset.id}
                   src={originalUrl(token, lightboxAsset.id)}
+                  hlsSrc={lightboxAsset.hlsStatus === 'done' ? hlsUrl(token, lightboxAsset.id) : null}
                   controls
                   draggable={false}
                   onDragStart={(e) => e.preventDefault()}

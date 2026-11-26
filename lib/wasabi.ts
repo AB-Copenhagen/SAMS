@@ -225,6 +225,22 @@ export async function fetchObjectJson<T = unknown>(key: string): Promise<T> {
   return JSON.parse(text) as T;
 }
 
+// For HLS manifests (gh-122): unlike a presigned redirect, this hands back the manifest body
+// itself, so the client's relative m3u8 references (e.g. "v0/playlist.m3u8") resolve against the
+// *app route's own URL*, not a Wasabi URL whose query-string signature only covers the one object
+// that was requested. Segments (.ts) don't have this problem — they're leaf references with
+// nothing nested inside them — so those are still served as presigned redirects.
+export async function fetchObjectText(key: string): Promise<string | null> {
+  const { client, bucket } = getClient();
+  try {
+    const res = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+    return (await res.Body?.transformToString('utf-8')) ?? '';
+  } catch (err) {
+    if (err instanceof Error && err.name === 'NoSuchKey') return null;
+    throw err;
+  }
+}
+
 export async function hashObjectSha256(key: string): Promise<{ hex: string; size: number; contentType?: string }> {
   const { client, bucket } = getClient();
   const res = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));

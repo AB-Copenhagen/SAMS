@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, type CSSProperties } from 'react';
 import EntityMultiSelect, { type EntityOption } from './EntityMultiSelect';
 import TagInput from './TagInput';
+import VideoPlayer from './VideoPlayer';
 import { useSwipe } from '../lib/useSwipe';
 
 type Season     = { id: string; name: string };
@@ -21,6 +22,7 @@ type QueueItem = {
   fileType: string;
   thumbnailKey: string | null;
   thumbnailStatus: string;
+  hlsStatus: string;
   playerIds: string[];
   sponsorIds: string[];
   tags: string[];
@@ -35,6 +37,7 @@ type RawQueueAsset = {
   fileType: string;
   thumbnailKey: string | null;
   thumbnailStatus: string;
+  hlsStatus: string;
   manualTagsJson: string | null;
   playerIds: string[];
   sponsorIds: string[];
@@ -61,6 +64,7 @@ function toQueueItem(a: RawQueueAsset): QueueItem {
     fileType: a.fileType,
     thumbnailKey: a.thumbnailKey,
     thumbnailStatus: a.thumbnailStatus,
+    hlsStatus: a.hlsStatus,
     playerIds: a.playerIds,
     sponsorIds: a.sponsorIds,
     tags,
@@ -355,9 +359,10 @@ export default function ReviewWorkflowClient({
       <div className="review-layout">
         <div className="card" style={{ padding: 0, overflow: 'hidden', position: 'relative' }} {...swipeHandlers}>
           {showVideoElement ? (
-            <video
+            <VideoPlayer
               key={current.id}
               src={`/api/assets/${current.id}/download`}
+              hlsSrc={current.hlsStatus === 'done' ? `/api/assets/${current.id}/hls/master.m3u8` : null}
               controls
               autoPlay={playingVideo}
               style={{ width: '100%', display: 'block', maxHeight: 640, background: '#0d0f1c' }}

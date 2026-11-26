@@ -98,9 +98,23 @@ async function runReconciliation(db: ReturnType<typeof createPrismaClient>, raw:
       .catch((err) => console.error('[cron/process-ingest-jobs] failed to re-enqueue generate-thumbnail for', row.id, err));
   }
 
-  if (facesSkipped > 0 || thumbsSkipped > 0) {
+  // hlsStatus defaults to 'skipped' (not 'pending' like thumbnailStatus) — only video assets
+  // created after gh-122 ever flip to 'pending', so this sweep never touches pre-ticket videos.
+  const staleHlsRows = await raw.execute({
+    sql: 'SELECT id FROM "Asset" WHERE hlsStatus = ? AND uploadedAt < ? LIMIT ?',
+    args: ['pending', staleCutoff, RECONCILE_BATCH_SIZE],
+  });
+  let hlsReenqueued = 0;
+  let hlsSkipped = 0;
+  for (const row of staleHlsRows.rows) {
+    await publishJob('/api/jobs/transcode-video', { assetId: String(row.id) })
+      .then((published) => (published ? hlsReenqueued++ : hlsSkipped++))
+      .catch((err) => console.error('[cron/process-ingest-jobs] failed to re-enqueue transcode-video for', row.id, err));
+  }
+
+  if (facesSkipped > 0 || thumbsSkipped > 0 || hlsSkipped > 0) {
     console.error(
-      `[cron/process-ingest-jobs] QSTASH_TOKEN not configured — skipped enqueueing ${facesSkipped} tag-asset and ${thumbsSkipped} generate-thumbnail job(s) that should have been reenqueued`
+      `[cron/process-ingest-jobs] QSTASH_TOKEN not configured — skipped enqueueing ${facesSkipped} tag-asset, ${thumbsSkipped} generate-thumbnail, and ${hlsSkipped} transcode-video job(s) that should have been reenqueued`
     );
   }
 
@@ -133,9 +147,11 @@ async function runReconciliation(db: ReturnType<typeof createPrismaClient>, raw:
       facesSkipped,
       thumbsStillPending: thumbsReenqueued,
       thumbsSkipped,
+      hlsStillPending: hlsReenqueued,
+      hlsSkipped,
       uploadsAborted: aborted,
     },
   });
 
-  return NextResponse.json({ facesReenqueued, facesSkipped, thumbsReenqueued, thumbsSkipped, aborted });
+  return NextResponse.json({ facesReenqueued, facesSkipped, thumbsReenqueued, thumbsSkipped, hlsReenqueued, hlsSkipped, aborted });
 }

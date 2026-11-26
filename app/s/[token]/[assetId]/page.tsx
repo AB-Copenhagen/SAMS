@@ -1,10 +1,11 @@
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import { resolveShareTarget, sanitizePublicAsset } from '../../../../lib/collections';
-import { exportUrl, isImage, originalUrl } from '../../../../lib/public-asset-share';
+import { exportUrl, isImage, originalUrl, hlsUrl } from '../../../../lib/public-asset-share';
 import { logShareEvent } from '../../../../lib/share-analytics';
 import SharePasswordForm from '../../../../components/SharePasswordForm';
 import { SaveShareMenu } from '../../../../components/PublicAssetView';
+import VideoPlayer from '../../../../components/VideoPlayer';
 
 export default async function SharedAssetPage(props: { params: Promise<{ token: string; assetId: string }> }) {
   const { token, assetId } = await props.params;
@@ -38,7 +39,11 @@ export default async function SharedAssetPage(props: { params: Promise<{ token: 
           // eslint-disable-next-line @next/next/no-img-element
           <img src={exportUrl(token, asset.id, 'web')} alt={asset.title || asset.eventName || 'Photo'} />
         ) : (
-          <video src={originalUrl(token, asset.id)} controls />
+          <VideoPlayer
+            src={originalUrl(token, asset.id)}
+            hlsSrc={asset.hlsStatus === 'done' ? hlsUrl(token, asset.id) : null}
+            controls
+          />
         )}
       </div>
     </div>

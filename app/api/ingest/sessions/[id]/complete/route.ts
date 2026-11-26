@@ -84,6 +84,9 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         exifJson: exifJson ?? null,
         faceTagStatus: job.fileType.startsWith('image/') ? 'pending' : 'skipped',
         thumbnailStatus: (job.fileType.startsWith('image/') || job.fileType.startsWith('video/')) ? 'pending' : 'skipped',
+        // No backfill for HLS (see .dmx/jobs/gh-122/spec.md) — the column default is 'skipped',
+        // not 'pending', so this only ever flips to 'pending' for assets created from here on.
+        hlsStatus: job.fileType.startsWith('video/') ? 'pending' : 'skipped',
       },
     });
   } catch (err) {
@@ -105,7 +108,8 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
   // job. publishJob no-ops (with a warning) if QSTASH_TOKEN isn't configured — the reconciliation
   // sweep in the ingest cron picks up anything that doesn't get enqueued here.
   // Face/sponsor tagging is image-only (Rekognition's image APIs can't process video); thumbnail
-  // generation covers both, since lib/video-thumbnail.ts handles the video branch.
+  // generation covers both, since lib/video-thumbnail.ts handles the video branch. HLS transcoding
+  // is video-only (gh-122) and never runs for pre-existing videos — there's no backfill.
   const isImage = job.fileType.startsWith('image/');
   const isVideo = job.fileType.startsWith('video/');
   const enqueueJobs: Promise<unknown>[] = [];
@@ -114,6 +118,9 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
   }
   if (isImage || isVideo) {
     enqueueJobs.push(publishJob('/api/jobs/generate-thumbnail', { assetId: asset.id }).catch((err) => console.error('[ingest/complete] failed to enqueue generate-thumbnail job:', err)));
+  }
+  if (isVideo) {
+    enqueueJobs.push(publishJob('/api/jobs/transcode-video', { assetId: asset.id }).catch((err) => console.error('[ingest/complete] failed to enqueue transcode-video job:', err)));
   }
   await Promise.all(enqueueJobs);
 
