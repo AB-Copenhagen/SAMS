@@ -37,18 +37,23 @@ export default function VideoPlayer({
     const video = videoRef.current;
     if (!video || !hlsSrc) return; // no manifest yet — plain `src` attribute below already covers this
 
-    if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Safari/iOS play HLS natively and don't ship hls.js's MediaSource-based support at all.
-      video.src = hlsSrc;
-      return;
-    }
     if (Hls.isSupported()) {
       const hls = new Hls();
       hls.loadSource(hlsSrc);
       hls.attachMedia(video);
       return () => hls.destroy();
     }
-    // Neither native HLS nor hls.js (MediaSource) supported — leave the `src` attribute alone.
+    // `canPlayType` is checked only as a fallback, after Hls.isSupported() — it's an unreliable
+    // signal on its own. It's meant to catch genuine native-HLS-only environments (older
+    // iOS/Safari without MediaSource support), but some Chromium versions report "maybe" for
+    // this MIME type despite having no real HLS demuxer, which fed a raw .m3u8 text manifest
+    // into <video src> as if it were playable media — 0:00 duration, nothing decodes (confirmed
+    // live on gh-122, Chrome 158).
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = hlsSrc;
+      return;
+    }
+    // Neither — leave the `src` attribute (plain fallback) alone.
   }, [hlsSrc]);
 
   return (

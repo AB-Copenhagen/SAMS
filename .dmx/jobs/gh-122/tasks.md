@@ -3,7 +3,7 @@
 **Spec:** `.dmx/jobs/gh-122/spec.md`
 **Branch:** feature-gh-122-add-first-class-video-support
 **Ticket:** [gh-122](https://github.com/AB-Copenhagen/SAMS/issues/122)
-**Status:** Implementation complete (Phases 1–5) — two Phase 5 items need a live deploy to actually verify, see that phase
+**Status:** Merged (#124), but live verification found adaptive playback broken in Chrome — fix on `fix-gh-122-videoplayer-hls-detection-order`, pending re-verification
 
 ---
 
@@ -39,8 +39,8 @@
 
 ## Phase 5: Validation & Docs
 
-- [ ] **Needs a live deploy — not done.** Upload a real video, confirm `hlsStatus` progresses `pending` → `done`, and HLS manifest/segments land in Wasabi under the `hls/` prefix. No sandbox here has `VIDEO_SANDBOX_SNAPSHOT_ID`/live Wasabi/QStash credentials to actually run `generateVideoHls` end-to-end.
-- [ ] **Needs a live deploy — not done.** Manually verify adaptive bitrate switching works in the shared player across all four render sites (staff asset detail, review queue, public share gallery lightbox, public share single-asset page).
+- [x] Upload a real video, confirm `hlsStatus` progresses `pending` → `done`, and HLS manifest/segments land in Wasabi under the `hls/` prefix. Verified on production post-merge: `https://media.ab.dk/media/cmwwzw784000008jqcuwrbiuq` (`#122`'s sample video) — confirmed via `document.querySelector('video')?.currentSrc` in the browser, which returned `https://media.ab.dk/api/assets/cmwwzw784000008jqcuwrbiuq/hls/master.m3u8`, i.e. `hlsStatus` reached `'done'` and the proxy route is serving the real manifest.
+- [ ] **Reopened.** Adaptive playback did NOT actually work despite the checks above looking green: `currentSrc` matched the manifest URL, but the video showed `0:00` and nothing played. Root cause (see `activeContext.md`): `VideoPlayer` checked `canPlayType('application/vnd.apple.mpegurl')` before `Hls.isSupported()`, and Chrome 158 returns `'maybe'` for that MIME type with no real HLS demuxer behind it — so the browser got a raw `.m3u8` text file as `<video src>` instead of `hls.js` attaching via MediaSource. Fixed on `fix-gh-122-videoplayer-hls-detection-order` (branched from `main` post-merge); re-verify against the same production asset once that fix ships.
 - [x] Confirm pre-ticket videos (no `hlsKey`) still play via the presigned-URL fallback — no backfill in this ticket. Verified statically: traced `hlsStatus === 'done'` gating (and the `hlsSrc` fallback-to-`null`) at all four call sites, plus `VideoPlayer`'s effect, which only touches the `<video>` element when `hlsSrc` is truthy and otherwise leaves the plain `src` attribute (today's behavior) alone. The admin migration's `DEFAULT 'skipped'` means every pre-ticket row (image or video) reads `hlsStatus !== 'done'` once the column exists.
 - [x] Confirm the public share view still serves HLS segments/manifests through the same signed-URL/token boundary as the original file — no new unauthenticated access path. Verified statically: `app/api/share/[token]/assets/[assetId]/hls/[...path]` calls the same `resolveShareTarget(token, assetId)` gate (404 / password-required / found) as the existing `download`/`preview` routes, and the path-segment allowlist in `resolveHlsObjectKey` rules out escaping the asset's own `hls/{objectKey}/` prefix.
 - [x] Update `.dmx/techContext.md` with the new HLS pipeline, job route, and the one-shot admin schema endpoint
