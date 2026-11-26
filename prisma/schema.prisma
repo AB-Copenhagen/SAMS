@@ -65,6 +65,7 @@ model Asset {
   playerTags         AssetPlayerTag[]
   sponsorTags        AssetSponsorTag[]
   collectionMemberships CollectionAsset[]
+  playlistMemberships   PlaylistItem[]
 
   @@index([uploadedAt])
   @@index([seasonId, uploadedAt])
@@ -165,13 +166,39 @@ model IngestJob {
 model EmbedToken {
   id         String    @id @default(cuid())
   token      String    @unique
-  targetType String    // "asset" | "collection"
+  targetType String    // "asset" | "collection" | "playlist"
   targetId   String
   createdBy  String
   createdAt  DateTime  @default(now())
   revokedAt  DateTime?
 
   @@index([targetType, targetId])
+}
+
+// Playlist (gh-128): a named, staff-curated, manually ordered set of video assets, used to
+// generate a sequential auto-advancing playback embed — independent of Collection (no seeding
+// from, or coupling to, a collection's membership; see .dmx/jobs/gh-128/spec.md).
+model Playlist {
+  id        String         @id @default(cuid())
+  name      String
+  createdBy String
+  createdAt DateTime       @default(now())
+  items     PlaylistItem[]
+}
+
+model PlaylistItem {
+  id         String   @id @default(cuid())
+  playlistId String
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  assetId    String
+  asset      Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  position   Int
+  addedAt    DateTime @default(now())
+  addedBy    String?
+
+  @@unique([playlistId, assetId])
+  @@index([assetId])
+  @@index([playlistId, position])
 }
 
 model ShareEvent {

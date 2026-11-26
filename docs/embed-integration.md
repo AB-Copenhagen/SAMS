@@ -2,20 +2,21 @@
 
 This document is for a developer (or coding agent) implementing embed support on a
 **consuming** site — e.g. www.ab.dk's CMS — not for staff using the DAM itself.
-Source: `AB-Copenhagen/SAMS` (media.ab.dk), gh-123.
+Source: `AB-Copenhagen/SAMS` (media.ab.dk), gh-123 (video/image/collection embeds), gh-128
+(playlist embeds).
 
 It covers:
 
-- What gets embedded (video, image, or a whole collection/gallery) and how
+- What gets embedded (video, image, collection/gallery, or playlist) and how
 - The two ways to get embed code: oEmbed auto-discovery, or a direct `<iframe>` snippet
 - The `player.js` widget (responsive resizing, play/pause control)
 - Domain allowlisting, and what "it doesn't show up" usually means
 
 ## How it works, in one paragraph
 
-A staff member in the DAM generates an **embed link** for a video, image, or collection.
-That link is a chromeless page at `https://media.ab.dk/embed/{token}`. Any page that embeds
-it in an `<iframe>` — on an **allowlisted domain only** — will render it with no DAM
+A staff member in the DAM generates an **embed link** for a video, image, collection, or
+playlist. That link is a chromeless page at `https://media.ab.dk/embed/{token}`. Any page that
+embeds it in an `<iframe>` — on an **allowlisted domain only** — will render it with no DAM
 navigation/header, and (if `player.js` is included) will auto-resize to fit its content and
 expose a small JS API.
 
@@ -74,6 +75,10 @@ If you're implementing the oEmbed client yourself:
 Notes:
 - `url` must be an actual DAM share link (`/s/{token}` or `/s/{token}/{assetId}`) on
   `media.ab.dk` — you can't resolve an arbitrary URL through this endpoint.
+- **Playlists have no oEmbed path.** A playlist has no public share-link equivalent (it's a
+  purely internal DAM concept), so there's nothing for `url` to point at. A playlist embed is
+  always obtained as a direct embed code (Option B) from the DAM's Playlists UI — there's no
+  "paste a link" shortcut for it today.
 - The endpoint mints an embed token automatically the first time it's called for a
   given share link (reusing the same one on repeat calls) — a staff member does not
   need to have pre-generated an embed link for oEmbed to work, as long as the share
@@ -127,8 +132,10 @@ SamsEmbed.onResize(function (iframe, height) {
 });
 ```
 
-This only does anything meaningful for a **video** embed (play/pause control). For
-an image or collection embed, `play`/`pause` are no-ops.
+This only does anything meaningful for a **video** or **playlist** embed (play/pause
+control). For an image or collection embed, `play`/`pause` are no-ops. For a playlist,
+`play`/`pause` always control whichever item is currently playing — there's no "jump to
+track N" or "skip" call; playback advances on its own as each video ends.
 
 ## 4. What each embed type looks like
 
@@ -137,8 +144,9 @@ an image or collection embed, `play`/`pause` are no-ops.
 | A single video | The video player, no DAM chrome, adaptive playback |
 | A single image | The image, full width |
 | A collection | A thumbnail grid; clicking a thumbnail expands it in place (image or video) |
+| A playlist | A video player that plays each video in the playlist's set order, automatically advancing to the next one when the current one ends. Video-only — a playlist can't contain images. |
 
-All three resize automatically via `player.js` — you don't need different markup per type.
+All four resize automatically via `player.js` — you don't need different markup per type.
 
 ## 5. Troubleshooting
 
@@ -150,14 +158,16 @@ All three resize automatically via `player.js` — you don't need different mark
 | `/api/oembed` returns 400 | Missing `url` query parameter. |
 | Video embed shows but never plays | Check your own browser console for errors first — this is more likely a client-side issue than something on the DAM side; report it to SAMS maintainers with the console output if it persists. |
 | Embed renders but never resizes / stays a fixed tiny height | `player.js` isn't included on the page, or the `data-sams-embed` attribute is missing from the `<iframe>`. |
+| Playlist embed plays one video and stops | Expected if that was the last item. Otherwise report it — auto-advance is supposed to continue through every item in order. |
 
 ## Reference
 
-- Embed page: `https://media.ab.dk/embed/{token}`
-- oEmbed endpoint: `https://media.ab.dk/api/oembed?url={share-url}`
+- Embed page: `https://media.ab.dk/embed/{token}` (asset, collection, or playlist — same URL shape for all three)
+- oEmbed endpoint: `https://media.ab.dk/api/oembed?url={share-url}` (asset/collection only — see "Playlists have no oEmbed path" above)
 - Widget script: `https://media.ab.dk/embed/player.js`
-- Share link shapes this all starts from: `https://media.ab.dk/s/{token}` (collection), `https://media.ab.dk/s/{token}/{assetId}` (single asset)
+- Share link shapes this all starts from: `https://media.ab.dk/s/{token}` (collection), `https://media.ab.dk/s/{token}/{assetId}` (single asset) — a playlist has no equivalent; its embed token only ever comes from the DAM's own Playlists UI
 
 Source implementation (for anyone touching the DAM side of this): `AB-Copenhagen/SAMS`,
-`app/embed/`, `app/api/embed/`, `app/api/oembed/`, `public/embed/player.js`, and
-`lib/collections.ts`'s `EmbedToken`-related functions.
+`app/embed/`, `app/api/embed/`, `app/api/oembed/`, `public/embed/player.js`,
+`lib/collections.ts`'s `EmbedToken`-related functions, and (playlists specifically)
+`lib/playlists.ts`, `app/playlists/`, `app/api/playlists/`.

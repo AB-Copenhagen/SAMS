@@ -18,6 +18,7 @@ export default function VideoPlayer({
   autoPlay,
   draggable,
   onDragStart,
+  onEnded,
   className,
   style,
 }: {
@@ -28,6 +29,8 @@ export default function VideoPlayer({
   autoPlay?: boolean;
   draggable?: boolean;
   onDragStart?: (e: DragEvent<HTMLVideoElement>) => void;
+  /** gh-128: playlist embed playback advances to the next item on this. */
+  onEnded?: () => void;
   className?: string;
   style?: CSSProperties;
 }) {
@@ -65,6 +68,7 @@ export default function VideoPlayer({
       autoPlay={autoPlay}
       draggable={draggable}
       onDragStart={onDragStart}
+      onEnded={onEnded}
       className={className}
       style={style}
     />

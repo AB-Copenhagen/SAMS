@@ -10,12 +10,13 @@ interface EmbedTokenInfo {
 }
 
 interface Props {
-  targetType: 'asset' | 'collection';
+  targetType: 'asset' | 'collection' | 'playlist';
   targetId: string;
   appBaseUrl: string;
   initialTokens: EmbedTokenInfo[];
   /** Collections only — a password-gated collection can't be embedded (no good UX for a mid-embed
-   * password prompt), per spec. Always false for an asset target. */
+   * password prompt), per spec. Always false for an asset or playlist target (neither has a
+   * password concept). */
   passwordProtected?: boolean;
 }
 
