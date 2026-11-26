@@ -467,16 +467,25 @@ async function resolveEmbedTokenRow(token: string) {
   return embed && !embed.revokedAt ? embed : null;
 }
 
-/** Public, not-password-gated collection with its auto-include rules loaded — needed by both
- * the gallery-grid resolution (resolveEmbedTarget) and the per-asset membership check
- * (resolveEmbedAssetTarget), so both go through the same `CollectionWithRules` shape
- * assetBelongsToCollection already expects. */
-async function getEmbeddableCollection(collectionId: string): Promise<CollectionWithRules | null> {
-  const collection = await prisma.collection.findUnique({
+/** Collection with its auto-include rules loaded — needed by both the gallery-grid resolution
+ * (resolveEmbedTarget) and the per-asset membership check (resolveEmbedAssetTarget), so both go
+ * through the same `CollectionWithRules` shape assetBelongsToCollection already expects.
+ *
+ * Deliberately does NOT gate on `isPublic`/`sharePasswordHash` the way getPublicCollectionByToken
+ * does for share links — an EmbedToken is a separate, independent grant (see the comment above
+ * generateEmbedToken), and its own existence/revocation is the authorization, not whatever the
+ * collection's share-link toggle happens to be set to right now. `collectionEmbeddable` already
+ * blocks *issuing* a token for a password-protected collection; a later password change (or the
+ * share link being turned off) doesn't retroactively kill an embed already published elsewhere —
+ * explicitly revoking the embed token is the mechanism for that, matching the "permanent until
+ * revoked" behavior the spec calls for. (Found live: resolution originally also required
+ * `isPublic`, which 404ed every embed whose target didn't *also* have its share link enabled —
+ * a dependency never surfaced anywhere in the embed UI.) */
+async function loadCollectionWithRules(collectionId: string): Promise<CollectionWithRules | null> {
+  return prisma.collection.findUnique({
     where: { id: collectionId },
     include: { playerRules: true, sponsorRules: true },
   });
-  return collection && collection.isPublic ? collection : null;
 }
 
 export type EmbedTarget =
@@ -496,10 +505,10 @@ export async function resolveEmbedTarget(token: string): Promise<EmbedTarget> {
 
   if (embed.targetType === 'asset') {
     const asset = await prisma.asset.findUnique({ where: { id: embed.targetId }, include: CONFIRMED_TAGS_INCLUDE });
-    return asset && asset.isPublic ? { kind: 'asset', asset } : null;
+    return asset ? { kind: 'asset', asset } : null;
   }
 
-  const collection = await getEmbeddableCollection(embed.targetId);
+  const collection = await loadCollectionWithRules(embed.targetId);
   return collection ? { kind: 'collection', collection } : null;
 }
 
@@ -521,10 +530,10 @@ export async function resolveEmbedAssetTarget(token: string, assetId: string): P
   if (embed.targetType === 'asset') {
     if (embed.targetId !== assetId) return null;
     const asset = await prisma.asset.findUnique({ where: { id: assetId }, include: CONFIRMED_TAGS_INCLUDE });
-    return asset && asset.isPublic ? { kind: 'found', asset } : null;
+    return asset ? { kind: 'found', asset } : null;
   }
 
-  const collection = await getEmbeddableCollection(embed.targetId);
+  const collection = await loadCollectionWithRules(embed.targetId);
   if (!collection) return null;
 
   const asset = await prisma.asset.findUnique({ where: { id: assetId }, include: CONFIRMED_TAGS_INCLUDE });
