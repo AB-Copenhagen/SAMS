@@ -53,8 +53,8 @@
     "tar": "^7.5.22",
     "source-map-js": "^1.2.2",
     "@vercel/sandbox": {
-      "undici": "^7.30.0",
-      "@vercel/oidc": "^4.0.7"
+      "undici": "^8.13.1",
+      "@vercel/oidc": "^4.0.9"
     }
   }
 }
