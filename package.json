@@ -21,7 +21,7 @@
     "@upstash/qstash": "^2.11.3",
     "@upstash/redis": "^1.38.0",
     "@vercel/oidc": "^4.0.7",
-    "@vercel/sandbox": "^3.9.1",
+    "@vercel/sandbox": "^4.1.0",
     "cmdk": "^1.1.1",
     "exifr": "^7.1.3",
     "google-auth-library": "^10.9.1",
