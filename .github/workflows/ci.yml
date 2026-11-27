@@ -20,6 +20,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate Prisma client
+        run: npx prisma generate
+
       - name: Type-check
         run: npx tsc --noEmit
 
@@ -27,4 +30,9 @@ jobs:
         run: npm run test
 
       - name: Audit dependencies (production, high severity+)
-        run: npm audit --omit=dev --audit-level=high
+        # --omit=dev alone isn't enough to exclude prisma's own devDependency-only `effect`
+        # advisory (GHSA-7589-6fvf-x4pw) — confirmed empirically that peer/optional edges in the
+        # tree still pull it into the report unless those are omitted too. This combination
+        # matches `dependencies.prod` in `npm audit --json`'s own metadata (what's actually
+        # shipped), not just everything minus devDependencies.
+        run: npm audit --omit=dev --omit=peer --omit=optional --audit-level=high
